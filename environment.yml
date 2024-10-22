@@ -1,0 +1,9 @@
+name: AI4DataDiscovery
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.14
+  - pip=24.0
+  - pip:
+      - -r requirements.txt

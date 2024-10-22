@@ -1,0 +1,7 @@
+numpy==1.24.2
+pandas==2.0.0
+matplotlib==3.9.1
+scikit-learn==1.5.2
+transformers==4.44.2
+tenserflow==2.17.0
+tqdm==4.66.2
