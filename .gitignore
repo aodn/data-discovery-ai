@@ -1,6 +1,3 @@
-input/
-saved/
-backup/
 esManager.config__pycache__/
 *.py[cod]
 *$py.class

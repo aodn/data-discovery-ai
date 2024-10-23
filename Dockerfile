@@ -12,7 +12,7 @@ RUN apt update && \
     pip3 install --upgrade pip && \
     pip3 install poetry && \
     poetry config virtualenvs.create false && \
-    poetry lock && \
+    poetry lock --no-update && \
     poetry install
 
 # Expose the port the app runs on

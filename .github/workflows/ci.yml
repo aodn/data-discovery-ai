@@ -19,6 +19,7 @@ jobs:
           version: 'latest'
       - name: Install dependencies
         run: |
+          poetry lock --no-update
           poetry install
       - name: Set up environment variables
         run: echo "API_KEY=${{ secrets.API_KEY }}" >> $GITHUB_ENV
