@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Security, APIRouter, status
 from fastapi.security import APIKeyHeader
-from common.constants import API_PREFIX, API_KEY_NAME
+from data_discovery_ai.common.constants import API_PREFIX, API_KEY_NAME
 from dotenv import load_dotenv
 import os
 
@@ -23,8 +23,8 @@ async def api_key_auth(x_api_key: str = Security(api_key_header)):
         detail="Invalid API Key",
     )
 
-@router.get("/dummy", dependencies=[Depends(api_key_auth)])
-async def hello_world():
+@router.get("/hello", dependencies=[Depends(api_key_auth)])
+async def hello():
     return {"content": "Hello World!"}
 
 
