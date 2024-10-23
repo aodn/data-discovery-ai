@@ -6,6 +6,7 @@ from data_discovery_ai.common.constants import API_PREFIX
 
 client = TestClient(app)
 
+
 @pytest.mark.asyncio
 async def test_hello_authenticated(monkeypatch):
     headers = {"X-API-KEY": API_KEY}
@@ -13,9 +14,7 @@ async def test_hello_authenticated(monkeypatch):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as async_client:
-        response = await async_client.get(
-            f"{API_PREFIX}/hello", headers=headers
-        )
+        response = await async_client.get(f"{API_PREFIX}/hello", headers=headers)
 
     assert response.status_code == 200
     assert response.json() == {"content": "Hello World!"}
@@ -28,9 +27,7 @@ async def test_hello_invalid_api_key():
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as async_client:
-        response = await async_client.get(
-            f"{API_PREFIX}/hello", headers=headers
-        )
+        response = await async_client.get(f"{API_PREFIX}/hello", headers=headers)
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid API Key"}

@@ -3,19 +3,19 @@
 ### 1. Keywords Classification
 #### Problem Description
 
-The new AODN Data Discovery portal is underpinned by a Geonetwork catalogue of metadata records that bring together well curated IMOS managed metadata records as well as records from external organisations and other contributors. 
+The new AODN Data Discovery portal is underpinned by a Geonetwork catalogue of metadata records that bring together well curated IMOS managed metadata records as well as records from external organisations and other contributors.
 
 IMOS records and any records that exist in the current AODN portal use keywords and vocabularies that are tightly controlled in order for the current portal facets to operate.  These are AODN vocabularies as defined in the ARDC repositories (https://vocabs.ardc.edu.au/).
 
 Many other organisations use these AODN vocabularies and other well known vocabularies (e.g. GCMD) however there are many records in the catalogue that either use no keywords at all or keywords that are not from controlled vocabs.
 
-The new AODN Data Discovery portal needs to filter metadata records based on a fixed set of “keywords” – using the AODN vocabularies.  The most important being 
+The new AODN Data Discovery portal needs to filter metadata records based on a fixed set of “keywords” – using the AODN vocabularies.  The most important being
 
-- 'AODN Organisation Vocabulary',  
+- 'AODN Organisation Vocabulary',
 
-- 'AODN Instrument Vocabulary', 
+- 'AODN Instrument Vocabulary',
 
-- 'AODN Discovery Parameter Vocabulary'  
+- 'AODN Discovery Parameter Vocabulary'
 
 There are many metadata records that have no keywords or keywords that are not using a well known vocabularies. Given the mapping rules based on metadata records which have AODN vocabularies, we aim to develop a machine learning model to predict the AODN keywords for these uncategorised datasets, in order to provide suggestions that can be used by the Data Discovery portal or other applications.
 
@@ -37,7 +37,7 @@ We also prepared a dataset that contains title and description information, whic
 0832b98c-602e-4902-8438-a80d402469ea | IMOS SOOP Underway Data from AIMS Vessel RV Cape Ferguson Trip 6321 From 30 Oct 2015 To 02 Nov 2015 | 'Ships of Opportunity' (SOOP) is a facility of the Australian 'Integrated Marine Observing System' (IMOS) project. This data set was collected by the SOOP sub-facility 'Sensors on Tropical Research Vessels' aboard the RV Cape Ferguson Trip 6321. | [{'concepts': [{'id': 'Practical salinity of the water body', 'url': 'http://vocab.nerc.ac.uk/collection/P01/current/PSLTZZ01'}, {'id': 'Temperature of the water body', 'url': 'http://vocab.nerc.ac.uk/collection/P01/current/TEMPPR01'}, {'id': 'Fluorescence of the water body', 'url': 'http://vocab.nerc.ac.uk/collection/P01/current/FLUOZZZZ'}, {'id': 'Turbidity of the water body', 'url': 'http://vocab.nerc.ac.uk/collection/P01/current/TURBXXXX'}], 'scheme': 'theme', 'description': '', 'title': 'AODN Discovery Parameter Vocabulary'}]
 
 #### Acceptance Criteria
-An Excel file which contains the predicted keywords suggestions for these non-categorised metadata records. 
+An Excel file which contains the predicted keywords suggestions for these non-categorised metadata records.
 
 ### 2.Parameter Clustering
 
@@ -60,7 +60,7 @@ A prepared filtered dataset is stuctured as follows:
 ### 3. Searching Suggestions - Key Phrase Extraction
 In the new AODN Data Discovery Portal, the searching suggestions are derived from an algorithm that is extracting the most common terms that appear in the title and abstract and storing this in ElasticSearch (field `_source.search_suggestions.abstract_phrases`). Some likely "non words" are stripped out, but there are still many unhelpful suggestions.
 
-We aim to develop a machine learning model, to extract phrases that are more meaningful and targeted, so that can be used for searching suggestions. 
+We aim to develop a machine learning model, to extract phrases that are more meaningful and targeted, so that can be used for searching suggestions.
 
 ## Research Method
 1. understand metadata

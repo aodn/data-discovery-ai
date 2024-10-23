@@ -23,6 +23,7 @@ async def api_key_auth(x_api_key: str = Security(api_key_header)):
         detail="Invalid API Key",
     )
 
+
 @router.get("/hello", dependencies=[Depends(api_key_auth)])
 async def hello():
     return {"content": "Hello World!"}
