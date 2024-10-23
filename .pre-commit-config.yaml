@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        language_version: python3.10
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: pretty-format-json
+        args:
+          - "--autofix"
+          - "--indent=2"
+          - "--no-sort-keys"
+      - id: end-of-file-fixer
+      - id: check-yaml
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.13.0
+    hooks:
+      - id: yamlfmt

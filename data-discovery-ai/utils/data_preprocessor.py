@@ -32,25 +32,26 @@ def keywords_df(ds):
     keywords.loc[:, 'keywords'] = keywords['keywords'].apply(lambda k:eval(k))
 
     # Step 1: identify target dataset: metadata has no keywords record
-    filtered = keywords[keywords['keywords'].apply(lambda x: len(x) == 0)]
-    filtered.loc[filtered['keywords'].apply(lambda x: len(x) == 0), 'keywords'] = None
-    ds_to_tsv(filtered, "no_keywords.tsv")
+    # filtered = keywords[keywords['keywords'].apply(lambda x: len(x) == 0)]
+    # filtered.loc[filtered['keywords'].apply(lambda x: len(x) == 0), 'keywords'] = None
+    # ds_to_tsv(filtered, "no_keywords.tsv")
 
     # Step 2: identify sample dataset: metadata keywords record uses AODN vocabulary
-    # vocabs = ['AODN Organisation Vocabulary', 'AODN Instrument Vocabulary', 'AODN Discovery Parameter Vocabulary']
-    vocabs = ['AODN Discovery Parameter Vocabulary']
+    vocabs = ['AODN Organisation Vocabulary', 'AODN Instrument Vocabulary', 'AODN Discovery Parameter Vocabulary', 'AODN Platform Vocabulary', 'AODN Parameter Category Vocabulary']
+    # vocabs = ['AODN Discovery Parameter Vocabulary']
     sample = keywords[keywords['keywords'].apply(
         lambda terms: any(any(vocab in k['title'] for vocab in vocabs) for k in terms)
     )]
 
     # Step 3: flattern sample table to get keywords table
     result = pd.concat(sample.apply(lambda row: flattern_keywords(row), axis=1).tolist(), ignore_index=True)
+    filter_result = result[result['vocabulary'].isin(vocabs)]
+
 
     # row = sample[sample['id'] == "52c92036-cea9-4b1a-b4f0-cc94b8b5df98"]
     # rowdf = flattern_keywords(row)
-    print(result.head)
-    ds_to_tsv(sample, "sample_AODN_vocabs.tsv")
-    ds_to_tsv(result, "sample_AODN_vocabs_flattern.tsv")
+    ds_to_tsv(sample, "AODN_parameter_vocabs.tsv")
+    ds_to_tsv(filter_result, "AODN_parameter_vocabs_flattern.tsv")
 
 def flattern_keywords(row):
     id = []
@@ -91,8 +92,6 @@ def parameter_df(ds):
 def ds_to_tsv(df, file_name):
     df.to_csv(f"./output/{file_name}", index=False, sep='\t')
 
-def find_IMOS_datasets(ds):
-    pass
 
 """
     Explore json fields
@@ -107,21 +106,19 @@ def explore_jsonDS(jsonFile):
 
 
 """
-Parse metadata keyword field
-"""
-def get_metadata_keywords(keywords): 
-    # TODO
-    pass
-
-
-"""
 Parse description phrases
 """
-def description_phrases(description):
-    pass
+def description_phrases():
+    ds = pd.read_csv("./output/AODN.tsv", sep="\t")
+    ds = ds[['_id', '_source.title', '_source.description']]
+    ds_to_tsv(ds, file_name='AODN_description.tsv')
 
 if __name__ == "__main__":
-    # ds = pd.read_csv("./output/sample_All.tsv", sep='\t')
+    json2tsv("es_searchAll_result.json", "AODN.tsv")
+
+    # ds = pd.read_csv("./output/AODN.tsv", sep='\t')
     # keywords_df(ds)
-    ds = pd.read_csv("./output/sample_AODN_vocabs_flattern.tsv", sep="\t")
-    explore_dataset(ds)
+    # ds = pd.read_csv("./output/AODN.tsv", sep="\t")
+    # explore_dataset(ds)
+
+    # description_phrases()

@@ -1,7 +1,9 @@
 # Data Discovery - AODN Portal AI Features
+## Documentation
+[PDF](#)
 ## Identified Tasks
 ### 1. Keywords Classification
-#### Probelm Description
+#### Problem Description
 
 The new AODN Data Discovery portal is underpinned by a Geonetwork catalogue of metadata records that bring together well curated IMOS managed metadata records as well as records from external organisations and other contributors. 
 
@@ -17,11 +19,15 @@ The new AODN Data Discovery portal needs to filter metadata records based on a f
 
 - 'AODN Discovery Parameter Vocabulary'  
 
+- 'AODN Parameter Category Vocabulary'
+
+- 'AODN Platform Vocabulary'
+
 There are many metadata records that have no keywords or keywords that are not using a well known vocabularies. Given the mapping rules based on metadata records which have AODN vocabularies, we aim to develop a machine learning model to predict the AODN keywords for these uncategorised datasets, in order to provide suggestions that can be used by the Data Discovery portal or other applications.
 
 Based on the query result from ElasticSearch, we currently identified **1075** over **9856** records which have no keywords (filed `_source.themes` is empty). These records are prepared as the target dataset that we are going to look after for this classification task.
 
-Similarly, we also identified **1643** over **9856** records that have keywords using AODN vocabularies ('AODN Organisation Vocabulary', 'AODN Instrument Vocabulary', 'AODN Discovery Parameter Vocabulary'). This is the sample dataset we are going to work with to train the model. Two datasets are prepared for these records: one nested dataset which contains metadata title and description; and one flatterned dataset which contains keywords information.
+Similarly, we also identified **1668** over **9856** records that have keywords using the above listed AODN vocabularies. This is the dataset we are going to work with to train the model. Two datasets are prepared for these records: one nested dataset which contains metadata title and description; and one flatterned dataset which contains keywords information.
 
 A live example of an IMOS dataset [IMOS SOOP Underway Data from AIMS Vessel RV Solander Trip 6397 From 17 Mar 2016 To 23 Mar 2016](https://geonetwork-edge.edge.aodn.org.au/geonetwork/srv/eng/catalog.search#/metadata/52b58d9a-a0b4-4396-be8e-a9e5e2b493f0/formatters/xsl-view?root=div&view=advanced), which uses AODN vocabulary for keywords, is structured in our prepared dataset 'sample_AODN_vocabs_flattern' as follows:
 
@@ -62,6 +68,52 @@ In the new AODN Data Discovery Portal, the searching suggestions are derived fro
 
 We aim to develop a machine learning model, to extract phrases that are more meaningful and targeted, so that can be used for searching suggestions. 
 
+
+## Datasets
+There are several datasets that are prepared for developing the ML models:
+| title | description | type | no. of records | usage |
+---- | ---- | ---- | ---- | ---- |
+AODN | the requery result from ElasticSearch (in JSON format), which contains all metadata records from GN3 AODN catalogue | tsv | 9856 | 1. target non-categorised metadata records (output: keywords_target.tsv); 2. to develop key phrase extraction model
+IMOS | the subset of AODN dataset, which the data provider contains 'IMOS' | tsv | 739 | to identify IMOS datasets that used AODN vocabularies: Platform, Organisation, and Parameter
+AODN_vocabs | the preprocessed dataset of IMOS dataset, which only contains 4 columns of AODN dataset, of which the keyword field of each record only uses AODN vocabularies | tsv | 1588 | to train and validate ML models: keyword classification model and parameter classification model
+
+## Method
+### Task 1: Keywords Classification
+#### Feature Extraction
+Two important features (from Nat's comment) should be considered when selecting metadata keywords for a dataset: the raw data itself and the dataset's description.
+
+In this task, we prioritize the description of datasets as the key feature for determining the related keywords (labels). A description is a piece of textual information provided to describe the dataset. In the raw data, this corresponds to the value in the `_source.description` field.
+
+To convert the descriptions into model-readable data, we use the [bert-base-uncased](https://huggingface.co/google-bert/bert-base-uncased) model to calculate the embeddings for each record's description. This method converts a text paragraph into a set of embeddings, with a maximum length of 512.
+
+For each description, BERT produces an embedding of shape (768,), which is a 768-dimensional vector representing the semantic meaning of the entire description based on the [CLS] token.
+
+#### Justifying the Selection of Classification Model
+Task 1 is identified as a **Multi-Label Classification** task. That is, given an uncatagorised item, the item should be catagorised with multiple labels. 
+
+#### Parameter Settings
+Split to train and test sets: `test_size=0.2, random_state=42`
+```
+X_train.shape = (1334, 768)
+X_test.shape = (334, 768)
+Y_train.shape = (1334, 536)
+Y_test.shape = (334, 536)
+```
+
+Evaluation Metrics - current result
+`epoch=25, batch_size=64`
+```
+Test Loss: 0.017697220668196678, Test Accuracy: 0.5059880018234253, Test Precision: 0.8841309547424316
+```
+#### Potential Issues and Solutions
+1. Overfitting
+
+
+### Task 2: Parameter Classification
+
+### Task 3: Searching Suggestion
+
+
 ## Research Method
 1. understand metadata
 2. problem description
@@ -69,3 +121,16 @@ We aim to develop a machine learning model, to extract phrases that are more mea
 4. research on methods
 5. experiments
 6. evaluation
+
+## Environment
+Python version: `3.10.14`
+
+Create a virtual environment (with Conda)
+```
+conda create --name AI4DataDiscovery python=3.10.14
+```
+
+To activate
+```
+conda activate AI4DataDiscovery
+```

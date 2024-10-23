@@ -1,8 +1,6 @@
 import utils.preprocessor as preprocessor
 import model.keywordModel as model
 import numpy as np
-import pandas as pd
-from tensorflow.keras.models import load_model
 
 VOCABS = ['AODN Instrument Vocabulary', 'AODN Discovery Parameter Vocabulary', 'AODN Platform Vocabulary']
 
