@@ -1,5 +1,5 @@
-import utils.preprocessor as preprocessor
-import model.keywordModel as model
+import data_discovery_ai.utils.preprocessor as preprocessor
+import data_discovery_ai.model.keywordModel as model
 import numpy as np
 
 VOCABS = [
@@ -84,7 +84,7 @@ def keywordClassifier():
         dimension,
         n_labels,
     )
-    # trained_model = load_model("output/saved/best-trained-keyword.keras", compile=False)
+    trained_model = load_model("output/saved/best-trained-keyword.keras", compile=False)
 
     # evaluate model
     confidence = 0.4
