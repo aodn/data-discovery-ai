@@ -1,5 +1,12 @@
 name: CI
-on: [push]
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - 'notebooks/**'
+      - 'extras/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
