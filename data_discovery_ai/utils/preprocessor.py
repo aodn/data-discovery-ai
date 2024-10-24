@@ -34,14 +34,18 @@ def load_from_file(file_name):
 
 """
     Identify sample set from raw data.
-    Input: 
+    Input:
         raw_data: type dataframe, which is the search result from ElasticSearch
         vocabs: type list, a list of vocabularies names. predefined in common/parameters.json file.
     Output:
         sampleSet: type dataframe. The identified sample set
 """
+
+
 def identify_sample(raw_data, vocabs):
-    raw_data_cleaned = raw_data[["_id", "_source.title", "_source.description", "_source.themes"]]
+    raw_data_cleaned = raw_data[
+        ["_id", "_source.title", "_source.description", "_source.themes"]
+    ]
     raw_data_cleaned.columns = ["id", "title", "description", "keywords"]
 
     sampleSet = raw_data_cleaned[
@@ -52,8 +56,11 @@ def identify_sample(raw_data, vocabs):
         )
     ]
 
-    sampleSet.to_csv("data_discovery_ai/input/keywords_sample.tsv", index=False, sep="\t")
+    sampleSet.to_csv(
+        "data_discovery_ai/input/keywords_sample.tsv", index=False, sep="\t"
+    )
     return sampleSet
+
 
 """
     Preprocess sample set data, including extract and reformat labels, and remove empty value records
@@ -63,8 +70,12 @@ def identify_sample(raw_data, vocabs):
     Output:
         cleaned_sampleSet: type dataframe, the cleaned sample set
 """
+
+
 def sample_preprocessor(sampleSet, vocabs):
-    sampleSet["keywords"] = sampleSet["keywords"].apply(lambda x: keywords_formatter(x, vocabs))
+    sampleSet["keywords"] = sampleSet["keywords"].apply(
+        lambda x: keywords_formatter(x, vocabs)
+    )
 
     list_lengths = sampleSet["keywords"].apply(len)
     empty_keywords_records_index = list_lengths[list_lengths == 0].index.tolist()
@@ -76,22 +87,26 @@ def sample_preprocessor(sampleSet, vocabs):
 
     return cleaned_sampleSet
 
+
 """
     Prepare input X and output Y matrix.
-    Input: 
+    Input:
         sampleSet: type dataframe, sample set
-    Output: 
+    Output:
         X: type numpy ndarray, feature variables for items in the sample set
         Y: type numpy ndarray, target variables for items in the sample set
         Y_df: type dataframe, target variables for items in the sample set
         labels: type list, predefined keyword set.
 """
+
+
 def prepare_X_Y(sampleSet):
     X = np.array(sampleSet["embedding"].tolist())
     Y_df = prepare_Y_matrix(sampleSet)
     labels = Y_df.columns.to_list()
     Y = Y_df.to_numpy()
     return X, Y, Y_df, labels
+
 
 """
     Identify rare labels under a threshold.
@@ -102,12 +117,16 @@ def prepare_X_Y(sampleSet):
     Output:
         rare_label_index: the indexes of rare labels in Y
 """
+
+
 def identify_rare_labels(Y_df, threshold, labels):
     label_distribution = Y_df.copy()
     label_distribution = label_distribution.sum()
     label_distribution.sort_values()
     label_distribution_df = label_distribution.to_frame(name="count")
-    rare_labels = label_distribution_df[label_distribution_df["count"] <= threshold].index.to_list()
+    rare_labels = label_distribution_df[
+        label_distribution_df["count"] <= threshold
+    ].index.to_list()
     rare_label_index = []
     for item in rare_labels:
         if item in labels:
@@ -207,7 +226,9 @@ def prepare_train_validation_test(X, Y, params):
     n_splits = params["preprocessor"]["n_splits"]
     test_size = params["preprocessor"]["test_size"]
     train_test_random_state = params["preprocessor"]["train_test_random_state"]
-    msss = MultilabelStratifiedShuffleSplit(n_splits=n_splits, test_size=test_size, random_state=train_test_random_state)
+    msss = MultilabelStratifiedShuffleSplit(
+        n_splits=n_splits, test_size=test_size, random_state=train_test_random_state
+    )
 
     for train_index, test_index in msss.split(X, Y):
         X_train, X_test = X[train_index], X[test_index]
@@ -249,9 +270,7 @@ def resampling(X_train, Y_train, strategy, rare_keyword_index):
         if strategy == "ROS":
             resampler = RandomOverSampler(sampling_strategy="auto", random_state=32)
         elif strategy == "RUS":
-            resampler = RandomUnderSampler(
-                sampling_strategy="auto", random_state=32
-            )
+            resampler = RandomUnderSampler(sampling_strategy="auto", random_state=32)
         elif strategy == "SMOTE":
             resampler = SMOTE(k_neighbors=1, random_state=42)
 
@@ -261,7 +280,7 @@ def resampling(X_train, Y_train, strategy, rare_keyword_index):
         Y_train_resampled = np.array(
             [list(map(int, list(row))) for row in Y_combined_resampled]
         )
-    
+
     print(" ======== After Resampling ========")
     print(f"Total samples: {len(X_train_resampled)}")
     print(f"Dimension: {X_train_resampled.shape[1]}")

@@ -81,7 +81,9 @@ def focal_loss(gamma, alpha):
     return focal_loss_fixed
 
 
-def keyword_model(X_train, Y_train, X_test, Y_test, class_weight, dim, n_labels, params):
+def keyword_model(
+    X_train, Y_train, X_test, Y_test, class_weight, dim, n_labels, params
+):
     current_time = datetime.now().strftime("%Y%m%d%H%M%S")
     model = Sequential(
         [
@@ -97,7 +99,8 @@ def keyword_model(X_train, Y_train, X_test, Y_test, class_weight, dim, n_labels,
     model.compile(
         optimizer=Adam(learning_rate=params["keywordModel"]["learning_rate"]),
         loss=focal_loss(
-            gamma=params["keywordModel"]["fl_gamma"], alpha=params["keywordModel"]["fl_alpha"]
+            gamma=params["keywordModel"]["fl_gamma"],
+            alpha=params["keywordModel"]["fl_alpha"],
         ),
         metrics=["accuracy", "precision", "recall"],
     )
@@ -108,9 +111,15 @@ def keyword_model(X_train, Y_train, X_test, Y_test, class_weight, dim, n_labels,
     batch_size = params["keywordModel"]["batch"]
 
     early_stopping = EarlyStopping(
-        monitor="val_loss", patience=params["keywordModel"]["early_stopping_patience"], restore_best_weights=True
+        monitor="val_loss",
+        patience=params["keywordModel"]["early_stopping_patience"],
+        restore_best_weights=True,
     )
-    reduce_lr = ReduceLROnPlateau(monitor="val_loss", patience=params["keywordModel"]["reduce_lr_patience"], min_lr=1e-6)
+    reduce_lr = ReduceLROnPlateau(
+        monitor="val_loss",
+        patience=params["keywordModel"]["reduce_lr_patience"],
+        min_lr=1e-6,
+    )
 
     history = model.fit(
         X_train,
