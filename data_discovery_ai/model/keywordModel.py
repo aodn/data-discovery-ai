@@ -41,12 +41,6 @@ import os
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
-DATASET = "./output/AODN_description.tsv"
-KEYWORDS_DS = "./output/AODN_parameter_vocabs.tsv"
-TARGET_DS = "./output/keywords_target.tsv"
-# VOCABS = ['AODN Organisation Vocabulary', 'AODN Instrument Vocabulary', 'AODN Discovery Parameter Vocabulary', 'AODN Platform Vocabulary', 'AODN Parameter Category Vocabulary']
-VOCABS = ["AODN Discovery Parameter Vocabulary"]
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -59,13 +53,6 @@ def get_class_weights(Y_train):
 
     label_weight_dict = {i: label_weights[i] for i in range(len(label_weights))}
     return label_weight_dict
-    # num_labels = Y_train.shape[1]
-    # class_weights = {}
-    # for i in range(num_labels):
-    #     y_label = Y_train[:, i]
-    #     weight = compute_class_weight(class_weight='balanced', classes=np.unique(y_label), y=y_label)
-    #     class_weights[i] = {0: weight[0], 1: weight[1]}
-    # return class_weights
 
 
 def baseline(X_train, Y_train, model):
@@ -81,30 +68,6 @@ def baseline(X_train, Y_train, model):
     return baseline_model
 
 
-# weighted binary crossentropy
-def weighted_binary_crossentropy(class_weights):
-    def loss(y_true, y_pred):
-        total_loss = 0.0
-
-        for i in range(len(class_weights)):
-            if class_weights[i][1] - class_weights[i][0] > 20:
-                weight_0 = class_weights[i][0] * 10
-                weight_1 = class_weights[i][1] / 2
-            else:
-                weight_0 = class_weights[i][0]
-                weight_1 = class_weights[i][1]
-            loss_pos = -weight_1 * y_true[:, i] * K.log(y_pred[:, i] + K.epsilon())
-            loss_neg = (
-                -weight_0 * (1 - y_true[:, i]) * K.log(1 - y_pred[:, i] + K.epsilon())
-            )
-
-            label_loss = loss_pos + loss_neg
-            total_loss += label_loss
-        return K.mean(total_loss, axis=-1)
-
-    return loss
-
-
 def focal_loss(gamma, alpha):
     def focal_loss_fixed(y_true, y_pred):
         epsilon = tf.keras.backend.epsilon()
@@ -118,50 +81,49 @@ def focal_loss(gamma, alpha):
     return focal_loss_fixed
 
 
-def keyword_model(X_train, Y_train, X_test, Y_test, class_weight, dim, n_labels):
+def keyword_model(X_train, Y_train, X_test, Y_test, class_weight, dim, n_labels, params):
     current_time = datetime.now().strftime("%Y%m%d%H%M%S")
     model = Sequential(
         [
             Input(shape=(dim,)),
             Dense(128, activation="relu"),
-            Dropout(0.3),
+            Dropout(params["keywordModel"]["dropout"]),
             # Dense(64, activation='relu'),
-            # Dropout(0.3),
+            # Dropout(params["keywordModel"]["dropout"]),
             Dense(n_labels, activation="sigmoid"),
         ]
     )
 
-    # Adam(learning_rate=1e-3)
     model.compile(
-        optimizer=Adam(learning_rate=1e-3),
-        loss=focal_loss(gamma=2.0, alpha=0.7),
+        optimizer=Adam(learning_rate=params["keywordModel"]["learning_rate"]),
+        loss=focal_loss(
+            gamma=params["keywordModel"]["fl_gamma"], alpha=params["keywordModel"]["fl_alpha"]
+        ),
         metrics=["accuracy", "precision", "recall"],
     )
 
     model.summary()
 
-    epoch = 100
-    batch_size = 32
+    epoch = params["keywordModel"]["epoch"]
+    batch_size = params["keywordModel"]["batch"]
 
-    # # class_weights = calculate_class_weights(Y_data=Y_train)
     early_stopping = EarlyStopping(
-        monitor="val_loss", patience=5, restore_best_weights=True
+        monitor="val_loss", patience=params["keywordModel"]["early_stopping_patience"], restore_best_weights=True
     )
-    reduce_lr = ReduceLROnPlateau(monitor="val_loss", patience=5, min_lr=1e-6)
+    reduce_lr = ReduceLROnPlateau(monitor="val_loss", patience=params["keywordModel"]["reduce_lr_patience"], min_lr=1e-6)
 
-    # class_weight=class_weight,
     history = model.fit(
         X_train,
         Y_train,
         epochs=epoch,
         batch_size=batch_size,
         class_weight=class_weight,
-        validation_split=0.1,
+        validation_split=params["keywordModel"]["validation_split"],
         callbacks=[early_stopping, reduce_lr],
     )
 
     model.save(
-        f"./output/saved/{current_time}-trained-keyword-epoch{epoch}-batch{batch_size}.keras"
+        f"data_discovery_ai/output/{current_time}-trained-keyword-epoch{epoch}-batch{batch_size}.keras"
     )
 
     model.evaluate(X_test, Y_test)
@@ -203,15 +165,16 @@ def replace_with_column_names(row, column_names):
     return " | ".join([column_names[i] for i, value in enumerate(row) if value == 1])
 
 
-def get_predicted_keywords(prediction, labels, targetDS):
+def get_predicted_keywords(prediction, labels):
     target_predicted = pd.DataFrame(prediction, columns=labels)
     predicted_keywords = target_predicted.apply(
         lambda row: replace_with_column_names(row, labels), axis=1
     )
-    targetDS.drop(columns=["embedding", "keywords"], inplace=True)
+    return predicted_keywords
+    # targetDS.drop(columns=["embedding", "keywords"], inplace=True)
 
-    output = pd.concat([targetDS, predicted_keywords], axis=1)
-    output.columns = ["id", "title", "description", "keywords"]
-    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-    output.to_csv(f"./output/saved/{current_time}.csv")
-    logger.info(f"Save prediction to path output/saved/{current_time}.csv")
+    # output = pd.concat([targetDS, predicted_keywords], axis=1)
+    # output.columns = ["id", "title", "description", "keywords"]
+    # current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+    # output.to_csv(f"./output/saved/{current_time}.csv")
+    # logger.info(f"Save prediction to path output/saved/{current_time}.csv")
