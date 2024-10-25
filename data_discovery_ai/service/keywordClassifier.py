@@ -1,9 +1,8 @@
-import utils.preprocessor as preprocessor
-import model.keywordModel as model
-import numpy as np
-import json
+import data_discovery_ai.utils.preprocessor as preprocessor
+import data_discovery_ai.model.keywordModel as model
 
 
+# TODO: method's param needs type hinting. e.g name: str; Optional[...], Union etc.
 def keywordClassifier(trained_model, description, params, labels, dim):
     target_X = preprocessor.get_description_embedding(description).reshape(1, dim)
     target_predicted_labels = model.prediction(

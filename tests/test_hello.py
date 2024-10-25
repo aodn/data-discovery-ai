@@ -1,8 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
-from data_discovery_ai.server import app, API_KEY
 from data_discovery_ai.common.constants import API_PREFIX
+from data_discovery_ai.server import app
+from data_discovery_ai.utils.api_utils import API_KEY
 
 client = TestClient(app)
 

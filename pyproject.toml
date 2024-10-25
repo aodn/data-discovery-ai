@@ -22,6 +22,8 @@ tqdm = "4.66.5"
 tensorflow = "2.17.0"
 starlette = "0.40.0"
 torch = "2.5.0"
+imblearn = "^0.0"
+iterative-stratification = "^0.1.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
