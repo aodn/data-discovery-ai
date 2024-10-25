@@ -26,5 +26,5 @@ async def predict_keyword(payload: PredictKeywordRequest) -> str:
     #  model name, and the raw input
     selected_model = validate_model_name(payload.selected_model)
     raw_input = payload.raw_input
-    logger.debug(f"selected_model: {selected_model}, raw_input: {raw_input}")
+    logger.info(f"selected_model: {selected_model}, raw_input: {raw_input}")
     return keywordClassifier(None, None, None, None, None)
