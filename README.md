@@ -15,23 +15,9 @@ API_KEY=your_actual_api_key_here
 
 ## Run the API server with Docker
 
-1. Build the Docker Image:
+Simply run `./startServer.sh` to run the app, this will create a docker image and run the image for you.
 
-   ```shell
-   docker compose build
-   ```
-
-2. Run the Services:
-
-   ```shell
-   docker compose up # [-d] for demon mode
-   ```
-
-3. Stop the Services
-
-   ```shell
-   docker compose down
-   ```
+Host will be `http://localhost:8000`.
 
 ## Run the API server for development
 
