@@ -25,7 +25,7 @@ async def api_key_auth(x_api_key: str = Security(api_key_header)):
 
 def validate_model_name(selected_model: str):
     if selected_model.lower() in AVAILABLE_MODELS:
-        return True
+        return selected_model.lower()
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid selected model name"
     )

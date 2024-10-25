@@ -67,7 +67,7 @@ You might want to update the `poetry.lock` file after manually modifying `pyproj
 3. Run the FastAPI server:
 
     ```shell
-    poetry run uvicorn data_discovery_ai.server:app --reload
+    poetry run uvicorn data_discovery_ai.server:app --reload --log-config=log_config.yaml
     ```
 
 4. Run the tests:

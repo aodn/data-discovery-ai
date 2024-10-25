@@ -1,3 +1,5 @@
+from typing import Dict
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import logging
@@ -21,10 +23,14 @@ async def hello():
 
 
 @router.post("/predict-keyword", dependencies=[Depends(api_key_auth)])
-async def predict_keyword(payload: PredictKeywordRequest) -> str:
+async def predict_keyword(payload: PredictKeywordRequest) -> dict[str, str]:
     # TODO: just placeholder for now, the client where calling this endpoint should only know 2 things: selected
     #  model name, and the raw input
     selected_model = validate_model_name(payload.selected_model)
     raw_input = payload.raw_input
     logger.info(f"selected_model: {selected_model}, raw_input: {raw_input}")
-    return keywordClassifier(None, None, None, None, None)
+    # predicted_keyword = keywordClassifier(None, None, None, None, None)
+    response = {
+        "predicted_keyword": "sample_predicted_keyword"
+    }
+    return response
