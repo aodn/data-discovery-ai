@@ -24,6 +24,7 @@ starlette = "0.40.0"
 torch = "2.5.0"
 imblearn = "^0.0"
 iterative-stratification = "^0.1.9"
+pyyaml = "^6.0.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
