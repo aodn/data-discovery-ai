@@ -30,7 +30,5 @@ async def predict_keyword(payload: PredictKeywordRequest) -> dict[str, str]:
     raw_input = payload.raw_input
     logger.info(f"selected_model: {selected_model}, raw_input: {raw_input}")
     # predicted_keyword = keywordClassifier(None, None, None, None, None)
-    response = {
-        "predicted_keyword": "sample_predicted_keyword"
-    }
+    response = {"predicted_keyword": "sample_predicted_keyword"}
     return response
