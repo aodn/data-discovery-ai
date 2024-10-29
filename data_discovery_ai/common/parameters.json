@@ -19,7 +19,7 @@
     "batch": 32,
     "early_stopping_patience": 5,
     "reduce_lr_patience": 5,
-    "validation_split": 0.1,
+    "validation_split": 0.2,
     "confidence": 0.4,
     "top_N": 2
   }

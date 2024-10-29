@@ -1,3 +1,7 @@
+"""
+    The module to preprocess the data and prepare datasets for training and evaluating a ML model
+"""
+
 import logging
 import pickle
 import pandas as pd
@@ -28,10 +32,8 @@ logger.setLevel(logging.INFO)
         None, not return any value in this function
 """
 
-def save_to_file(
-        obj: Any, 
-        file_name: str
-    ) -> None:
+
+def save_to_file(obj: Any, file_name: str) -> None:
     with open(file_name, "wb") as file:
         pickle.dump(obj, file)
         logger.info(f"Saved to {file}")
@@ -65,10 +67,7 @@ def load_from_file(file_name: str) -> Any:
 """
 
 
-def identify_sample(
-        raw_data: pd.DataFrame, 
-        vocabs: List[str]
-    ) -> pd.DataFrame:
+def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     raw_data_cleaned = raw_data[
         ["_id", "_source.title", "_source.description", "_source.themes"]
     ]
@@ -94,10 +93,7 @@ def identify_sample(
 """
 
 
-def sample_preprocessor(
-        sampleSet: pd.DataFrame, 
-        vocabs: List[str]
-    ) -> pd.DataFrame:
+def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     sampleSet["keywords"] = sampleSet["keywords"].apply(
         lambda x: keywords_formatter(x, vocabs)
     )
@@ -124,7 +120,9 @@ def sample_preprocessor(
 """
 
 
-def prepare_X_Y(sampleSet: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+def prepare_X_Y(
+    sampleSet: pd.DataFrame,
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
     X = np.array(sampleSet["embedding"].tolist())
     Y_df = prepare_Y_matrix(sampleSet)
     labels = Y_df.columns.to_list()
@@ -144,10 +142,8 @@ def prepare_X_Y(sampleSet: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, pd.Dat
 
 
 def identify_rare_labels(
-        Y_df: pd.DataFrame, 
-        threshold: int, 
-        labels: List[str]
-        ) -> List[int]:
+    Y_df: pd.DataFrame, threshold: int, labels: List[str]
+) -> List[int]:
     label_distribution = Y_df.copy()
     label_distribution = label_distribution.sum()
     label_distribution.sort_values()
@@ -171,6 +167,7 @@ def identify_rare_labels(
         text_embedding: np.ndarray. A numpy array representing the text embedding as a feature vector.
 """
 
+
 def get_description_embedding(text: str) -> np.ndarray:
     tokenizer = BertTokenizer.from_pretrained(
         "bert-base-uncased", clean_up_tokenization_spaces=False
@@ -191,9 +188,9 @@ def get_description_embedding(text: str) -> np.ndarray:
 """
     Calculate embeddings for a dataframe, based on the description field, add a embedding column for this dataframe
     Input:
-        ds: type dataframe, the dataset that need to be calculated
+        ds: pd.DataFrame. the dataset that need to be calculated
     Output:
-        ds: type dataframe, the dataset with one more embedding column
+        ds: pd.DataFrame, the dataset with one more embedding column
 """
 
 
@@ -205,12 +202,11 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
     return ds
 
 
-
 """
-    Prepares the target matrix (Y) by applying multi-label binarization on keywords. This function uses `MultiLabelBinarizer` to transform the `keywords` column of the dataset into a binary matrix format, 
-    where each unique keyword is represented as a binary feature. The output DataFrame has one column per keyword, with values indicating the presence (1) or absence (0) of each keyword for each record. 
+    Prepares the target matrix (Y) by applying multi-label binarization on keywords. This function uses `MultiLabelBinarizer` to transform the `keywords` column of the dataset into a binary matrix format,
+    where each unique keyword is represented as a binary feature. The output DataFrame has one column per keyword, with values indicating the presence (1) or absence (0) of each keyword for each record.
     If there are any empty labels, they are removed from the output matrix.
-    
+
     Input:
         ds: pd.DataFrame. The dataset containing a `keywords` column, where each entry is expected to be a list of keywords.
     Output:
@@ -229,7 +225,7 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
 
 
 """
-    Formats a list of keywords based on specified vocabulary terms. This function processes a list of keywords to identify those matching the specified `vocabs` list. For each matching keyword, it constructs a formatted string of the form `title:id` and removes any duplicates. 
+    Formats a list of keywords based on specified vocabulary terms. This function processes a list of keywords to identify those matching the specified `vocabs` list. For each matching keyword, it constructs a formatted string of the form `title:id` and removes any duplicates.
     If `text` is a string, it will be evaluated as a list before processing.
 
     Input:
@@ -239,9 +235,8 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
         A list of formatted keywords, with duplicates removed, in the form `title:id`.
 """
 
-def keywords_formatter(text: Union[str, List[dict]], 
-                       vocabs: List[str]
-                       ) -> List[str]:
+
+def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[str]:
     if type(text) is list:
         keywords = text
     else:
@@ -263,7 +258,7 @@ def keywords_formatter(text: Union[str, List[dict]],
         Y: np.ndarray. Target matrix of shape (n_samples, n_labels).
         params: Dict[str, Any].
     Output:
-        Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
+        Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             - dim: int. Feature dimension of X.
             - n_labels: int. Number of labels in Y.
             - X_train: np.ndarray. Training features.
@@ -272,10 +267,10 @@ def keywords_formatter(text: Union[str, List[dict]],
             - Y_test: np.ndarray. Testing targets.
 """
 
-def prepare_train_test(X: np.ndarray, 
-                        Y: np.ndarray, 
-                        params: Dict[str, Any]
-                    ) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+def prepare_train_test(
+    X: np.ndarray, Y: np.ndarray, params: Dict[str, Any]
+) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # get X, Y shape
     n_labels = Y.shape[1]
     dim = X.shape[1]
@@ -312,6 +307,7 @@ def prepare_train_test(X: np.ndarray,
         X_augmented, Y_augmented: Tuple[np.ndarray, np.ndarray]: The augmented training feature matrix and target matrix.
 """
 
+
 def customized_resample(X_train, Y_train, rare_class):
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
@@ -326,10 +322,11 @@ def customized_resample(X_train, Y_train, rare_class):
                 Y_augmented = np.vstack([Y_augmented, Y_train[sample_to_duplicate]])
     return X_augmented, Y_augmented
 
+
 """
     Resamples the training data using the specified strategy to address class imbalance.
 
-    This function applies different resampling strategies to balance the dataset based on the specified `strategy`. For a "custom" strategy, it calls `customized_resample`, which duplicates samples of rare classes. 
+    This function applies different resampling strategies to balance the dataset based on the specified `strategy`. For a "custom" strategy, it calls `customized_resample`, which duplicates samples of rare classes.
     Other supported strategies include:
         - "ROS" for random oversampling
         - "RUS" for random undersampling
@@ -343,11 +340,14 @@ def customized_resample(X_train, Y_train, rare_class):
     Output:
         X_train_resampled, Y_train_resampled: Tuple[np.ndarray, np.ndarray]. The resampled training feature matrix X_train_resampled and target matrix Y_train_resampled.
 """
-def resampling(X_train: np.ndarray,
-                Y_train: np.ndarray,
-                strategy: str,
-                rare_keyword_index: List[int]
-            ) -> Tuple[np.ndarray, np.ndarray]:
+
+
+def resampling(
+    X_train: np.ndarray,
+    Y_train: np.ndarray,
+    strategy: str,
+    rare_keyword_index: List[int],
+) -> Tuple[np.ndarray, np.ndarray]:
     Y_train_combined = np.array(["".join(row.astype(str)) for row in Y_train])
     if strategy == "custom":
         X_train_resampled, Y_train_resampled = customized_resample(
@@ -381,24 +381,23 @@ def resampling(X_train: np.ndarray,
     Load sample set from a saved file. For demo use only.
 """
 
+
 def load_sample():
     try:
         sampleDS = load_from_file("../data_discovery_ai/input/keywords_sample.pkl")
         return sampleDS
     except Exception as e:
-        logger.info(
-            "Files not Found: Missing keywords_sample.pkl in output folder."
-        )
+        logger.info("Files not Found: Missing keywords_sample.pkl in output folder.")
 
 
 """
     Load prediction set from a saved file. For demo use only.
 """
+
+
 def load_target():
     try:
         targetDS = load_from_file("../data_discovery_ai/input/keywords_target.pkl")
         return targetDS
     except Exception as e:
-        logger.info(
-            "Files not Found: Missing keywords_target.pkl in output folder."
-        )
+        logger.info("Files not Found: Missing keywords_target.pkl in output folder.")

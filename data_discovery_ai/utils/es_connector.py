@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 
 """
     Function to connect the ElasticSearch
-    Input: 
+    Input:
         config_path: str. The config file path to store the end_point and api_key information. Formatted as:
                     [elasticsearch]
                         end_point="elasticsearch_end_point"
@@ -39,7 +39,7 @@ def connect_es(config_path: str) -> Elasticsearch:
 
 
 """
-    Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file 
+    Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
     Input:
         client: Elasticsearch. The initialised Elasticsearch client instance
 """
@@ -55,6 +55,7 @@ def search_es(client: Elasticsearch):
 
     rounds = (total_number + batch_size - 1) // batch_size
 
+    # TODO: refactor the search query method.
     for round in tqdm(range(rounds), desc="searching elasticsearch"):
         search_query = {
             "size": batch_size,
@@ -69,7 +70,7 @@ def search_es(client: Elasticsearch):
         dataframes.append(df)
 
         start_index += 1
-        rount += 1
+        round += 1
         time.sleep(1)
 
     raw_data = pd.concat(dataframes, ignore_index=True)
