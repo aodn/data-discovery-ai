@@ -8,7 +8,7 @@ import pandas as pd
 import ast
 import os
 import numpy as np
-import json
+import configparser
 from typing import Any, List, Tuple, Union, Dict
 
 import torch
@@ -23,51 +23,46 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-"""
+
+def save_to_file(obj: Any, file_name: str) -> None:
+    """
     Saves an object to a file using pickle serialization. This function saves the specified object to a file in binary format. If a specific folder path is required, include it in the `file_name`.
     Input:
         obj: Any. The object to be saved; no type restriction.
         file_name: str. The name of the file (including path if necessary) to save the object to.
     Output:
         None, not return any value in this function
-"""
-
-
-def save_to_file(obj: Any, file_name: str) -> None:
+    """
     with open(file_name, "wb") as file:
         pickle.dump(obj, file)
         logger.info(f"Saved to {file}")
 
 
-"""
+def load_from_file(file_name: str) -> Any:
+    """
     Loads an object from a file using pickle deserialization. This function reads a binary file and reconstructs the original object
     saved in the file. It is useful for loading objects previously used `save_to_file`.
     Input:
         file_name: str. The name of the file (including path if necessary) to load the object from.
     Output:
         obj: Any. The objected that was loaded from a file. No type restriction.
-"""
-
-
-def load_from_file(file_name: str) -> Any:
+    """
     with open(file_name, "rb") as file:
         obj = pickle.load(file)
         logger.info(f"Load from {file}")
     return obj
 
 
-"""
+def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
+    """
     Identifies a sample set from raw data based on specified vocabulary terms. This function filters raw data (obtained from an Elasticsearch search result) to identify records containing specific vocabulary terms in the `keywords` field.
 
     Input:
         raw_data: pd.DataFrame. The search result DataFrame from Elasticsearch, expected to contain fields `_id`, `_source.title`, `_source.description`, and `_source.themes`.
-        vocabs: List[str]. A list of vocabulary terms to search for within each entry's `keywords` field. predefined in common/parameters.json file.
+        vocabs: List[str]. A list of vocabulary terms to search for within each entry's `keywords` field. predefined in common/keyword_classification_parameters.json file.
     Output:
         sampleSet: pd.Dataframe. A DataFrame representing the identified sample set, containing only entries with keywords matching the specified vocabularies.
-"""
-
-
-def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
+    """
     raw_data_cleaned = raw_data[
         ["_id", "_source.title", "_source.description", "_source.themes"]
     ]
@@ -83,17 +78,16 @@ def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     return sampleSet
 
 
-"""
+def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
+    """
     Preprocess sample set data, including extract and reformat labels, and remove empty value records
     Input:
         sampleSet: pd.Dataframe. The identified sample set
         vocabs: List[str]. A list of vocabulary names, the predefined vocabularies
     Output:
         cleaned_sampleSet: pd.Dataframe. The cleaned sample set
-"""
+    """
 
-
-def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     sampleSet["keywords"] = sampleSet["keywords"].apply(
         lambda x: keywords_formatter(x, vocabs)
     )
@@ -107,7 +101,10 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
     return cleaned_sampleSet
 
 
-"""
+def prepare_X_Y(
+    sampleSet: pd.DataFrame,
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+    """
     Prepares the input feature matrix (X) and target matrix (Y) from the sample set data.
     Input:
         sampleSet: pd.DataFrame. The sample set DataFrame containing feature and target data,
@@ -117,12 +114,7 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
         Y: np.ndarray. A numpy array containing target variables for items in the sample set.
         Y_df: pd.Dataframe. A DataFrame representation of the target variables.
         labels: List[str]. A list of predefined keyword labels extracted from `Y_df` columns.
-"""
-
-
-def prepare_X_Y(
-    sampleSet: pd.DataFrame,
-) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+    """
     X = np.array(sampleSet["embedding"].tolist())
     Y_df = prepare_Y_matrix(sampleSet)
     labels = Y_df.columns.to_list()
@@ -130,7 +122,10 @@ def prepare_X_Y(
     return X, Y, Y_df, labels
 
 
-"""
+def identify_rare_labels(
+    Y_df: pd.DataFrame, threshold: int, labels: List[str]
+) -> List[int]:
+    """
     Identify rare labels under a threshold.
     Input:
         Y_df: pd.Dataframe. The target variables for all items in the sample set.
@@ -138,12 +133,7 @@ def prepare_X_Y(
         labels: List[str]. The predefined label set which contains all labels
     Output:
         rare_label_index: List[int]. The indexes of rare labels in Y
-"""
-
-
-def identify_rare_labels(
-    Y_df: pd.DataFrame, threshold: int, labels: List[str]
-) -> List[int]:
+    """
     label_distribution = Y_df.copy()
     label_distribution = label_distribution.sum()
     label_distribution.sort_values()
@@ -159,16 +149,14 @@ def identify_rare_labels(
     return rare_label_index
 
 
-"""
+def get_description_embedding(text: str) -> np.ndarray:
+    """
     Calculates the embedding of a given text using a pre-trained BERT model. This function tokenizes the input text, processes it through a BERT model, and extracts the CLS token embedding, which serves as a representation of the text.
     Input:
         text: str. A piece of textual information. In the context of keyword classification task, this is the abstract of a metadata record.
     Output:
         text_embedding: np.ndarray. A numpy array representing the text embedding as a feature vector.
-"""
-
-
-def get_description_embedding(text: str) -> np.ndarray:
+    """
     tokenizer = BertTokenizer.from_pretrained(
         "bert-base-uncased", clean_up_tokenization_spaces=False
     )
@@ -185,16 +173,14 @@ def get_description_embedding(text: str) -> np.ndarray:
     return text_embedding
 
 
-"""
+def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
+    """
     Calculate embeddings for a dataframe, based on the description field, add a embedding column for this dataframe
     Input:
         ds: pd.DataFrame. the dataset that need to be calculated
     Output:
         ds: pd.DataFrame, the dataset with one more embedding column
-"""
-
-
-def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
+    """
     tqdm.pandas()
     ds["embedding"] = ds["description"].progress_apply(
         lambda x: get_description_embedding(x)
@@ -202,7 +188,8 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
     return ds
 
 
-"""
+def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
+    """
     Prepares the target matrix (Y) by applying multi-label binarization on keywords. This function uses `MultiLabelBinarizer` to transform the `keywords` column of the dataset into a binary matrix format,
     where each unique keyword is represented as a binary feature. The output DataFrame has one column per keyword, with values indicating the presence (1) or absence (0) of each keyword for each record.
     If there are any empty labels, they are removed from the output matrix.
@@ -211,10 +198,7 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
         ds: pd.DataFrame. The dataset containing a `keywords` column, where each entry is expected to be a list of keywords.
     Output:
         K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword.
-"""
-
-
-def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
+    """
     mlb = MultiLabelBinarizer()
     Y = mlb.fit_transform(ds["keywords"])
     K = pd.DataFrame(Y, columns=mlb.classes_)
@@ -224,7 +208,8 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
     return K
 
 
-"""
+def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[str]:
+    """
     Formats a list of keywords based on specified vocabulary terms. This function processes a list of keywords to identify those matching the specified `vocabs` list. For each matching keyword, it constructs a formatted string of the form `title:id` and removes any duplicates.
     If `text` is a string, it will be evaluated as a list before processing.
 
@@ -233,10 +218,7 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
         vocabs: List[str]. A list of vocabulary names to match against keyword titles.
     Output:
         A list of formatted keywords, with duplicates removed, in the form `title:id`.
-"""
-
-
-def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[str]:
+    """
     if type(text) is list:
         keywords = text
     else:
@@ -250,7 +232,10 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
     return list(set(k_list))
 
 
-"""
+def prepare_train_test(
+    X: np.ndarray, Y: np.ndarray, params: configparser.ConfigParser
+) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
     Prepares the training and testing datasets using multi-label stratified splitting.
     This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It prints dataset information and returns the dimensions, number of labels, and split data for training and testing.
     Input:
@@ -265,19 +250,14 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
             - Y_train: np.ndarray. Training targets.
             - X_test: np.ndarray. Testing features.
             - Y_test: np.ndarray. Testing targets.
-"""
-
-
-def prepare_train_test(
-    X: np.ndarray, Y: np.ndarray, params: Dict[str, Any]
-) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
     # get X, Y shape
     n_labels = Y.shape[1]
     dim = X.shape[1]
 
-    n_splits = params["preprocessor"]["n_splits"]
-    test_size = params["preprocessor"]["test_size"]
-    train_test_random_state = params["preprocessor"]["train_test_random_state"]
+    n_splits = params.getint("preprocessor", "n_splits")
+    test_size = params.getfloat("preprocessor", "test_size")
+    train_test_random_state = params.getint("preprocessor", "train_test_random_state")
     msss = MultilabelStratifiedShuffleSplit(
         n_splits=n_splits, test_size=test_size, random_state=train_test_random_state
     )
@@ -286,18 +266,21 @@ def prepare_train_test(
         X_train, X_test = X[train_index], X[test_index]
         Y_train, Y_test = Y[train_index], Y[test_index]
 
-    print(f"Total samples: {len(X)}")
-    print(f"Dimension: {dim}")
-    print(f"No. of labels: {n_labels}")
-    print(
+    logger.info(f"Total samples: {len(X)}")
+    logger.info(f"Dimension: {dim}")
+    logger.info(f"No. of labels: {n_labels}")
+    logger.info(
         f"Train set size: {X_train.shape[0]} ({X_train.shape[0] / len(X) * 100:.2f}%)"
     )
-    print(f"Test set size: {X_test.shape[0]} ({X_test.shape[0] / len(X) * 100:.2f}%)")
+    logger.info(
+        f"Test set size: {X_test.shape[0]} ({X_test.shape[0] / len(X) * 100:.2f}%)"
+    )
 
     return dim, n_labels, X_train, Y_train, X_test, Y_test
 
 
-"""
+def customized_resample(X_train, Y_train, rare_class):
+    """
     Customised resampling strategy: given a list of rare labels, i.e., the labels appears under a certain times in alll records, duplicate the records which has these labels with a num_copies.
     Input:
         X_train: np.ndarray. The feature matrix X to be augmented.
@@ -305,10 +288,7 @@ def prepare_train_test(
         rare_class: List[int]. The index of rare labels.
     Output:
         X_augmented, Y_augmented: Tuple[np.ndarray, np.ndarray]: The augmented training feature matrix and target matrix.
-"""
-
-
-def customized_resample(X_train, Y_train, rare_class):
+    """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
     num_copies = 10
@@ -323,7 +303,13 @@ def customized_resample(X_train, Y_train, rare_class):
     return X_augmented, Y_augmented
 
 
-"""
+def resampling(
+    X_train: np.ndarray,
+    Y_train: np.ndarray,
+    strategy: str,
+    rare_keyword_index: List[int],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
     Resamples the training data using the specified strategy to address class imbalance.
 
     This function applies different resampling strategies to balance the dataset based on the specified `strategy`. For a "custom" strategy, it calls `customized_resample`, which duplicates samples of rare classes.
@@ -339,15 +325,7 @@ def customized_resample(X_train, Y_train, rare_class):
         rare_keyword_index: List[int]. A list of indices representing rare class labels for custom resampling.
     Output:
         X_train_resampled, Y_train_resampled: Tuple[np.ndarray, np.ndarray]. The resampled training feature matrix X_train_resampled and target matrix Y_train_resampled.
-"""
-
-
-def resampling(
-    X_train: np.ndarray,
-    Y_train: np.ndarray,
-    strategy: str,
-    rare_keyword_index: List[int],
-) -> Tuple[np.ndarray, np.ndarray]:
+    """
     Y_train_combined = np.array(["".join(row.astype(str)) for row in Y_train])
     if strategy == "custom":
         X_train_resampled, Y_train_resampled = customized_resample(
@@ -377,12 +355,10 @@ def resampling(
     return X_train_resampled, Y_train_resampled
 
 
-"""
-    Load sample set from a saved file. For demo use only.
-"""
-
-
 def load_sample():
+    """
+    Load sample set from a saved file. For demo use only.
+    """
     try:
         sampleDS = load_from_file("../data_discovery_ai/input/keywords_sample.pkl")
         return sampleDS
@@ -390,12 +366,10 @@ def load_sample():
         logger.info("Files not Found: Missing keywords_sample.pkl in output folder.")
 
 
-"""
-    Load prediction set from a saved file. For demo use only.
-"""
-
-
 def load_target():
+    """
+    Load prediction set from a saved file. For demo use only.
+    """
     try:
         targetDS = load_from_file("../data_discovery_ai/input/keywords_target.pkl")
         return targetDS
