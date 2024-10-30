@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 from tqdm import tqdm
 import time
-from utils.preprocessor import save_to_file
+from data_discovery_ai.utils.preprocessor import save_to_file
 
 
 CONFIG_PATH = "./esManager.config"
@@ -15,14 +15,17 @@ logger.setLevel(logging.INFO)
 
 """
     Function to connect the ElasticSearch
-    Input: config_path - the config file path to store the end_point and api_key information. Formatted as:
-    [elasticsearch]
-        end_point="elasticsearch_end_point"
-        api_key="elasticsearch_api_key"
+    Input:
+        config_path: str. The config file path to store the end_point and api_key information. Formatted as:
+                    [elasticsearch]
+                        end_point="elasticsearch_end_point"
+                        api_key="elasticsearch_api_key"
+    Output:
+        client:Elasticsearch. An initialised Elasticsearch client instance.
 """
 
 
-def connect_es(config_path):
+def connect_es(config_path: str) -> Elasticsearch:
 
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -31,17 +34,18 @@ def connect_es(config_path):
     api_key = config["elasticsearch"]["api_key"]
 
     client = Elasticsearch(end_point, api_key=api_key)
-
     logging.info("Connected to ElasticSearch")
     return client
 
 
 """
-    Search elasticsearch index
+    Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
+    Input:
+        client: Elasticsearch. The initialised Elasticsearch client instance
 """
 
 
-def search_es(client):
+def search_es(client: Elasticsearch):
     index = "es-indexer-staging"
     start_index = 0
     dataframes = []
@@ -51,6 +55,7 @@ def search_es(client):
 
     rounds = (total_number + batch_size - 1) // batch_size
 
+    # TODO: refactor the search query method.
     for round in tqdm(range(rounds), desc="searching elasticsearch"):
         search_query = {
             "size": batch_size,
@@ -65,6 +70,7 @@ def search_es(client):
         dataframes.append(df)
 
         start_index += 1
+        round += 1
         time.sleep(1)
 
     raw_data = pd.concat(dataframes, ignore_index=True)
