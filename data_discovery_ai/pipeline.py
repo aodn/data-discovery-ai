@@ -43,6 +43,8 @@ class KeywordClassifierPipeline:
         self.usePretrainedModel = usePretrainedModel
         self.model_name = model_name
         self.model = None
+        # TODO: needs to define what are the accepted values
+        #  validate against the list declared in data_discovery_ai/common/constants.py? needs to be a controlled list of values
         if self.usePretrainedModel and self.model_name is None:
             raise ValueError("model name should be given to use pretrained model")
 

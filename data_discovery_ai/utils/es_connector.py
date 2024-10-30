@@ -1,4 +1,6 @@
-from elasticsearch import Elasticsearch
+from elasticsearch import (
+    Elasticsearch,
+)  # TODO: please use poetry add command to install any new libraries
 import configparser
 import json
 import logging
