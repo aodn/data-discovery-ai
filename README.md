@@ -85,3 +85,15 @@ The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`
 ```shell
 pre-commit run --all-files
 ```
+
+### Versioning
+
+This project uses **semantic versioning** with automated releases managed by `semantic-release`.
+
+Every code change with commits following [Conventional Commits](https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional) will trigger a version update and create a GitHub release.
+
+**Commit Guidelines**
+
+* `feat:` For new features
+* `fix:` For bug fixes
+* `BREAKING CHANGE:` For any breaking changes
