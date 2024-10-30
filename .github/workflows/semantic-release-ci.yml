@@ -1,0 +1,81 @@
+name: Semantic Release CI
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install semantic-release @semantic-release/exec @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
+
+      - name: Run semantic-release and extract changelog
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Generate changelog with Markdown formatting by running semantic-release in dry-run mode
+          npx semantic-release --dry-run | tee semantic_output.log
+          # Capture the changelog markdown from semantic-release output for the latest version
+          changelog=$(awk '/Release note for version/ {flag=1; next} flag && !/^#[^#]/' semantic_output.log)
+          # Insert "v" in front of version numbers in `##` headers
+          changelog=$(echo "$changelog" | sed -E 's/^## ([0-9]+\.[0-9]+\.[0-9]+)/## v\1/')
+          # Trim leading spaces before each bullet point (lines starting with `* `)
+          changelog=$(echo "$changelog" | sed -E 's/^[[:space:]]+\*/\*/')
+          # Write the cleaned changelog to a file
+          echo "$changelog" > changelog.md
+          # Set the changelog as an output variable for use in the GitHub release step
+          echo "changelog<<EOF" >> $GITHUB_ENV
+          echo "$changelog" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Push new tag
+        if: ${{ steps.release.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${{ steps.release.outputs.version }}"
+          # Create and push the new tag
+          git tag "$version"
+          git push origin "$version"
+
+      - name: Create GitHub Release with Changelog
+        if: ${{ steps.release.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${{ steps.release.outputs.version }}"
+          tag_name="$version"
+
+          # Read changelog from the markdown file to preserve formatting
+          release_notes=$(<changelog.md)
+
+          # Create GitHub release with formatted markdown changelog
+          gh release create "$tag_name" \
+            --title "$version" \
+            --notes "$release_notes" \
+            --target main \
+            --draft
