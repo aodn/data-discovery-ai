@@ -31,9 +31,9 @@ Host will be `http://localhost:8000`.
 
 2. Create Conda virtual environment:
 
-    ```shell
-    conda env create -f environment.yml
-    ```
+   ```shell
+   conda env create -f environment.yml
+   ```
 
 ### Dependencies management
 
@@ -52,29 +52,29 @@ You might want to update the `poetry.lock` file after manually modifying `pyproj
 
 1. Activate Conda virtual environment:
 
-    ```shell
-    conda activate data-discovery-ai
-    ```
+   ```shell
+   conda activate data-discovery-ai
+   ```
 
 2. Install environment dependencies:
 
-    ```shell
-    # after cloning the repo with git clone command
-    cd data-discovery-ai
-    poetry install
-    ```
+   ```shell
+   # after cloning the repo with git clone command
+   cd data-discovery-ai
+   poetry install
+   ```
 
 3. Run the FastAPI server:
 
-    ```shell
-    poetry run uvicorn data_discovery_ai.server:app --reload --log-config=log_config.yaml
-    ```
+   ```shell
+   poetry run uvicorn data_discovery_ai.server:app --reload --log-config=log_config.yaml
+   ```
 
 4. Run the tests:
 
-    ```shell
-    poetry run pytest
-    ```
+   ```shell
+   poetry run pytest
+   ```
 
 ### Code formatting
 
@@ -94,6 +94,6 @@ Every code change with commits following [Conventional Commits](https://github.c
 
 **Commit Guidelines**
 
-* `feat:` For new features
-* `fix:` For bug fixes
-* `BREAKING CHANGE:` For any breaking changes
+- `feat:` For new features
+- `fix:` For bug fixes
+- `BREAKING CHANGE:` For any breaking changes

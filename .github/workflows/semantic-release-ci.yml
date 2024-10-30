@@ -1,37 +1,29 @@
 name: Semantic Release CI
-
 on:
   push:
     branches:
       - main
     paths-ignore:
-      - '**/*.md'
-
+      - "**/*.md"
 permissions:
   contents: write
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
+          node-version: "20"
       - name: Install dependencies
         run: npm install semantic-release @semantic-release/exec @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
-
       - name: Run semantic-release and extract changelog
         id: release
         env:
@@ -51,7 +43,6 @@ jobs:
           echo "changelog<<EOF" >> $GITHUB_ENV
           echo "$changelog" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-
       - name: Push new tag
         if: ${{ steps.release.outputs.version }}
         env:
@@ -61,7 +52,6 @@ jobs:
           # Create and push the new tag
           git tag "$version"
           git push origin "$version"
-
       - name: Create GitHub Release with Changelog
         if: ${{ steps.release.outputs.version }}
         env:

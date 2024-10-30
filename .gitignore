@@ -82,3 +82,4 @@ backup/
 esManager.config
 
 .idea
+node_modules/
