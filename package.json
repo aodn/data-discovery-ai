@@ -1,23 +1,5 @@
 {
-  "name": "price-tracking-api",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky install",
-    "format": "prettier --write .",
-    "lint": "eslint ."
-  },
-  "keywords": [],
   "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "eslint": "^9.13.0",
-    "husky": "^8.0.0",
-    "prettier": "^3.3.3",
-    "prettier-plugin-sql": "^0.18.1"
-  },
   "dependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
@@ -25,5 +7,22 @@
     "@semantic-release/github": "^11.0.0",
     "@semantic-release/release-notes-generator": "^14.0.1",
     "semantic-release": "^24.2.0"
-  }
+  },
+  "description": "",
+  "devDependencies": {
+    "eslint": "^9.13.0",
+    "husky": "^8.0.0",
+    "prettier": "^3.3.3"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "price-tracking-api",
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint .",
+    "prepare": "husky install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.0.0"
 }

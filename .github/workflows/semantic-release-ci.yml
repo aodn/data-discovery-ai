@@ -4,9 +4,12 @@ on:
     branches:
       - main
     paths-ignore:
-      - "**/*.md"
+      - '**/*.md'
 permissions:
   contents: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -18,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
       - name: Install dependencies
         run: npm install semantic-release @semantic-release/exec @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
       - name: Run semantic-release and extract changelog
