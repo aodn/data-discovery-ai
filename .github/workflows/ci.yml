@@ -10,9 +10,6 @@ on:
       - "**/*.md"
       - "notebooks/**"
       - "extras/**"
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
