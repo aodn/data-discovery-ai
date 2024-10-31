@@ -1,9 +1,9 @@
 import data_discovery_ai.utils.preprocessor as preprocessor
 import data_discovery_ai.model.keywordModel as model
 import configparser
+from typing import List
 
-
-def keywordClassifier(trained_model, description):
+def keywordClassifier(trained_model: str, description: str) -> List:
     """
     The keyword classifier service for API use.
     Input:
@@ -29,4 +29,4 @@ def keywordClassifier(trained_model, description):
 
     labels = preprocessor.load_from_file("labels.pkl")
     prediction = model.get_predicted_keywords(target_predicted_labels, labels).to_list()
-    return " | ".join(prediction)
+    return prediction

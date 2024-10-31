@@ -218,7 +218,7 @@ def prediction(X: np.ndarray, model: Any, confidence: float, top_N: int) -> np.n
     return predicted_labels
 
 
-def replace_with_column_names(row: pd.SparseDtype, column_names: List[str]) -> str:
+def replace_with_column_names(row: pd.SparseDtype, column_names: List[str]) -> List[str]:
     """
     Transform a row of binary values and returns a string of column names (separated by " | ") for which the value in the row is 1.
     Input:
@@ -227,7 +227,7 @@ def replace_with_column_names(row: pd.SparseDtype, column_names: List[str]) -> s
     Output:
         str: The predicted keywords, separated by " | "
     """
-    return " | ".join([column_names[i] for i, value in enumerate(row) if value == 1])
+    return [column_names[i] for i, value in enumerate(row) if value == 1]
 
 
 def get_predicted_keywords(prediction: np.ndarray, labels: List[str]):
