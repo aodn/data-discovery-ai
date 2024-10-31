@@ -13,6 +13,10 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# for demo use in notebook
+BASE_PATH = "../data_discovery_ai"
+# for use in pipeline
+# BASE_PATH = "data_discovery_ai"
 
 @dataclass
 class TrainTestData:
@@ -37,7 +41,7 @@ class KeywordClassifierPipeline:
             model_name: str. The model name that saved in a .keras file.
         """
         params = configparser.ConfigParser()
-        params.read("data_discovery_ai/common/keyword_classification_parameters.ini")
+        params.read(f"{BASE_PATH}/common/keyword_classification_parameters.ini")
         self.params = params
         self.isDataChanged = isDataChanged
         self.usePretrainedModel = usePretrainedModel
@@ -52,7 +56,7 @@ class KeywordClassifierPipeline:
         Output:
             raw_data: pd.DataFrame. A DataFrame containing the raw data retrieved from Elasticsearch.
         """
-        client = connector.connect_es(config_path="./esManager.config")
+        client = connector.connect_es(config_path=f"{BASE_PATH}/common/esManager.config")
         raw_data = connector.search_es(client)
         return raw_data
 
@@ -75,10 +79,10 @@ class KeywordClassifierPipeline:
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
         preprocessor.save_to_file(
-            sampleSet, "data_discovery_ai/input/keyword_sample.pkl"
+            sampleSet, f"{BASE_PATH}/input/keyword_sample.pkl"
         )
         sampleSet = preprocessor.load_from_file(
-            "data_discovery_ai/input/keyword_sample.pkl"
+            f"{BASE_PATH}/input/keyword_sample.pkl"
         )
         return sampleSet
 
@@ -110,7 +114,7 @@ class KeywordClassifierPipeline:
         X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
 
         # Save the labels to a file for persistence
-        preprocessor.save_to_file(labels, "data_discovery_ai/input/labels.pkl")
+        preprocessor.save_to_file(labels, f"{BASE_PATH}/input/labels.pkl")
 
         # Identify rare labels based on a predefined threshold
         rare_label_threshold = self.params.getint(
@@ -192,7 +196,7 @@ class KeywordClassifierPipeline:
         predicted_labels = keywordClassifier.keywordClassifier(
             trained_model=self.model_name, description=description
         )
-        logger.info(predicted_labels)
+        print(predicted_labels)
         return predicted_labels
 
 
@@ -210,24 +214,24 @@ def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         else:
             sampleSet = preprocessor.load_from_file(
-                "data_discovery_ai/input/keyword_sample.pkl"
+                f"{BASE_PATH}/input/keyword_sample.pkl"
             )
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 
         keyword_classifier_pipeline.make_prediction(description)
+    
 
 
 def test():
     item_description = """
-                        Ecological and taxonomic surveys of hermatypic scleractinian corals were carried out at approximately 100 sites around Lord Howe Island. Sixty-six of these sites were located on reefs in the lagoon, which extends for two-thirds of the length of the island on the western side. Each survey site consisted of a section of reef surface, which appeared to be topographically and faunistically homogeneous. The dimensions of the sites surveyed were generally of the order of 20m by 20m. Where possible, sites were arranged contiguously along a band up the reef slope and across the flat. The cover of each species was graded on a five-point scale of percentage relative cover. Other site attributes recorded were depth (minimum and maximum corrected to datum), slope (estimated), substrate type, total estimated cover of soft coral and algae (macroscopic and encrusting coralline). Coral data from the lagoon and its reef (66 sites) were used to define a small number of site groups which characterize most of this area.Throughout the survey, corals of taxonomic interest or difficulty were collected, and an extensive photographic record was made to augment survey data. A collection of the full range of form of all coral species was made during the survey and an identified reference series was deposited in the Australian Museum.In addition, less detailed descriptive data pertaining to coral communities and topography were recorded on 12 reconnaissance transects, the authors recording changes seen while being towed behind a boat.
-                        The purpose of this study was to describe the corals of Lord Howe Island (the southernmost Indo-Pacific reef) at species and community level using methods that would allow differentiation of community types and allow comparisons with coral communities in other geographic locations.
-                        """
+                      'Ships of Opportunity' (SOOP) is a facility of the Australian 'Integrated Marine Observing System' (IMOS) project. This data set was collected by the SOOP sub-facility 'Sensors on Tropical Research Vessels' aboard the RV Solander Trip 8161.
+"""
     pipeline(
         isDataChanged=False,
         usePretrainedModel=False,
         description=item_description,
-        selected_model="test_keyword_pipeline",
+        selected_model="pretrainedKeyword4demo",
     )
 
 

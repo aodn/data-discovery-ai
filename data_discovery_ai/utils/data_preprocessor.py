@@ -7,7 +7,7 @@ import owslib
 
 # Read search result from ES, which is copied from the console of ES and saved in a json file. Convert it to tsv
 def json2tsv(input, output):
-    with open(f"./input/{input}", "r", encoding="utf-8") as f:
+    with open(f"././input/{input}", "r", encoding="utf-8") as f:
         json_string = f.read()
         data = json.loads(json_string)
         indexes = data["hits"]["hits"]
@@ -16,7 +16,8 @@ def json2tsv(input, output):
     # df.columns = [c.split("_")[1] for c in list(df.columns)]
     print(df.columns)
     # df = df.map(lambda x: x.replace('\n', ' ').replace('\\n', ' ').replace(',', ' ') if isinstance(x, str) else x)
-    df.to_csv(f"./output/{output}", index=False, sep="\t")
+    df.to_csv(f"././output/{output}", index=False, sep="\t")
+    return df
 
 
 # Explore dataset

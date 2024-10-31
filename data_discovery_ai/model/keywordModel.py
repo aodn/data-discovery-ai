@@ -39,6 +39,10 @@ os.environ["TF_USE_LEGACY_KERAS"] = "1"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# for demo use in notebook
+BASE_PATH = "../data_discovery_ai"
+# for use in pipeline
+# BASE_PATH = "data_discovery_ai"
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
     """
@@ -164,7 +168,7 @@ def keyword_model(
     )
     if model_name is None:
         model_name = f"{current_time}-trained-keyword-epoch{epoch}-batch{batch_size}"
-    model.save(f"data_discovery_ai/output/{model_name}.keras")
+    model.save(f"{BASE_PATH}/output/{model_name}.keras")
 
     model.evaluate(X_test, Y_test)
     return model, history, model_name
@@ -286,12 +290,11 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     """
     try:
         saved_model = load_model(
-            f"data_discovery_ai/output/{trained_model}.keras", compile=False
+            f"{BASE_PATH}/output/{trained_model}.keras", compile=False
         )
         return saved_model
-    except Exception as e:
-        print(e)
+    except Exception as e:    
         logger.info(
-            f"Failed to load selected model {trained_model} from folder data_discovery_ai/output"
+            f"Failed to load selected model {trained_model} from folder data_discovery_ai/output. Error: {e}"
         )
         return None

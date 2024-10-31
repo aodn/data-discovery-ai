@@ -8,8 +8,6 @@ import time
 from data_discovery_ai.utils.preprocessor import save_to_file
 
 
-CONFIG_PATH = "./esManager.config"
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

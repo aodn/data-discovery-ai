@@ -1,7 +1,12 @@
 import data_discovery_ai.utils.preprocessor as preprocessor
 import data_discovery_ai.model.keywordModel as model
 import configparser
+import os
 
+# for demo use in notebook
+BASE_PATH = "../data_discovery_ai"
+# for use in pipeline
+# BASE_PATH = "data_discovery_ai"
 
 def keywordClassifier(trained_model, description):
     """
@@ -12,9 +17,8 @@ def keywordClassifier(trained_model, description):
     Output:
         predicted_keyword: str. the predicted keywords, separate by " | ".
     """
-
     params = configparser.ConfigParser()
-    params.read("data_discovery_ai/common/keyword_classification_parameters.ini")
+    params.read(f"{BASE_PATH}/common/keyword_classification_parameters.ini")
 
     selected_model = model.load_saved_model(trained_model)
     description_embedding = preprocessor.get_description_embedding(description)
@@ -27,6 +31,6 @@ def keywordClassifier(trained_model, description):
         params.getint("keywordModel", "top_N"),
     )
 
-    labels = preprocessor.load_from_file("data_discovery_ai/input/labels.pkl")
+    labels = preprocessor.load_from_file(f"{BASE_PATH}/input/labels.pkl")
     prediction = model.get_predicted_keywords(target_predicted_labels, labels).to_list()
     return " | ".join(prediction)
