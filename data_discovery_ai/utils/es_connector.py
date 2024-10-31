@@ -77,7 +77,7 @@ def search_es(client: Elasticsearch):
 
     raw_data = pd.concat(dataframes, ignore_index=True)
 
-    save_to_file(raw_data, "./input/es-indexer-staging.pkl")
+    save_to_file(raw_data, "es-indexer-staging.pkl")
     logging.info("Raw data saved to ./input/es-indexer-staging.pkl")
 
     # TODO: upload raw data to S3

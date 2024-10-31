@@ -13,6 +13,19 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+from pathlib import Path
+
+# Base directory where your Poetry project's pyproject.toml is located
+BASE_DIR = Path(__file__).resolve().parent
+
+# Construct the full path to the .ini file
+config_file_path = BASE_DIR / "common" / "keyword_classification_parameters.ini"
+
+if not config_file_path.exists():
+    raise FileNotFoundError(
+        f"The configuration file was not found at {config_file_path}"
+    )
+
 
 @dataclass
 class TrainTestData:
@@ -37,7 +50,7 @@ class KeywordClassifierPipeline:
             model_name: str. The model name that saved in a .keras file.
         """
         params = configparser.ConfigParser()
-        params.read("data_discovery_ai/common/keyword_classification_parameters.ini")
+        params.read(config_file_path)
         self.params = params
         self.isDataChanged = isDataChanged
         self.usePretrainedModel = usePretrainedModel
@@ -76,12 +89,8 @@ class KeywordClassifierPipeline:
         labelledDS = preprocessor.identify_sample(raw_data, vocabs)
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
-        preprocessor.save_to_file(
-            sampleSet, "data_discovery_ai/input/keyword_sample.pkl"
-        )
-        sampleSet = preprocessor.load_from_file(
-            "data_discovery_ai/input/keyword_sample.pkl"
-        )
+        preprocessor.save_to_file(sampleSet, "keyword_sample.pkl")
+        sampleSet = preprocessor.load_from_file("keyword_sample.pkl")
         return sampleSet
 
     def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
@@ -112,7 +121,7 @@ class KeywordClassifierPipeline:
         X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
 
         # Save the labels to a file for persistence
-        preprocessor.save_to_file(labels, "data_discovery_ai/input/labels.pkl")
+        preprocessor.save_to_file(labels, "labels.pkl")
 
         # Identify rare labels based on a predefined threshold
         rare_label_threshold = self.params.getint(
@@ -211,9 +220,7 @@ def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
             raw_data = keyword_classifier_pipeline.fetch_raw_data()
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         else:
-            sampleSet = preprocessor.load_from_file(
-                "data_discovery_ai/input/keyword_sample.pkl"
-            )
+            sampleSet = preprocessor.load_from_file("keyword_sample.pkl")
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 
@@ -226,7 +233,7 @@ def test():
                         The purpose of this study was to describe the corals of Lord Howe Island (the southernmost Indo-Pacific reef) at species and community level using methods that would allow differentiation of community types and allow comparisons with coral communities in other geographic locations.
                         """
     pipeline(
-        isDataChanged=False,
+        isDataChanged=True,
         usePretrainedModel=False,
         description=item_description,
         selected_model="test_keyword_pipeline",

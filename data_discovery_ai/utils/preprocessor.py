@@ -19,6 +19,11 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
+from pathlib import Path
+
+# Base directory where your Poetry project's pyproject.toml is located
+BASE_DIR = Path(__file__).resolve().parent.parent
+SUB_DIR = BASE_DIR / "output"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,30 +31,23 @@ logger.setLevel(logging.INFO)
 
 def save_to_file(obj: Any, file_name: str) -> None:
     """
-    Saves an object to a file using pickle serialization. This function saves the specified object to a file in binary format. If a specific folder path is required, include it in the `file_name`.
-    Input:
-        obj: Any. The object to be saved; no type restriction.
-        file_name: str. The name of the file (including path if necessary) to save the object to.
-    Output:
-        None, not return any value in this function
+    Saves an object to a file using pickle serialization in the input folder.
     """
-    with open(file_name, "wb") as file:
+    full_path = SUB_DIR / file_name
+    full_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure the folder exists
+    with open(full_path, "wb") as file:
         pickle.dump(obj, file)
-        logger.info(f"Saved to {file}")
+        logger.info(f"Saved to {full_path}")
 
 
 def load_from_file(file_name: str) -> Any:
     """
-    Loads an object from a file using pickle deserialization. This function reads a binary file and reconstructs the original object
-    saved in the file. It is useful for loading objects previously used `save_to_file`.
-    Input:
-        file_name: str. The name of the file (including path if necessary) to load the object from.
-    Output:
-        obj: Any. The objected that was loaded from a file. No type restriction.
+    Loads an object from a file in the input folder using pickle deserialization.
     """
-    with open(file_name, "rb") as file:
+    full_path = SUB_DIR / file_name
+    with open(full_path, "rb") as file:
         obj = pickle.load(file)
-        logger.info(f"Load from {file}")
+        logger.info(f"Load from {full_path}")
     return obj
 
 
@@ -360,7 +358,7 @@ def load_sample():
     Load sample set from a saved file. For demo use only.
     """
     try:
-        sampleDS = load_from_file("../data_discovery_ai/input/keywords_sample.pkl")
+        sampleDS = load_from_file("keywords_sample.pkl")
         return sampleDS
     except Exception as e:
         logger.info("Files not Found: Missing keywords_sample.pkl in output folder.")
@@ -371,7 +369,7 @@ def load_target():
     Load prediction set from a saved file. For demo use only.
     """
     try:
-        targetDS = load_from_file("../data_discovery_ai/input/keywords_target.pkl")
+        targetDS = load_from_file("keywords_target.pkl")
         return targetDS
     except Exception as e:
         logger.info("Files not Found: Missing keywords_target.pkl in output folder.")

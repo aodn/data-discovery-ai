@@ -97,3 +97,14 @@ Every code change with commits following [Conventional Commits](https://github.c
 - `feat:` For new features
 - `fix:` For bug fixes
 - `BREAKING CHANGE:` For any breaking changes
+
+
+# Edge/syste/prod
+
+models name stricly controller:
+
+available options :
+
+# Devlopment
+
+syntax is :/....

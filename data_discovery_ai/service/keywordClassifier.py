@@ -27,6 +27,6 @@ def keywordClassifier(trained_model, description):
         params.getint("keywordModel", "top_N"),
     )
 
-    labels = preprocessor.load_from_file("data_discovery_ai/input/labels.pkl")
+    labels = preprocessor.load_from_file("labels.pkl")
     prediction = model.get_predicted_keywords(target_predicted_labels, labels).to_list()
     return " | ".join(prediction)
