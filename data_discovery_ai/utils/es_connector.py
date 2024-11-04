@@ -8,9 +8,8 @@ import pandas as pd
 from tqdm import tqdm
 import time
 from data_discovery_ai.utils.preprocessor import save_to_file
+from data_discovery_ai.common.constants import ELASTICSEARCH_CONFIG
 
-
-CONFIG_PATH = "./esManager.config"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -27,11 +26,7 @@ logger.setLevel(logging.INFO)
 """
 
 
-def connect_es(config_path: str) -> Elasticsearch:
-
-    config = configparser.ConfigParser()
-    config.read(config_path)
-
+def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
     end_point = config["elasticsearch"]["end_point"]
     api_key = config["elasticsearch"]["api_key"]
 
@@ -44,6 +39,8 @@ def connect_es(config_path: str) -> Elasticsearch:
     Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
     Input:
         client: Elasticsearch. The initialised Elasticsearch client instance
+    Output:
+        raw_data: pd.DataFrame. The fetched raw data in a tabular format.
 """
 
 
@@ -77,7 +74,4 @@ def search_es(client: Elasticsearch):
 
     raw_data = pd.concat(dataframes, ignore_index=True)
 
-    save_to_file(raw_data, "es-indexer-staging.pkl")
-    logging.info("Raw data saved to ./input/es-indexer-staging.pkl")
-
-    # TODO: upload raw data to S3
+    return raw_data

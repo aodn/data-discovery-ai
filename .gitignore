@@ -79,10 +79,11 @@ cython_debug/
 input/
 saved/
 backup/
-esManager.config
+esManager.ini
 
 .idea
 node_modules/
 
-**/input
+**/temp
+**/resources
 **/output

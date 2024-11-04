@@ -9,6 +9,11 @@ import configparser
 from typing import Any, Dict, Tuple
 from dataclasses import dataclass
 import logging
+from data_discovery_ai.common.constants import (
+    KEYWORD_CONFIG,
+    AVAILABLE_MODELS,
+    ELASTICSEARCH_CONFIG,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -19,8 +24,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
 # Construct the full path to the .ini file
-config_file_path = BASE_DIR / "common" / "keyword_classification_parameters.ini"
+config_file_path = BASE_DIR / "common" / KEYWORD_CONFIG
+if not config_file_path.exists():
+    raise FileNotFoundError(
+        f"The configuration file was not found at {config_file_path}"
+    )
 
+elasticsearch_config_file_path = BASE_DIR / "common" / ELASTICSEARCH_CONFIG
 if not config_file_path.exists():
     raise FileNotFoundError(
         f"The configuration file was not found at {config_file_path}"
@@ -54,12 +64,23 @@ class KeywordClassifierPipeline:
         self.params = params
         self.isDataChanged = isDataChanged
         self.usePretrainedModel = usePretrainedModel
-        self.model_name = model_name
-        self.model = None
-        # TODO: needs to define what are the accepted values
-        #  validate against the list declared in data_discovery_ai/common/constants.py? needs to be a controlled list of values
-        if self.usePretrainedModel and self.model_name is None:
-            raise ValueError("model name should be given to use pretrained model")
+        # validate model name with accepted values, defined in data_discovery_ai/common/constants.py
+        self.validate_model_name(model_name=model_name)
+
+    """
+        Validate model name within fixed selections
+        Input:
+            model_name: str. The file name of the saved model. restricted within four options: development, staging, production, and test
+    """
+
+    def validate_model_name(self, model_name) -> None:
+        valid_model_name = AVAILABLE_MODELS
+        if model_name.lower() not in valid_model_name:
+            raise ValueError(
+                "Available model name: [development, staging, production, test]"
+            )
+        else:
+            self.model_name = model_name.lower()
 
     def fetch_raw_data(self) -> pd.DataFrame:
         """
@@ -67,7 +88,10 @@ class KeywordClassifierPipeline:
         Output:
             raw_data: pd.DataFrame. A DataFrame containing the raw data retrieved from Elasticsearch.
         """
-        client = connector.connect_es(config_path="./esManager.config")
+        es_config = configparser.ConfigParser()
+        es_config.read(elasticsearch_config_file_path)
+
+        client = connector.connect_es(es_config)
         raw_data = connector.search_es(client)
         return raw_data
 
@@ -190,6 +214,7 @@ class KeywordClassifierPipeline:
         eval = model.evaluation(
             Y_test=train_test_data.Y_test, predictions=predicted_labels
         )
+        print(eval)
 
     def make_prediction(self, description: str) -> str:
         """
@@ -203,7 +228,7 @@ class KeywordClassifierPipeline:
         predicted_labels = keywordClassifier.keywordClassifier(
             trained_model=self.model_name, description=description
         )
-        logger.info(predicted_labels)
+        print(predicted_labels)
         return predicted_labels
 
 
@@ -220,25 +245,8 @@ def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
             raw_data = keyword_classifier_pipeline.fetch_raw_data()
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         else:
-            sampleSet = preprocessor.load_from_file("keyword_sample.pkl")
+            sampleSet = preprocessor.load_from_file("keywords_sample.pkl")
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 
         keyword_classifier_pipeline.make_prediction(description)
-
-
-def test():
-    item_description = """
-                        Ecological and taxonomic surveys of hermatypic scleractinian corals were carried out at approximately 100 sites around Lord Howe Island. Sixty-six of these sites were located on reefs in the lagoon, which extends for two-thirds of the length of the island on the western side. Each survey site consisted of a section of reef surface, which appeared to be topographically and faunistically homogeneous. The dimensions of the sites surveyed were generally of the order of 20m by 20m. Where possible, sites were arranged contiguously along a band up the reef slope and across the flat. The cover of each species was graded on a five-point scale of percentage relative cover. Other site attributes recorded were depth (minimum and maximum corrected to datum), slope (estimated), substrate type, total estimated cover of soft coral and algae (macroscopic and encrusting coralline). Coral data from the lagoon and its reef (66 sites) were used to define a small number of site groups which characterize most of this area.Throughout the survey, corals of taxonomic interest or difficulty were collected, and an extensive photographic record was made to augment survey data. A collection of the full range of form of all coral species was made during the survey and an identified reference series was deposited in the Australian Museum.In addition, less detailed descriptive data pertaining to coral communities and topography were recorded on 12 reconnaissance transects, the authors recording changes seen while being towed behind a boat.
-                        The purpose of this study was to describe the corals of Lord Howe Island (the southernmost Indo-Pacific reef) at species and community level using methods that would allow differentiation of community types and allow comparisons with coral communities in other geographic locations.
-                        """
-    pipeline(
-        isDataChanged=True,
-        usePretrainedModel=False,
-        description=item_description,
-        selected_model="test_keyword_pipeline",
-    )
-
-
-if __name__ == "__main__":
-    test()

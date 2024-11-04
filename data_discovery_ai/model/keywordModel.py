@@ -13,12 +13,8 @@ from sklearn.metrics import (
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.multioutput import MultiOutputClassifier
-from sklearn.svm import SVC
 import pandas as pd
-import ast
-import pickle
 import numpy as np
-from tqdm import tqdm
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import Dense, Input, Dropout
@@ -29,10 +25,13 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 
 import logging
-from matplotlib import pyplot as plt
-from datetime import datetime
 from typing import Dict, Callable, Any, Tuple, Optional, List
 import os
+from pathlib import Path
+
+# Base directory where your Poetry project's pyproject.toml is located
+BASE_DIR = Path(__file__).resolve().parent.parent
+SUB_DIR = BASE_DIR / "resources"
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -116,7 +115,6 @@ def keyword_model(
     Output:
         model, history: Tuple[Sequential, Any]. The trained Keras model and the training history.
     """
-    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
     model = Sequential(
         [
             Input(shape=(dim,)),
@@ -162,9 +160,13 @@ def keyword_model(
         validation_split=params.getfloat("keywordModel", "validation_split"),
         callbacks=[early_stopping, reduce_lr],
     )
-    if model_name is None:
-        model_name = f"{current_time}-trained-keyword-epoch{epoch}-batch{batch_size}"
-    model.save(f"data_discovery_ai/output/{model_name}.keras")
+    model_file_path = (SUB_DIR / model_name).with_suffix(".keras")
+    # make sure folder exist
+    model_file_path.parent.mkdir(
+        parents=True, exist_ok=True
+    )  # Ensure the folder exists
+
+    model.save(model_file_path)
 
     model.evaluate(X_test, Y_test)
     return model, history, model_name
@@ -218,7 +220,9 @@ def prediction(X: np.ndarray, model: Any, confidence: float, top_N: int) -> np.n
     return predicted_labels
 
 
-def replace_with_column_names(row: pd.SparseDtype, column_names: List[str]) -> List[str]:
+def replace_with_column_names(
+    row: pd.SparseDtype, column_names: List[str]
+) -> List[str]:
     """
     Transform a row of binary values and returns a string of column names (separated by " | ") for which the value in the row is 1.
     Input:
@@ -284,14 +288,13 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     Output:
         Optional[keras_load_model]: The loaded Keras model if successful, otherwise `None`.
     """
+    model_file_path = (SUB_DIR / trained_model).with_suffix(".keras")
     try:
-        saved_model = load_model(
-            f"data_discovery_ai/output/{trained_model}.keras", compile=False
-        )
+        saved_model = load_model(model_file_path, compile=False)
         return saved_model
     except Exception as e:
         print(e)
         logger.info(
-            f"Failed to load selected model {trained_model} from folder data_discovery_ai/output"
+            f"Failed to load selected model {trained_model} from folder data_discovery_ai/resources"
         )
         return None

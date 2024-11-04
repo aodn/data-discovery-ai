@@ -23,7 +23,7 @@ from pathlib import Path
 
 # Base directory where your Poetry project's pyproject.toml is located
 BASE_DIR = Path(__file__).resolve().parent.parent
-SUB_DIR = BASE_DIR / "output"
+SUB_DIR = BASE_DIR / "temp"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -351,25 +351,3 @@ def resampling(
     print(f"X resampled set size: {X_train_resampled.shape[0]}")
     print(f"Y resampled set size: {Y_train_resampled.shape[0]}")
     return X_train_resampled, Y_train_resampled
-
-
-def load_sample():
-    """
-    Load sample set from a saved file. For demo use only.
-    """
-    try:
-        sampleDS = load_from_file("keywords_sample.pkl")
-        return sampleDS
-    except Exception as e:
-        logger.info("Files not Found: Missing keywords_sample.pkl in output folder.")
-
-
-def load_target():
-    """
-    Load prediction set from a saved file. For demo use only.
-    """
-    try:
-        targetDS = load_from_file("keywords_target.pkl")
-        return targetDS
-    except Exception as e:
-        logger.info("Files not Found: Missing keywords_target.pkl in output folder.")
