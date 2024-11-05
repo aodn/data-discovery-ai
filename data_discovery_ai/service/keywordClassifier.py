@@ -17,7 +17,7 @@ if not config_file_path.exists():
     )
 
 
-def keywordClassifier(trained_model: str, description: str) -> List:
+def keywordClassifier(trained_model, description):
     """
     The keyword classifier service for API use.
     Input:
@@ -44,3 +44,4 @@ def keywordClassifier(trained_model: str, description: str) -> List:
     labels = preprocessor.load_from_file("labels.pkl")
     prediction = model.get_predicted_keywords(target_predicted_labels, labels).to_list()
     return prediction
+

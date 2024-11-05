@@ -231,7 +231,7 @@ def replace_with_column_names(
     Output:
         str: The predicted keywords, separated by " | "
     """
-    return [column_names[i] for i, value in enumerate(row) if value == 1]
+    return " | ".join([column_names[i] for i, value in enumerate(row) if value == 1])
 
 
 def get_predicted_keywords(prediction: np.ndarray, labels: List[str]):
