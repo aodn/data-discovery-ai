@@ -103,7 +103,14 @@ Every code change with commits following [Conventional Commits](https://github.c
 
 models name stricly controller:
 
-available options : `development`, `staging`, `production`, `test`
+available options : `development`,`experimental`, `staging`, `production`, `benchmark`
+| Option | Purpose | Typical Use |
+| ---- | ---- | ---- |
+| `development` | Dedicated to active model development, testing, and iteration. | Building and refining new model versions, features, or datasets. |
+| `experimental` | Supports exploratory work for new techniques or fine-tuning. | Experimenting with new architectures, features, or hyperparameter tuning. |
+| `staging` | Prepares the model for production with real-use evaluations. | Conducting final testing in a production-like environment to verify stability and performance. |
+| `production` | Deployment environment for live model usage in real-world scenarios. | Running and monitoring models in active use by API. |
+| `benchmark` | Baseline model used to assess improvements or changes. | Comparing performance metrics against new models. |
 
 # Devlopment
 

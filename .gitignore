@@ -85,5 +85,4 @@ esManager.ini
 node_modules/
 
 **/temp
-**/resources
 **/output
