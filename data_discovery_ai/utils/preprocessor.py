@@ -20,6 +20,7 @@ from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from pathlib import Path
+from typing import Dict
 
 # Base directory where your Poetry project's pyproject.toml is located
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +28,33 @@ SUB_DIR = BASE_DIR / "temp"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+class Concept:
+    def __init__(self, id, url, vocab_type) -> None:
+        self.id = id
+        self.url = url
+        self.vocab_type = vocab_type
+
+    def to_json(self) -> Dict[str, Any]:
+        return {
+            "vocab_type": self.title,
+            "value": self.id,
+            "url": self.url,
+        }
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Concept):
+            return NotImplemented
+
+        return (
+            self.id == other.id
+            and self.url == other.url
+            and self.vocab_type == other.vocab_type
+        )
+
+    def __hash__(self):
+        return hash((self.id, self.url, self.vocab_type))
 
 
 def save_to_file(obj: Any, file_name: str) -> None:
@@ -65,7 +93,7 @@ def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
         ["_id", "_source.title", "_source.description", "_source.themes"]
     ]
     raw_data_cleaned.columns = ["id", "title", "description", "keywords"]
-
+    raw_data_cleaned["keywords"] = raw_data_cleaned["keywords"].apply(lambda k: eval(k))
     sampleSet = raw_data_cleaned[
         raw_data_cleaned["keywords"].apply(
             lambda terms: any(
@@ -216,7 +244,7 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
         vocabs: List[str]. A list of vocabulary names to match against keyword titles.
     Output:
-        A list of formatted keywords, with duplicates removed, in the form `title:id`.
+        A list of formatted keywords, with duplicates removed, in the form `title;id`.
     """
     if type(text) is list:
         keywords = text
@@ -226,7 +254,10 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
     for keyword in keywords:
         for concept in keyword["concepts"]:
             if keyword["title"] in vocabs and concept["id"] != "":
-                concept_str = keyword["title"] + ":" + concept["id"]
+                keyword = Concept(
+                    id=concept["id"], url=concept["url"], vocab_type=keyword["title"]
+                )
+                concept_str = keyword.to_json()
                 k_list.append(concept_str)
     return list(set(k_list))
 
