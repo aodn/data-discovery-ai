@@ -8,3 +8,5 @@ AVAILABLE_MODELS = [
 ]  # just sample, use lowercase only
 KEYWORD_CONFIG = "keyword_classification_parameters.ini"
 ELASTICSEARCH_CONFIG = "esManager.ini"
+KEYWORD_SAMPLE_FILE = "keyword_sample.pkl"
+KEYWORD_LABEL_FILE = "keyword_label.pkl"

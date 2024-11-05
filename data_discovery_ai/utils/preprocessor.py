@@ -180,6 +180,7 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
         ds: pd.DataFrame, the dataset with one more embedding column
     """
     tqdm.pandas()
+    ds["information"] = ds["title"] + ": " + ds["description"]
     ds["embedding"] = ds["description"].progress_apply(
         lambda x: get_description_embedding(x)
     )
