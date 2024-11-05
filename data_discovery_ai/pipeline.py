@@ -13,6 +13,8 @@ from data_discovery_ai.common.constants import (
     KEYWORD_CONFIG,
     AVAILABLE_MODELS,
     ELASTICSEARCH_CONFIG,
+    KEYWORD_SAMPLE_FILE,
+    KEYWORD_LABEL_FILE
 )
 
 logger = logging.getLogger(__name__)
@@ -245,7 +247,7 @@ def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
             raw_data = keyword_classifier_pipeline.fetch_raw_data()
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         else:
-            sampleSet = preprocessor.load_from_file("keywords_sample.pkl")
+            sampleSet = preprocessor.load_from_file(KEYWORD_SAMPLE_FILE)
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 
