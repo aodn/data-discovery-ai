@@ -79,7 +79,7 @@ class KeywordClassifierPipeline:
         valid_model_name = AVAILABLE_MODELS
         if model_name.lower() not in valid_model_name:
             raise ValueError(
-                "Available model name: [development, staging, production, test]"
+                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
             )
         else:
             self.model_name = model_name.lower()
