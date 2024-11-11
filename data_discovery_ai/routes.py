@@ -23,7 +23,7 @@ async def hello():
 
 
 @router.post("/predict", dependencies=[Depends(api_key_auth)])
-async def predict_keyword(payload: PredictKeywordRequest) -> dict[str, str]:
+async def predict_keyword(payload: PredictKeywordRequest):
     # selected_model = validate_model_name(payload.selected_model)
     keyword_classifier_pipeline = KeywordClassifierPipeline(
         isDataChanged=False, usePretrainedModel=True, model_name=payload.selected_model
@@ -32,5 +32,5 @@ async def predict_keyword(payload: PredictKeywordRequest) -> dict[str, str]:
         f"selected_model: {payload.selected_model}, raw_input: {payload.raw_input}"
     )
     predicted_labels = keyword_classifier_pipeline.make_prediction(payload.raw_input)
-    response = {"predicted_labels": predicted_labels}
+    response = {"predicted_labels": predicted_labels.split(" | ")}
     return response

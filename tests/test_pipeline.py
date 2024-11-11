@@ -1,3 +1,4 @@
+# TODO: add unit tests for all functions used in pipeline. The test should have 3 stages: 1. prepare for what needs to be tested,2. executing 3. check for actual vs expected values.
 from data_discovery_ai.pipeline import pipeline
 
 
