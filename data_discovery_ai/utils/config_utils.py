@@ -16,7 +16,7 @@ class ConfigUtil:
             raise FileNotFoundError(
                 f"The configuration file was not found at {config_file_path}"
             )
-        
+
         config = configparser.ConfigParser()
         config.read(config_file_path)
         return config
