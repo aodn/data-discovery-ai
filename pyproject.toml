@@ -25,6 +25,7 @@ torch = "2.5.0"
 imblearn = "^0.0"
 iterative-stratification = "^0.1.9"
 pyyaml = "^6.0.2"
+elasticsearch = "^8.15.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"

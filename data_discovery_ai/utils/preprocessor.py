@@ -19,37 +19,58 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
+from pathlib import Path
+from typing import Dict
+import tempfile
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def save_to_file(obj: Any, file_name: str) -> None:
+class Concept:
+    def __init__(self, id: str, url: str, vocab_type: str) -> None:
+        self.id = id
+        self.url = url
+        self.vocab_type = vocab_type
+
+    def to_json(self) -> Dict[str, Any]:
+        return {
+            "vocab_type": self.vocab_type,
+            "value": self.id,
+            "url": self.url,
+        }
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Concept):
+            return NotImplemented
+
+        return (
+            self.id == other.id
+            and self.url == other.url
+            and self.vocab_type == other.vocab_type
+        )
+
+    def __hash__(self):
+        return hash((self.id, self.url, self.vocab_type))
+
+
+def save_to_file(obj: Any, full_path: str) -> None:
     """
-    Saves an object to a file using pickle serialization. This function saves the specified object to a file in binary format. If a specific folder path is required, include it in the `file_name`.
-    Input:
-        obj: Any. The object to be saved; no type restriction.
-        file_name: str. The name of the file (including path if necessary) to save the object to.
-    Output:
-        None, not return any value in this function
+    Saves an object to a file using pickle serialization in the specific file path
     """
-    with open(file_name, "wb") as file:
+    with open(full_path, "wb") as file:
         pickle.dump(obj, file)
-        logger.info(f"Saved to {file}")
+        logger.info(f"Saved to {full_path}")
 
 
-def load_from_file(file_name: str) -> Any:
+def load_from_file(full_path: str) -> Any:
     """
-    Loads an object from a file using pickle deserialization. This function reads a binary file and reconstructs the original object
-    saved in the file. It is useful for loading objects previously used `save_to_file`.
-    Input:
-        file_name: str. The name of the file (including path if necessary) to load the object from.
-    Output:
-        obj: Any. The objected that was loaded from a file. No type restriction.
+    Loads an object from a file in the input folder using pickle deserialization.
     """
-    with open(file_name, "rb") as file:
+    with open(full_path, "rb") as file:
         obj = pickle.load(file)
-        logger.info(f"Load from {file}")
+        logger.info(f"Load from {full_path}")
     return obj
 
 
@@ -67,7 +88,6 @@ def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
         ["_id", "_source.title", "_source.description", "_source.themes"]
     ]
     raw_data_cleaned.columns = ["id", "title", "description", "keywords"]
-
     sampleSet = raw_data_cleaned[
         raw_data_cleaned["keywords"].apply(
             lambda terms: any(
@@ -182,7 +202,8 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
         ds: pd.DataFrame, the dataset with one more embedding column
     """
     tqdm.pandas()
-    ds["embedding"] = ds["description"].progress_apply(
+    ds["information"] = ds["title"] + ": " + ds["description"]
+    ds["embedding"] = ds["information"].progress_apply(
         lambda x: get_description_embedding(x)
     )
     return ds
@@ -217,7 +238,7 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
         vocabs: List[str]. A list of vocabulary names to match against keyword titles.
     Output:
-        A list of formatted keywords, with duplicates removed, in the form `title:id`.
+        A list of formatted keywords, with duplicates removed, in the form `title;id`.
     """
     if type(text) is list:
         keywords = text
@@ -227,9 +248,14 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
     for keyword in keywords:
         for concept in keyword["concepts"]:
             if keyword["title"] in vocabs and concept["id"] != "":
-                concept_str = keyword["title"] + ":" + concept["id"]
+                con = Concept(
+                    id=concept["id"].lower(),
+                    url=concept["url"],
+                    vocab_type=keyword["title"],
+                )
+                concept_str = con.to_json()
                 k_list.append(concept_str)
-    return list(set(k_list))
+    return list(k_list)
 
 
 def prepare_train_test(
@@ -353,25 +379,3 @@ def resampling(
     print(f"X resampled set size: {X_train_resampled.shape[0]}")
     print(f"Y resampled set size: {Y_train_resampled.shape[0]}")
     return X_train_resampled, Y_train_resampled
-
-
-def load_sample():
-    """
-    Load sample set from a saved file. For demo use only.
-    """
-    try:
-        sampleDS = load_from_file("../data_discovery_ai/input/keywords_sample.pkl")
-        return sampleDS
-    except Exception as e:
-        logger.info("Files not Found: Missing keywords_sample.pkl in output folder.")
-
-
-def load_target():
-    """
-    Load prediction set from a saved file. For demo use only.
-    """
-    try:
-        targetDS = load_from_file("../data_discovery_ai/input/keywords_target.pkl")
-        return targetDS
-    except Exception as e:
-        logger.info("Files not Found: Missing keywords_target.pkl in output folder.")
