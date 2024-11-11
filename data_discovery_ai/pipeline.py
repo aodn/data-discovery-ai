@@ -2,6 +2,12 @@ import data_discovery_ai.utils.preprocessor as preprocessor
 import data_discovery_ai.model.keywordModel as model
 import data_discovery_ai.utils.es_connector as connector
 import data_discovery_ai.service.keywordClassifier as keywordClassifier
+from data_discovery_ai.utils.config_utils import ConfigUtil
+from data_discovery_ai.common.constants import (
+    AVAILABLE_MODELS,
+    KEYWORD_SAMPLE_FILE,
+    KEYWORD_LABEL_FILE,
+)
 import numpy as np
 import json
 import pandas as pd
@@ -9,22 +15,11 @@ import configparser
 from typing import Any, Dict, Tuple
 from dataclasses import dataclass
 import logging
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-from pathlib import Path
-
-# Base directory where your Poetry project's pyproject.toml is located
-BASE_DIR = Path(__file__).resolve().parent
-
-# Construct the full path to the .ini file
-config_file_path = BASE_DIR / "common" / "keyword_classification_parameters.ini"
-
-if not config_file_path.exists():
-    raise FileNotFoundError(
-        f"The configuration file was not found at {config_file_path}"
-    )
 
 
 @dataclass
@@ -49,17 +44,39 @@ class KeywordClassifierPipeline:
             usePretrainedModel: bool. Choose whether to use pretrained model or train the model and then to be used. If set as True, the model_name should be given.
             model_name: str. The model name that saved in a .keras file.
         """
-        params = configparser.ConfigParser()
-        params.read(config_file_path)
-        self.params = params
+        self.config = ConfigUtil()
+        self.params = self.config.load_keyword_config()
         self.isDataChanged = isDataChanged
         self.usePretrainedModel = usePretrainedModel
+        # validate model name with accepted values, defined in data_discovery_ai/common/constants.py
         self.model_name = model_name
-        self.model = None
-        # TODO: needs to define what are the accepted values
-        #  validate against the list declared in data_discovery_ai/common/constants.py? needs to be a controlled list of values
-        if self.usePretrainedModel and self.model_name is None:
-            raise ValueError("model name should be given to use pretrained model")
+        if not self.is_valid_model():
+            raise ValueError(
+                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
+            )
+        # create temp folder
+        self.temp_dir = tempfile.mkdtemp()
+        # define labels for prediction
+        if isDataChanged:
+            self.labels = None
+        else:
+            base_dir = self.config.base_dif
+            full_label_path = base_dir / "resources" / KEYWORD_LABEL_FILE
+            self.labels = preprocessor.load_from_file(full_label_path)
+
+    """
+        Validate model name within fixed selections
+        Input:
+            model_name: str. The file name of the saved model. restricted within four options: development, staging, production, and test
+    """
+
+    def is_valid_model(self) -> bool:
+        valid_model_name = AVAILABLE_MODELS
+        self.model_name = self.model_name.lower()
+        if self.model_name in valid_model_name:
+            return True
+        else:
+            return False
 
     def fetch_raw_data(self) -> pd.DataFrame:
         """
@@ -67,7 +84,9 @@ class KeywordClassifierPipeline:
         Output:
             raw_data: pd.DataFrame. A DataFrame containing the raw data retrieved from Elasticsearch.
         """
-        client = connector.connect_es(config_path="./esManager.config")
+        es_config = self.config.load_es_config()
+
+        client = connector.connect_es(es_config)
         raw_data = connector.search_es(client)
         return raw_data
 
@@ -89,8 +108,11 @@ class KeywordClassifierPipeline:
         labelledDS = preprocessor.identify_sample(raw_data, vocabs)
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
-        preprocessor.save_to_file(sampleSet, "keyword_sample.pkl")
-        sampleSet = preprocessor.load_from_file("keyword_sample.pkl")
+
+        full_path = os.path.join(self.temp_dir, KEYWORD_SAMPLE_FILE)
+
+        preprocessor.save_to_file(sampleSet, full_path)
+        sampleSet = preprocessor.load_from_file(full_path)
         return sampleSet
 
     def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
@@ -120,8 +142,11 @@ class KeywordClassifierPipeline:
         # Prepare feature matrix (X) and label matrix (Y) from the sample set
         X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
 
-        # Save the labels to a file for persistence
-        preprocessor.save_to_file(labels, "labels.pkl")
+        self.labels = labels
+
+        # save labels for pretrained model to use for prediction
+        full_path = os.path.join(self.temp_dir, KEYWORD_LABEL_FILE)
+        preprocessor.save_to_file(labels, full_path)
 
         # Identify rare labels based on a predefined threshold
         rare_label_threshold = self.params.getint(
@@ -190,6 +215,7 @@ class KeywordClassifierPipeline:
         eval = model.evaluation(
             Y_test=train_test_data.Y_test, predictions=predicted_labels
         )
+        print(eval)
 
     def make_prediction(self, description: str) -> str:
         """
@@ -201,13 +227,23 @@ class KeywordClassifierPipeline:
             predicted_labels: str. The predicted keywords by the trained keyword classifier model
         """
         predicted_labels = keywordClassifier.keywordClassifier(
-            trained_model=self.model_name, description=description
+            trained_model=self.model_name, description=description, labels=self.labels
         )
-        logger.info(predicted_labels)
+        print(predicted_labels)
         return predicted_labels
 
 
-def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
+def pipeline(
+    isDataChanged: bool, usePretrainedModel: bool, description: str, selected_model: str
+) -> None:
+    """
+    The keyword classifier pipeline.
+    Inputs:
+        isDataChanged: bool. The indicator to call the data preprocessing module or not.
+        usePretrainedModel: bool. The indicator to use the pretrained model or not.
+        description: str. The item description which is used for making prediction.
+        selected_model: str. The model name for a selected pretrained model.
+    """
     keyword_classifier_pipeline = KeywordClassifierPipeline(
         isDataChanged=isDataChanged,
         usePretrainedModel=usePretrainedModel,
@@ -220,25 +256,10 @@ def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
             raw_data = keyword_classifier_pipeline.fetch_raw_data()
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         else:
-            sampleSet = preprocessor.load_from_file("keyword_sample.pkl")
+            base_dir = keyword_classifier_pipeline.config.base_dif
+            full_sampleSet_path = base_dir / "resources" / KEYWORD_SAMPLE_FILE
+            sampleSet = preprocessor.load_from_file(full_sampleSet_path)
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 
         keyword_classifier_pipeline.make_prediction(description)
-
-
-def test():
-    item_description = """
-                        Ecological and taxonomic surveys of hermatypic scleractinian corals were carried out at approximately 100 sites around Lord Howe Island. Sixty-six of these sites were located on reefs in the lagoon, which extends for two-thirds of the length of the island on the western side. Each survey site consisted of a section of reef surface, which appeared to be topographically and faunistically homogeneous. The dimensions of the sites surveyed were generally of the order of 20m by 20m. Where possible, sites were arranged contiguously along a band up the reef slope and across the flat. The cover of each species was graded on a five-point scale of percentage relative cover. Other site attributes recorded were depth (minimum and maximum corrected to datum), slope (estimated), substrate type, total estimated cover of soft coral and algae (macroscopic and encrusting coralline). Coral data from the lagoon and its reef (66 sites) were used to define a small number of site groups which characterize most of this area.Throughout the survey, corals of taxonomic interest or difficulty were collected, and an extensive photographic record was made to augment survey data. A collection of the full range of form of all coral species was made during the survey and an identified reference series was deposited in the Australian Museum.In addition, less detailed descriptive data pertaining to coral communities and topography were recorded on 12 reconnaissance transects, the authors recording changes seen while being towed behind a boat.
-                        The purpose of this study was to describe the corals of Lord Howe Island (the southernmost Indo-Pacific reef) at species and community level using methods that would allow differentiation of community types and allow comparisons with coral communities in other geographic locations.
-                        """
-    pipeline(
-        isDataChanged=True,
-        usePretrainedModel=False,
-        description=item_description,
-        selected_model="test_keyword_pipeline",
-    )
-
-
-if __name__ == "__main__":
-    test()

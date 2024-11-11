@@ -103,8 +103,48 @@ Every code change with commits following [Conventional Commits](https://github.c
 
 models name stricly controller:
 
-available options :
+available options : `development`,`experimental`, `staging`, `production`, `benchmark`
+| Option | Purpose | Typical Use |
+| ---- | ---- | ---- |
+| `development` | Dedicated to active model development, testing, and iteration. | Building and refining new model versions, features, or datasets. |
+| `experimental` | Supports exploratory work for new techniques or fine-tuning. | Experimenting with new architectures, features, or hyperparameter tuning. |
+| `staging` | Prepares the model for production with real-use evaluations. | Conducting final testing in a production-like environment to verify stability and performance. |
+| `production` | Deployment environment for live model usage in real-world scenarios. | Running and monitoring models in active use by API. |
+| `benchmark` | Baseline model used to assess improvements or changes. | Comparing performance metrics against new models. |
 
 # Devlopment
 
 syntax is :/....
+
+
+# File Structure
+## Required Configuration Files
+1. Elasticsearch configuration file
+File name `esManager.ini` saved under folder `data_discovery_ai/common`. Specific fileds & values required:
+   1. `end_point`: the Elasticsearch endpoint of a deployment
+   2. `api_key`: the API key used for access Elasticsearch
+2. Keyword classification parameter configuration file
+File name `keyword_classification_parameters.ini` saved under folder `data_discovery_ai/common`. Required two sections: `preprocessor` to set up parameters used for data preprocessing module, and `keywordModel` to set up parameters used for training and evaluation of the keyword model. Here are the definitions of fields:
+   1. `preprocessor`
+
+   | Parameter | Definition | Default Value used |
+   | ---- | ---- | ---- |
+   | vocabs | Titles of vocabularies used to identify samples from raw data; multiple values can be separated by ', '. | AODN Instrument Vocabulary, AODN Discovery Parameter Vocabulary, AODN Platform Vocabulary |
+   | rare_label_threshold | The threshold for identifying a rare label, defined as the number of occurrences of the label across all sample records, should be an integer. | 10 |
+   | test_size | A floating-point number in the range [0, 1], indicating the percentage of the test set size relative to all samples. | 0.2 |
+   | n_splits | Number of re-shuffling & splitting iterations for cross validation, used as the value of parameter `n_splits` when initialise an object of `MultilabelStratifiedShuffleSplit`. | 5 |
+   | train_test_random_state | The seed for splitting the train and test sets, used as the value of the `random_state` parameter when initialising an instance of `MultilabelStratifiedShuffleSplit`. | 42 |
+
+   2. `keywordModel`
+
+   | Parameter | Definition | Defalt Value used |
+   | ---- | ---- | ---- |
+   | dropout | The probability of a neuron being dropped. A strategy used for avoiding overfitting. | 0.3 |
+   | learning_rate | A hyperparameter determines how much the model's parameters are adjusted with respect to the gradient of the loss function. | 0.001 |
+   | fl_gamma | The $\gamma$ parameter of the focal loss function, which adjusts the focus of the loss function on hard-to-classify samples. It should be an integer. | 2 |
+   | fl_alpha | The $\alpha$ parameter of the focal loss function, which balances the importance of positive and negative samples. It should be a floating-point number between 0 and 1. | 0.7 |
+   | epoch | The number of times the train set is passed through the model for training. It should be an integer. | 100 |
+   | batch | The batch size which defines the number of samples in each batch. | 32 |
+   | validation_split | The percentage of the training set to be used as the validation set. | 0.2 |
+   | confidence | The probability threshold for identifying a label as positive (value 1). | 0.5 |
+   | top_N | The number of labels to select using argmax(probability) if no labels reach the confidence threshold. | 2 |
