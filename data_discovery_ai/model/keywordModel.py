@@ -29,10 +29,6 @@ from typing import Dict, Callable, Any, Tuple, Optional, List
 import os
 from pathlib import Path
 
-# Base directory where your Poetry project's pyproject.toml is located
-BASE_DIR = Path(__file__).resolve().parent.parent
-SUB_DIR = BASE_DIR / "resources"
-
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 logger = logging.getLogger(__name__)
@@ -160,7 +156,7 @@ def keyword_model(
         validation_split=params.getfloat("keywordModel", "validation_split"),
         callbacks=[early_stopping, reduce_lr],
     )
-    model_file_path = (SUB_DIR / model_name).with_suffix(".keras")
+    model_file_path = (Path(__file__).resolve().parent.parent / "resources" / model_name).with_suffix(".keras")
     # make sure folder exist
     model_file_path.parent.mkdir(
         parents=True, exist_ok=True
@@ -288,7 +284,7 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     Output:
         Optional[keras_load_model]: The loaded Keras model if successful, otherwise `None`.
     """
-    model_file_path = (SUB_DIR / trained_model).with_suffix(".keras")
+    model_file_path = (Path(__file__).resolve().parent.parent / "resources" / trained_model).with_suffix(".keras")
     try:
         saved_model = load_model(model_file_path, compile=False)
         return saved_model

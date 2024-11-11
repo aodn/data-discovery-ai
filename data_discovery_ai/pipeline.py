@@ -2,6 +2,8 @@ import data_discovery_ai.utils.preprocessor as preprocessor
 import data_discovery_ai.model.keywordModel as model
 import data_discovery_ai.utils.es_connector as connector
 import data_discovery_ai.service.keywordClassifier as keywordClassifier
+from data_discovery_ai.utils.config_utils import ConfigUtil
+from data_discovery_ai.common.constants import AVAILABLE_MODELS, KEYWORD_SAMPLE_FILE, KEYWORD_LABEL_FILE
 import numpy as np
 import json
 import pandas as pd
@@ -9,34 +11,11 @@ import configparser
 from typing import Any, Dict, Tuple
 from dataclasses import dataclass
 import logging
-from data_discovery_ai.common.constants import (
-    KEYWORD_CONFIG,
-    AVAILABLE_MODELS,
-    ELASTICSEARCH_CONFIG,
-    KEYWORD_SAMPLE_FILE,
-    KEYWORD_LABEL_FILE
-)
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-from pathlib import Path
-
-# Base directory where your Poetry project's pyproject.toml is located
-BASE_DIR = Path(__file__).resolve().parent
-
-# Construct the full path to the .ini file
-config_file_path = BASE_DIR / "common" / KEYWORD_CONFIG
-if not config_file_path.exists():
-    raise FileNotFoundError(
-        f"The configuration file was not found at {config_file_path}"
-    )
-
-elasticsearch_config_file_path = BASE_DIR / "common" / ELASTICSEARCH_CONFIG
-if not config_file_path.exists():
-    raise FileNotFoundError(
-        f"The configuration file was not found at {config_file_path}"
-    )
 
 
 @dataclass
@@ -61,13 +40,25 @@ class KeywordClassifierPipeline:
             usePretrainedModel: bool. Choose whether to use pretrained model or train the model and then to be used. If set as True, the model_name should be given.
             model_name: str. The model name that saved in a .keras file.
         """
-        params = configparser.ConfigParser()
-        params.read(config_file_path)
-        self.params = params
+        self.config = ConfigUtil()
+        self.params = self.config.load_keyword_config()
         self.isDataChanged = isDataChanged
         self.usePretrainedModel = usePretrainedModel
         # validate model name with accepted values, defined in data_discovery_ai/common/constants.py
-        self.validate_model_name(model_name=model_name)
+        self.model_name = model_name
+        if not self.is_valid_model():
+            raise ValueError(
+                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
+            )
+        # create temp folder
+        self.temp_dir = tempfile.mkdtemp()
+        # define labels for prediction
+        if isDataChanged:
+            self.labels = None
+        else:
+            base_dir = self.config.base_dif
+            full_label_path = base_dir / "resources" / KEYWORD_LABEL_FILE
+            self.labels = preprocessor.load_from_file(full_label_path)
 
     """
         Validate model name within fixed selections
@@ -75,14 +66,14 @@ class KeywordClassifierPipeline:
             model_name: str. The file name of the saved model. restricted within four options: development, staging, production, and test
     """
 
-    def validate_model_name(self, model_name) -> None:
+    def is_valid_model(self) -> bool:
         valid_model_name = AVAILABLE_MODELS
-        if model_name.lower() not in valid_model_name:
-            raise ValueError(
-                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
-            )
+        self.model_name = self.model_name.lower()
+        if self.model_name in valid_model_name:
+            return True
         else:
-            self.model_name = model_name.lower()
+            return False
+
 
     def fetch_raw_data(self) -> pd.DataFrame:
         """
@@ -90,8 +81,7 @@ class KeywordClassifierPipeline:
         Output:
             raw_data: pd.DataFrame. A DataFrame containing the raw data retrieved from Elasticsearch.
         """
-        es_config = configparser.ConfigParser()
-        es_config.read(elasticsearch_config_file_path)
+        es_config = self.config.load_es_config()
 
         client = connector.connect_es(es_config)
         raw_data = connector.search_es(client)
@@ -115,8 +105,11 @@ class KeywordClassifierPipeline:
         labelledDS = preprocessor.identify_sample(raw_data, vocabs)
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
-        preprocessor.save_to_file(sampleSet, "keyword_sample.pkl")
-        sampleSet = preprocessor.load_from_file("keyword_sample.pkl")
+
+        full_path = os.path.join(self.temp_dir, KEYWORD_SAMPLE_FILE)
+
+        preprocessor.save_to_file(sampleSet, full_path)
+        sampleSet = preprocessor.load_from_file(full_path)
         return sampleSet
 
     def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
@@ -145,9 +138,12 @@ class KeywordClassifierPipeline:
 
         # Prepare feature matrix (X) and label matrix (Y) from the sample set
         X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
+        
+        self.labels = labels
 
-        # Save the labels to a file for persistence
-        preprocessor.save_to_file(labels, "labels.pkl")
+        # save labels for pretrained model to use for prediction
+        full_path = os.path.join(self.temp_dir, KEYWORD_LABEL_FILE)
+        preprocessor.save_to_file(labels, full_path)
 
         # Identify rare labels based on a predefined threshold
         rare_label_threshold = self.params.getint(
@@ -228,13 +224,21 @@ class KeywordClassifierPipeline:
             predicted_labels: str. The predicted keywords by the trained keyword classifier model
         """
         predicted_labels = keywordClassifier.keywordClassifier(
-            trained_model=self.model_name, description=description
+            trained_model=self.model_name, description=description, labels = self.labels
         )
         print(predicted_labels)
         return predicted_labels
 
 
-def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
+def pipeline(isDataChanged:bool, usePretrainedModel:bool, description:str, selected_model:str) -> None:
+    """
+        The keyword classifier pipeline.
+        Inputs:
+            isDataChanged: bool. The indicator to call the data preprocessing module or not.
+            usePretrainedModel: bool. The indicator to use the pretrained model or not.
+            description: str. The item description which is used for making prediction.
+            selected_model: str. The model name for a selected pretrained model.
+    """
     keyword_classifier_pipeline = KeywordClassifierPipeline(
         isDataChanged=isDataChanged,
         usePretrainedModel=usePretrainedModel,
@@ -247,7 +251,9 @@ def pipeline(isDataChanged, usePretrainedModel, description, selected_model):
             raw_data = keyword_classifier_pipeline.fetch_raw_data()
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         else:
-            sampleSet = preprocessor.load_from_file(KEYWORD_SAMPLE_FILE)
+            base_dir = keyword_classifier_pipeline.config.base_dif
+            full_sampleSet_path = base_dir / "resources" / KEYWORD_SAMPLE_FILE
+            sampleSet = preprocessor.load_from_file(full_sampleSet_path)
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 

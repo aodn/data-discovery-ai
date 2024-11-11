@@ -21,24 +21,22 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from pathlib import Path
 from typing import Dict
+import tempfile
 
-# Base directory where your Poetry project's pyproject.toml is located
-BASE_DIR = Path(__file__).resolve().parent.parent
-SUB_DIR = BASE_DIR / "temp"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 class Concept:
-    def __init__(self, id, url, vocab_type) -> None:
+    def __init__(self, id:str, url:str, vocab_type:str) -> None:
         self.id = id
         self.url = url
         self.vocab_type = vocab_type
 
     def to_json(self) -> Dict[str, Any]:
         return {
-            "vocab_type": self.title,
+            "vocab_type": self.vocab_type,
             "value": self.id,
             "url": self.url,
         }
@@ -55,24 +53,21 @@ class Concept:
 
     def __hash__(self):
         return hash((self.id, self.url, self.vocab_type))
+    
 
-
-def save_to_file(obj: Any, file_name: str) -> None:
+def save_to_file(obj: Any, full_path: str) -> None:
     """
-    Saves an object to a file using pickle serialization in the input folder.
+    Saves an object to a file using pickle serialization in the specific file path
     """
-    full_path = SUB_DIR / file_name
-    full_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure the folder exists
     with open(full_path, "wb") as file:
         pickle.dump(obj, file)
         logger.info(f"Saved to {full_path}")
 
 
-def load_from_file(file_name: str) -> Any:
+def load_from_file(full_path: str) -> Any:
     """
     Loads an object from a file in the input folder using pickle deserialization.
     """
-    full_path = SUB_DIR / file_name
     with open(full_path, "rb") as file:
         obj = pickle.load(file)
         logger.info(f"Load from {full_path}")
@@ -93,7 +88,6 @@ def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
         ["_id", "_source.title", "_source.description", "_source.themes"]
     ]
     raw_data_cleaned.columns = ["id", "title", "description", "keywords"]
-    raw_data_cleaned["keywords"] = raw_data_cleaned["keywords"].apply(lambda k: eval(k))
     sampleSet = raw_data_cleaned[
         raw_data_cleaned["keywords"].apply(
             lambda terms: any(
@@ -209,7 +203,7 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
     """
     tqdm.pandas()
     ds["information"] = ds["title"] + ": " + ds["description"]
-    ds["embedding"] = ds["description"].progress_apply(
+    ds["embedding"] = ds["information"].progress_apply(
         lambda x: get_description_embedding(x)
     )
     return ds
@@ -254,12 +248,12 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
     for keyword in keywords:
         for concept in keyword["concepts"]:
             if keyword["title"] in vocabs and concept["id"] != "":
-                keyword = Concept(
-                    id=concept["id"], url=concept["url"], vocab_type=keyword["title"]
+                con = Concept(
+                    id=concept["id"].lower(), url=concept["url"], vocab_type=keyword["title"]
                 )
-                concept_str = keyword.to_json()
+                concept_str = con.to_json()
                 k_list.append(concept_str)
-    return list(set(k_list))
+    return list(k_list)
 
 
 def prepare_train_test(

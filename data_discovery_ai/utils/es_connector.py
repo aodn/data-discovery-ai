@@ -2,13 +2,10 @@ from elasticsearch import (
     Elasticsearch,
 )  # TODO: please use poetry add command to install any new libraries
 import configparser
-import json
 import logging
 import pandas as pd
 from tqdm import tqdm
 import time
-from data_discovery_ai.utils.preprocessor import save_to_file
-from data_discovery_ai.common.constants import ELASTICSEARCH_CONFIG
 
 
 logger = logging.getLogger(__name__)
