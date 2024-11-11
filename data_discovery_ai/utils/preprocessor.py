@@ -53,6 +53,10 @@ class Concept:
 
     def __hash__(self):
         return hash((self.id, self.url, self.vocab_type))
+    
+    def __str__(self):
+        return f"Concept(id={self.id}, url='{self.url}', vocab_type='{self.vocab_type}')"
+
 
 
 def save_to_file(obj: Any, full_path: str) -> None:
