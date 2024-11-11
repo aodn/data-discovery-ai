@@ -4,7 +4,10 @@ from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai.common.constants import KEYWORD_LABEL_FILE
 from typing import List, Any
 
-def keywordClassifier(trained_model:str, description:str, labels: List[Any]) -> List[Any]:
+
+def keywordClassifier(
+    trained_model: str, description: str, labels: List[Any]
+) -> List[Any]:
     """
     The keyword classifier service for API use.
     Input:
@@ -28,4 +31,3 @@ def keywordClassifier(trained_model:str, description:str, labels: List[Any]) -> 
     )
     prediction = model.get_predicted_keywords(target_predicted_labels, labels).to_list()
     return prediction
-

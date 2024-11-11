@@ -156,7 +156,9 @@ def keyword_model(
         validation_split=params.getfloat("keywordModel", "validation_split"),
         callbacks=[early_stopping, reduce_lr],
     )
-    model_file_path = (Path(__file__).resolve().parent.parent / "resources" / model_name).with_suffix(".keras")
+    model_file_path = (
+        Path(__file__).resolve().parent.parent / "resources" / model_name
+    ).with_suffix(".keras")
     # make sure folder exist
     model_file_path.parent.mkdir(
         parents=True, exist_ok=True
@@ -284,7 +286,9 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     Output:
         Optional[keras_load_model]: The loaded Keras model if successful, otherwise `None`.
     """
-    model_file_path = (Path(__file__).resolve().parent.parent / "resources" / trained_model).with_suffix(".keras")
+    model_file_path = (
+        Path(__file__).resolve().parent.parent / "resources" / trained_model
+    ).with_suffix(".keras")
     try:
         saved_model = load_model(model_file_path, compile=False)
         return saved_model

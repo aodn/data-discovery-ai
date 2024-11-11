@@ -29,7 +29,7 @@ logger.setLevel(logging.INFO)
 
 
 class Concept:
-    def __init__(self, id:str, url:str, vocab_type:str) -> None:
+    def __init__(self, id: str, url: str, vocab_type: str) -> None:
         self.id = id
         self.url = url
         self.vocab_type = vocab_type
@@ -53,7 +53,7 @@ class Concept:
 
     def __hash__(self):
         return hash((self.id, self.url, self.vocab_type))
-    
+
 
 def save_to_file(obj: Any, full_path: str) -> None:
     """
@@ -249,7 +249,9 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         for concept in keyword["concepts"]:
             if keyword["title"] in vocabs and concept["id"] != "":
                 con = Concept(
-                    id=concept["id"].lower(), url=concept["url"], vocab_type=keyword["title"]
+                    id=concept["id"].lower(),
+                    url=concept["url"],
+                    vocab_type=keyword["title"],
                 )
                 concept_str = con.to_json()
                 k_list.append(concept_str)

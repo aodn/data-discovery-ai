@@ -3,7 +3,11 @@ import data_discovery_ai.model.keywordModel as model
 import data_discovery_ai.utils.es_connector as connector
 import data_discovery_ai.service.keywordClassifier as keywordClassifier
 from data_discovery_ai.utils.config_utils import ConfigUtil
-from data_discovery_ai.common.constants import AVAILABLE_MODELS, KEYWORD_SAMPLE_FILE, KEYWORD_LABEL_FILE
+from data_discovery_ai.common.constants import (
+    AVAILABLE_MODELS,
+    KEYWORD_SAMPLE_FILE,
+    KEYWORD_LABEL_FILE,
+)
 import numpy as np
 import json
 import pandas as pd
@@ -74,7 +78,6 @@ class KeywordClassifierPipeline:
         else:
             return False
 
-
     def fetch_raw_data(self) -> pd.DataFrame:
         """
         Fetches raw data from Elasticsearch and returns it as a DataFrame.
@@ -138,7 +141,7 @@ class KeywordClassifierPipeline:
 
         # Prepare feature matrix (X) and label matrix (Y) from the sample set
         X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
-        
+
         self.labels = labels
 
         # save labels for pretrained model to use for prediction
@@ -224,20 +227,22 @@ class KeywordClassifierPipeline:
             predicted_labels: str. The predicted keywords by the trained keyword classifier model
         """
         predicted_labels = keywordClassifier.keywordClassifier(
-            trained_model=self.model_name, description=description, labels = self.labels
+            trained_model=self.model_name, description=description, labels=self.labels
         )
         print(predicted_labels)
         return predicted_labels
 
 
-def pipeline(isDataChanged:bool, usePretrainedModel:bool, description:str, selected_model:str) -> None:
+def pipeline(
+    isDataChanged: bool, usePretrainedModel: bool, description: str, selected_model: str
+) -> None:
     """
-        The keyword classifier pipeline.
-        Inputs:
-            isDataChanged: bool. The indicator to call the data preprocessing module or not.
-            usePretrainedModel: bool. The indicator to use the pretrained model or not.
-            description: str. The item description which is used for making prediction.
-            selected_model: str. The model name for a selected pretrained model.
+    The keyword classifier pipeline.
+    Inputs:
+        isDataChanged: bool. The indicator to call the data preprocessing module or not.
+        usePretrainedModel: bool. The indicator to use the pretrained model or not.
+        description: str. The item description which is used for making prediction.
+        selected_model: str. The model name for a selected pretrained model.
     """
     keyword_classifier_pipeline = KeywordClassifierPipeline(
         isDataChanged=isDataChanged,
