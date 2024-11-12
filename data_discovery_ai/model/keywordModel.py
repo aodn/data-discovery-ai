@@ -27,6 +27,7 @@ from tensorflow.keras.models import load_model
 import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
 import os
+import json
 from pathlib import Path
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
@@ -218,33 +219,37 @@ def prediction(X: np.ndarray, model: Any, confidence: float, top_N: int) -> np.n
     return predicted_labels
 
 
-def replace_with_column_names(
-    row: pd.SparseDtype, column_names: List[str]
-) -> List[str]:
+def replace_with_column_names(row: pd.SparseDtype, labels: Dict) -> List[Dict]:
     """
-    Transform a row of binary values and returns a string of column names (separated by " | ") for which the value in the row is 1.
+    Transform a row of binary values and returns a list of keywords (as JSON format) for which the value in the row is 1.
     Input:
         row: pd.Series. A row of binary values indicating presence (1) or absence (0) of each label.
-        column_names: List[str]. The predefiend label set.
+        labels: Dict. The predefiend label set.
     Output:
-        str: The predicted keywords, separated by " | "
+        List: The predicted keywords in JSON format
     """
-    return " | ".join([column_names[i] for i, value in enumerate(row) if value == 1])
+    return [labels.get(i).to_jsonStr() for i, value in enumerate(row) if value == 1]
 
 
-def get_predicted_keywords(prediction: np.ndarray, labels: List[str]):
+def get_predicted_keywords(prediction: np.ndarray, labels: Dict):
     """
     Convert binary predictions to textual keywords.
     Input:
         prediction: np.ndarray. The predicted binary matrix.
-        labels: List[str]. The predefiend keywords.
+        labels: Dict. The predefiend keywords.
     Output:
-        predicted_keywords: pd.Series. The predicted ketwords for the given targets.
+        predicted_keywords: List. The predicted keywords for the given targets.
     """
-    target_predicted = pd.DataFrame(prediction, columns=labels)
+    target_predicted = pd.DataFrame(prediction, columns=list(labels.keys()))
     predicted_keywords = target_predicted.apply(
         lambda row: replace_with_column_names(row, labels), axis=1
     )
+
+    predicted_keywords = predicted_keywords.values.tolist()
+    # unpack if there is only one group of predicted keywords
+    if len(predicted_keywords) == 1:
+        predicted_keywords = [json.loads(item) for item in predicted_keywords[0]]
+
     return predicted_keywords
 
 

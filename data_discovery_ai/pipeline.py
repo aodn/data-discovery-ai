@@ -140,20 +140,20 @@ class KeywordClassifierPipeline:
         """
 
         # Prepare feature matrix (X) and label matrix (Y) from the sample set
-        X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
+        X, Y, Y_df, labelMap = preprocessor.prepare_X_Y(sampleSet)
 
-        self.labels = labels
+        self.labels = labelMap
 
         # save labels for pretrained model to use for prediction
         full_path = os.path.join(self.temp_dir, KEYWORD_LABEL_FILE)
-        preprocessor.save_to_file(labels, full_path)
+        preprocessor.save_to_file(self.labels, full_path)
 
         # Identify rare labels based on a predefined threshold
         rare_label_threshold = self.params.getint(
             "preprocessor", "rare_label_threshold"
         )
         rare_label_index = preprocessor.identify_rare_labels(
-            Y_df, rare_label_threshold, labels
+            Y_df, rare_label_threshold, list(self.labels.keys())
         )
 
         # Apply custom resampling to handle rare labels
@@ -252,14 +252,18 @@ def pipeline(
     if keyword_classifier_pipeline.usePretrainedModel:
         keyword_classifier_pipeline.make_prediction(description)
     else:
+        base_dir = keyword_classifier_pipeline.config.base_dif
+        full_sampleSet_path = base_dir / "resources" / KEYWORD_SAMPLE_FILE
+        full_labelMap_path = base_dir / "resources" / KEYWORD_LABEL_FILE
         if keyword_classifier_pipeline.isDataChanged:
             raw_data = keyword_classifier_pipeline.fetch_raw_data()
             sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
+            preprocessor.save_to_file(sampleSet, full_sampleSet_path)
+            preprocessor.save_to_file(
+                keyword_classifier_pipeline.labels, full_labelMap_path
+            )
         else:
-            base_dir = keyword_classifier_pipeline.config.base_dif
-            full_sampleSet_path = base_dir / "resources" / KEYWORD_SAMPLE_FILE
             sampleSet = preprocessor.load_from_file(full_sampleSet_path)
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
-
         keyword_classifier_pipeline.make_prediction(description)
