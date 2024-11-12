@@ -274,7 +274,7 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
         vocabs: List[str]. A list of vocabulary names to match against keyword titles.
     Output:
-        A list of formatted keywords.
+        A list of formatted keywords, with duplicates removed, in the form `title;id`.
     """
     if type(text) is list:
         keywords = text
