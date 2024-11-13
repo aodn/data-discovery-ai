@@ -22,6 +22,7 @@ from dataclasses import dataclass
 import logging
 import tempfile
 import os
+import json
 
 
 logger = logging.getLogger(__name__)
@@ -264,6 +265,7 @@ def pipeline(
     if not isDataChanged:
         sampleSet = preprocessor.load_from_file(full_sampleSet_path)
         predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
+
         # usePretrainedModel = True
         if keyword_classifier_pipeline.usePretrainedModel:
             keyword_classifier_pipeline.set_labels(labels=predefinedLabels)
@@ -273,16 +275,19 @@ def pipeline(
             train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(
                 sampleSet
             )
+            preprocessor.save_to_file(
+                keyword_classifier_pipeline.labels, full_labelMap_path
+            )
             keyword_classifier_pipeline.train_evaluate_model(train_test_data)
 
     # data changed, so start from the data preprocessing module
     else:
         raw_data = keyword_classifier_pipeline.fetch_raw_data()
         sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
-        # preprocessor.save_to_file(sampleSet, full_sampleSet_path)
-        # preprocessor.save_to_file(
-        #     keyword_classifier_pipeline.labels, full_labelMap_path
-        # )
+        preprocessor.save_to_file(sampleSet, full_sampleSet_path)
+        preprocessor.save_to_file(
+            keyword_classifier_pipeline.labels, full_labelMap_path
+        )
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
     keyword_classifier_pipeline.make_prediction(description)
