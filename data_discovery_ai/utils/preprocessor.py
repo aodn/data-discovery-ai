@@ -6,6 +6,7 @@ import logging
 import pickle
 import pandas as pd
 import ast
+import os
 import numpy as np
 import configparser
 from typing import Any, List, Tuple, Union, Dict
@@ -13,12 +14,14 @@ from typing import Any, List, Tuple, Union, Dict
 import torch
 from sklearn.preprocessing import MultiLabelBinarizer
 from transformers import BertTokenizer, BertModel
+from sklearn.model_selection import train_test_split
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
+from pathlib import Path
 from typing import Dict
-import json
+import tempfile
 
 
 logger = logging.getLogger(__name__)
@@ -31,13 +34,12 @@ class Concept:
         self.url = url
         self.vocab_type = vocab_type
 
-    def to_jsonStr(self) -> Dict:
-        dict = {
+    def to_json(self) -> Dict[str, Any]:
+        return {
             "vocab_type": self.vocab_type,
             "value": self.id,
             "url": self.url,
         }
-        return json.dumps(dict)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Concept):
@@ -51,6 +53,11 @@ class Concept:
 
     def __hash__(self):
         return hash((self.id, self.url, self.vocab_type))
+
+    def __str__(self):
+        return (
+            f"Concept(id={self.id}, url='{self.url}', vocab_type='{self.vocab_type}')"
+        )
 
 
 def save_to_file(obj: Any, full_path: str) -> None:
@@ -121,7 +128,7 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
 
 def prepare_X_Y(
     sampleSet: pd.DataFrame,
-) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict]:
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
     """
     Prepares the input feature matrix (X) and target matrix (Y) from the sample set data.
     Input:
@@ -131,23 +138,24 @@ def prepare_X_Y(
         X: np.ndarray. A numpy array containing feature variables for items in the sample set.
         Y: np.ndarray. A numpy array containing target variables for items in the sample set.
         Y_df: pd.Dataframe. A DataFrame representation of the target variables.
-        labelMap: Dict. The set of predefined keyword labels, the keys are the values extracted from `Y_df` column names, the values are the corresponding concept object Concept(id=id, value=value, vocab_type=vocab_type).
+        labels: List[str]. A list of predefined keyword labels extracted from `Y_df` columns.
     """
     X = np.array(sampleSet["embedding"].tolist())
-    Y_df, labelMap = prepare_Y_matrix(sampleSet)
+    Y_df = prepare_Y_matrix(sampleSet)
+    labels = Y_df.columns.to_list()
     Y = Y_df.to_numpy()
-    return X, Y, Y_df, labelMap
+    return X, Y, Y_df, labels
 
 
 def identify_rare_labels(
-    Y_df: pd.DataFrame, threshold: int, labels: List[int]
+    Y_df: pd.DataFrame, threshold: int, labels: List[str]
 ) -> List[int]:
     """
     Identify rare labels under a threshold.
     Input:
         Y_df: pd.Dataframe. The target variables for all items in the sample set.
         threshold: int. The threshold for identifing rare labels, if the number of apperance is under this threshold, the label is considered as a rare label.
-        labels: List[int]. The predefined label set which contains all labels
+        labels: List[str]. The predefined label set which contains all labels
     Output:
         rare_label_index: List[int]. The indexes of rare labels in Y
     """
@@ -206,7 +214,7 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
     return ds
 
 
-def prepare_Y_matrix(ds: pd.DataFrame) -> Tuple[pd.DataFrame, dict]:
+def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
     """
     Prepares the target matrix (Y) by applying multi-label binarization on keywords. This function uses `MultiLabelBinarizer` to transform the `keywords` column of the dataset into a binary matrix format,
     where each unique keyword is represented as a binary feature. The output DataFrame has one column per keyword, with values indicating the presence (1) or absence (0) of each keyword for each record.
@@ -215,54 +223,15 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> Tuple[pd.DataFrame, dict]:
     Input:
         ds: pd.DataFrame. The dataset containing a `keywords` column, where each entry is expected to be a list of keywords.
     Output:
-        K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword,
-        keywordMap: A dict of keywords, key is the index of the keyword in the keyword set, value is the keyword, which is a concept object.
+        K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword.
     """
-    keywordMap = {}
-    keywordSet = set()
-    for concepts in ds["keywords"]:
-        for c in concepts:
-            try:
-                concept = json.loads(c)
-                con = Concept(
-                    id=concept.get("value"),
-                    url=concept.get("url"),
-                    vocab_type=concept.get("vocab_type"),
-                )
-                keywordSet.add(con)
-            except Exception as e:
-                print(c)
-    keywordMap = {index: item for index, item in enumerate(keywordSet)}
-    concept_to_index = {concept: index for index, concept in keywordMap.items()}
-
-    encoded_keywords = []
-    for concepts in ds["keywords"]:
-        encoded_row = []
-        for c in concepts:
-            try:
-                concept = json.loads(c)
-                con = Concept(
-                    id=concept.get("value"),
-                    url=concept.get("url"),
-                    vocab_type=concept.get("vocab_type"),
-                )
-                # Map the concept to its index if it exists in concept_to_index
-                if con in concept_to_index:
-                    encoded_row.append(concept_to_index[con])
-            except Exception as e:
-                print(c)
-        encoded_keywords.append(encoded_row)
-
-    # Assign the encoded list to the new column in the DataFrame
-    ds["encoded_keyword"] = encoded_keywords
-
     mlb = MultiLabelBinarizer()
-    Y = mlb.fit_transform(ds["encoded_keyword"])
+    Y = mlb.fit_transform(ds["keywords"])
     K = pd.DataFrame(Y, columns=mlb.classes_)
 
     if "" in K.columns:
         K.drop(columns=[""], inplace=True)
-    return K, keywordMap
+    return K
 
 
 def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[str]:
@@ -282,21 +251,15 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         keywords = ast.literal_eval(text)
     k_list = []
     for keyword in keywords:
-        try:
-            for concept in keyword["concepts"]:
-                if keyword["title"] in vocabs and concept["id"] != "":
-                    if concept.get("url") is not None:
-                        url = concept["url"]
-                    else:
-                        url = None
-                    con = Concept(
-                        id=concept["id"].lower(),
-                        url=url,
-                        vocab_type=keyword["title"],
-                    )
-                    k_list.append(con.to_jsonStr())
-        except Exception as e:
-            print(e)
+        for concept in keyword["concepts"]:
+            if keyword["title"] in vocabs and concept["id"] != "":
+                con = Concept(
+                    id=concept["id"].lower(),
+                    url=concept["url"],
+                    vocab_type=keyword["title"],
+                )
+                concept_str = con.to_json()
+                k_list.append(concept_str)
     return list(k_list)
 
 
