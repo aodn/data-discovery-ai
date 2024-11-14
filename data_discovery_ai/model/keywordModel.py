@@ -28,6 +28,7 @@ import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
 import os
 from pathlib import Path
+import json
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -185,8 +186,6 @@ def evaluation(Y_test: np.ndarray, predictions: np.ndarray) -> Dict[str, float]:
     recall = recall_score(Y_test, predictions, average="micro")
     f1 = f1_score(Y_test, predictions, average="micro")
     jaccard = jaccard_score(Y_test, predictions, average="samples")
-
-    print(f" {precision:.4f} | {recall:.4f} | {f1:.4f} | {hammingloss:.4f} |")
     return {
         "precision": f"{precision:.4f}",
         "recall": f"{recall:.4f}",
@@ -222,14 +221,14 @@ def replace_with_column_names(
     row: pd.SparseDtype, column_names: List[str]
 ) -> List[str]:
     """
-    Transform a row of binary values and returns a string of column names (separated by " | ") for which the value in the row is 1.
+    Transform a row of binary values and returns a list of column names for which the value in the row is 1.
     Input:
         row: pd.Series. A row of binary values indicating presence (1) or absence (0) of each label.
         column_names: List[str]. The predefiend label set.
     Output:
-        str: The predicted keywords, separated by " | "
+        str: The predicted keywords
     """
-    return " | ".join([column_names[i] for i, value in enumerate(row) if value == 1])
+    return [column_names[i] for i, value in enumerate(row) if value == 1]
 
 
 def get_predicted_keywords(prediction: np.ndarray, labels: List[str]):
@@ -245,6 +244,8 @@ def get_predicted_keywords(prediction: np.ndarray, labels: List[str]):
     predicted_keywords = target_predicted.apply(
         lambda row: replace_with_column_names(row, labels), axis=1
     )
+    if len(predicted_keywords) == 1:
+        predicted_keywords = [json.loads(item) for item in predicted_keywords[0]]
     return predicted_keywords
 
 

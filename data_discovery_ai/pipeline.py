@@ -1,4 +1,6 @@
-import data_discovery_ai.utils.preprocessor as preprocessor
+from data_discovery_ai.utils.preprocessor import *
+from data_discovery_ai.utils import preprocessor as preprocessor
+
 import data_discovery_ai.model.keywordModel as model
 import data_discovery_ai.utils.es_connector as connector
 import data_discovery_ai.service.keywordClassifier as keywordClassifier
@@ -8,15 +10,20 @@ from data_discovery_ai.common.constants import (
     KEYWORD_SAMPLE_FILE,
     KEYWORD_LABEL_FILE,
 )
+
+import sys
+
+sys.modules["preprocessor"] = preprocessor
+
 import numpy as np
-import json
 import pandas as pd
-import configparser
 from typing import Any, Dict, Tuple
 from dataclasses import dataclass
 import logging
 import tempfile
 import os
+import json
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -56,13 +63,12 @@ class KeywordClassifierPipeline:
             )
         # create temp folder
         self.temp_dir = tempfile.mkdtemp()
+
         # define labels for prediction
-        if isDataChanged:
-            self.labels = None
-        else:
-            base_dir = self.config.base_dif
-            full_label_path = base_dir / "resources" / KEYWORD_LABEL_FILE
-            self.labels = preprocessor.load_from_file(full_label_path)
+        self.labels = None
+
+    def set_labels(self, labels):
+        self.labels = labels
 
     """
         Validate model name within fixed selections
@@ -249,17 +255,39 @@ def pipeline(
         usePretrainedModel=usePretrainedModel,
         model_name=selected_model,
     )
-    if keyword_classifier_pipeline.usePretrainedModel:
-        keyword_classifier_pipeline.make_prediction(description)
-    else:
-        if keyword_classifier_pipeline.isDataChanged:
-            raw_data = keyword_classifier_pipeline.fetch_raw_data()
-            sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
+
+    # define resource files paths
+    base_dir = keyword_classifier_pipeline.config.base_dif
+    full_sampleSet_path = base_dir / "resources" / KEYWORD_SAMPLE_FILE
+    full_labelMap_path = base_dir / "resources" / KEYWORD_LABEL_FILE
+
+    # data not changed, so load the preprocessed data from resource
+    if not isDataChanged:
+        sampleSet = preprocessor.load_from_file(full_sampleSet_path)
+        predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
+
+        # usePretrainedModel = True
+        if keyword_classifier_pipeline.usePretrainedModel:
+            keyword_classifier_pipeline.set_labels(labels=predefinedLabels)
+        # usePretrainedModel = False
         else:
-            base_dir = keyword_classifier_pipeline.config.base_dif
-            full_sampleSet_path = base_dir / "resources" / KEYWORD_SAMPLE_FILE
-            sampleSet = preprocessor.load_from_file(full_sampleSet_path)
+            # retrain the model
+            train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(
+                sampleSet
+            )
+            preprocessor.save_to_file(
+                keyword_classifier_pipeline.labels, full_labelMap_path
+            )
+            keyword_classifier_pipeline.train_evaluate_model(train_test_data)
+
+    # data changed, so start from the data preprocessing module
+    else:
+        raw_data = keyword_classifier_pipeline.fetch_raw_data()
+        sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
+        preprocessor.save_to_file(sampleSet, full_sampleSet_path)
+        preprocessor.save_to_file(
+            keyword_classifier_pipeline.labels, full_labelMap_path
+        )
         train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
-
-        keyword_classifier_pipeline.make_prediction(description)
+    keyword_classifier_pipeline.make_prediction(description)
