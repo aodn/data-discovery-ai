@@ -29,5 +29,5 @@ def keywordClassifier(
         params.getfloat("keywordModel", "confidence"),
         params.getint("keywordModel", "top_N"),
     )
-    prediction = model.get_predicted_keywords(target_predicted_labels, labels).to_list()
+    prediction = model.get_predicted_keywords(target_predicted_labels, labels)
     return prediction

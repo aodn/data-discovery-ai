@@ -10,7 +10,7 @@ def test():
 
     pipeline(
         isDataChanged=False,
-        usePretrainedModel=False,
+        usePretrainedModel=True,
         description=item_description,
         selected_model="experimental",
     )
