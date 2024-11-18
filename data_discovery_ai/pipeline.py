@@ -115,11 +115,14 @@ class KeywordClassifierPipeline:
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
 
+        # drop empty keywords rows
+        sampleSet_filtered = sampleSet[sampleSet["keywords"].apply(lambda x: x != [])]
+
         full_path = os.path.join(self.temp_dir, KEYWORD_SAMPLE_FILE)
 
-        preprocessor.save_to_file(sampleSet, full_path)
-        sampleSet = preprocessor.load_from_file(full_path)
-        return sampleSet
+        preprocessor.save_to_file(sampleSet_filtered, full_path)
+        sampleSet_filtered = preprocessor.load_from_file(full_path)
+        return sampleSet_filtered
 
     def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
         """

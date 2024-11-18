@@ -12,7 +12,7 @@ def test():
         isDataChanged=False,
         usePretrainedModel=True,
         description=item_description,
-        selected_model="experimental",
+        selected_model="development",
     )
 
 

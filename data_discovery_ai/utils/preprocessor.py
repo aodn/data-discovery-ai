@@ -22,22 +22,22 @@ from tqdm import tqdm
 from pathlib import Path
 from typing import Dict
 import tempfile
-
+import json
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 class Concept:
-    def __init__(self, id: str, url: str, vocab_type: str) -> None:
-        self.id = id
+    def __init__(self, value: str, url: str, vocab_type: str) -> None:
+        self.value = value
         self.url = url
         self.vocab_type = vocab_type
 
     def to_json(self) -> Dict[str, Any]:
         return {
             "vocab_type": self.vocab_type,
-            "value": self.id,
+            "value": self.value,
             "url": self.url,
         }
 
@@ -46,18 +46,16 @@ class Concept:
             return NotImplemented
 
         return (
-            self.id == other.id
+            self.value == other.value
             and self.url == other.url
             and self.vocab_type == other.vocab_type
         )
 
     def __hash__(self):
-        return hash((self.id, self.url, self.vocab_type))
+        return hash((self.value, self.url, self.vocab_type))
 
     def __str__(self):
-        return (
-            f"Concept(id={self.id}, url='{self.url}', vocab_type='{self.vocab_type}')"
-        )
+        return f"Concept(value={self.value}, url='{self.url}', vocab_type='{self.vocab_type}')"
 
 
 def save_to_file(obj: Any, full_path: str) -> None:
@@ -110,20 +108,13 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
         sampleSet: pd.Dataframe. The identified sample set
         vocabs: List[str]. A list of vocabulary names, the predefined vocabularies
     Output:
-        cleaned_sampleSet: pd.Dataframe. The cleaned sample set
+        sampleSet: pd.Dataframe. The sample set with filtered keywords
     """
 
     sampleSet["keywords"] = sampleSet["keywords"].apply(
         lambda x: keywords_formatter(x, vocabs)
     )
-    list_lengths = sampleSet["keywords"].apply(len)
-    empty_keywords_records_index = list_lengths[list_lengths == 0].index.tolist()
-    empty_keywords_records = []
-    for index in empty_keywords_records_index:
-        empty_keywords_records.append(sampleSet.iloc[index]["id"])
-    cleaned_sampleSet = sampleSet[~sampleSet["id"].isin(empty_keywords_records)]
-
-    return cleaned_sampleSet
+    return sampleSet
 
 
 def prepare_X_Y(
@@ -138,24 +129,21 @@ def prepare_X_Y(
         X: np.ndarray. A numpy array containing feature variables for items in the sample set.
         Y: np.ndarray. A numpy array containing target variables for items in the sample set.
         Y_df: pd.Dataframe. A DataFrame representation of the target variables.
-        labels: List[str]. A list of predefined keyword labels extracted from `Y_df` columns.
+        labels: Dict. A dict of predefined keyword labels extracted from 'keywords' column. The key is the index of a keyword, and the value is the keyword as a Concept object.
     """
     X = np.array(sampleSet["embedding"].tolist())
-    Y_df = prepare_Y_matrix(sampleSet)
-    labels = Y_df.columns.to_list()
+    Y_df, labels = prepare_Y_matrix(sampleSet)
     Y = Y_df.to_numpy()
     return X, Y, Y_df, labels
 
 
-def identify_rare_labels(
-    Y_df: pd.DataFrame, threshold: int, labels: List[str]
-) -> List[int]:
+def identify_rare_labels(Y_df: pd.DataFrame, threshold: int, labels: Dict) -> List[int]:
     """
     Identify rare labels under a threshold.
     Input:
         Y_df: pd.Dataframe. The target variables for all items in the sample set.
         threshold: int. The threshold for identifing rare labels, if the number of apperance is under this threshold, the label is considered as a rare label.
-        labels: List[str]. The predefined label set which contains all labels
+        labels: Dict. The predefined label set which contains all labels
     Output:
         rare_label_index: List[int]. The indexes of rare labels in Y
     """
@@ -166,12 +154,7 @@ def identify_rare_labels(
     rare_labels = label_distribution_df[
         label_distribution_df["count"] <= threshold
     ].index.to_list()
-    rare_label_index = []
-    for item in rare_labels:
-        if item in labels:
-            index_in_labels = labels.index(item)
-            rare_label_index.append(index_in_labels)
-    return rare_label_index
+    return rare_labels
 
 
 def get_description_embedding(text: str) -> np.ndarray:
@@ -224,14 +207,38 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
         ds: pd.DataFrame. The dataset containing a `keywords` column, where each entry is expected to be a list of keywords.
     Output:
         K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword.
+        keywordMap: A dict represents the predefined keyword set. The key is the index of the keyword, and the value is a keyword defined as a Concept object.
     """
+    keywordSet = set()
+    for keyword_list in ds["keywords"]:
+        for keyword_dict in keyword_list:
+            keyword_obj = Concept(
+                vocab_type=keyword_dict.get("vocab_type"),
+                value=keyword_dict.get("value"),
+                url=keyword_dict.get("url"),
+            )
+            keywordSet.add(keyword_obj)
+    keywordMap = {index: keyword for index, keyword in enumerate(keywordSet)}
+
+    ds["keywordsMap"] = ds["keywords"].apply(
+        lambda keyword_list: [
+            next(
+                idx
+                for idx, kw in keywordMap.items()
+                if kw.vocab_type == d.get("vocab_type")
+                and kw.value == d.get("value")
+                and kw.url == d.get("url")
+            )
+            for d in keyword_list
+        ]
+    )
     mlb = MultiLabelBinarizer()
-    Y = mlb.fit_transform(ds["keywords"])
+    Y = mlb.fit_transform(ds["keywordsMap"])
     K = pd.DataFrame(Y, columns=mlb.classes_)
 
     if "" in K.columns:
         K.drop(columns=[""], inplace=True)
-    return K
+    return K, keywordMap
 
 
 def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[str]:
@@ -251,15 +258,15 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         keywords = ast.literal_eval(text)
     k_list = []
     for keyword in keywords:
-        for concept in keyword["concepts"]:
-            if keyword["title"] in vocabs and concept["id"] != "":
-                con = Concept(
-                    id=concept["id"].lower(),
-                    url=concept["url"],
-                    vocab_type=keyword["title"],
-                )
-                concept_str = con.to_json()
-                k_list.append(concept_str)
+        if keyword.get("concepts") is not None:
+            for con in keyword.get("concepts"):
+                if keyword.get("title") in vocabs and con.get("id") != "":
+                    concept = Concept(
+                        value=con.get("id").lower(),
+                        url=con.get("url"),
+                        vocab_type=keyword.get("title"),
+                    )
+                    k_list.append(concept.to_json())
     return list(k_list)
 
 

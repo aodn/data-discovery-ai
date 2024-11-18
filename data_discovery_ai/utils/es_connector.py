@@ -43,7 +43,6 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
 
 def search_es(client: Elasticsearch):
     index = "es-indexer-staging"
-    start = 0
     dataframes = []
     batch_size = 100
 
@@ -61,22 +60,13 @@ def search_es(client: Elasticsearch):
 
     # the first search
     first_query_body = {
-                    "size": 100,
-                    "query": {
-                        "match_all": {}
-                    },
-                    "pit": {
-                        "id": first_pit,
-                        "keep_alive": "1m"
-                    },
-                    "sort": [
-                            {
-                                "id.keyword": "asc"
-                            }
-                        ]
-                    }
+        "size": 100,
+        "query": {"match_all": {}},
+        "pit": {"id": first_pit, "keep_alive": "1m"},
+        "sort": [{"id.keyword": "asc"}],
+    }
     first_query_resp = client.search(body=first_query_body)
-    
+
     data = first_query_resp["hits"]["hits"]
     # set search after value
     current_last_result = data[-1]["sort"]
@@ -85,31 +75,21 @@ def search_es(client: Elasticsearch):
     df = pd.json_normalize(data)
     dataframes.append(df)
 
-    
     # set current pit as the first one
     current_pit = first_query_resp["pit_id"]
 
     # conduct further search
     for round in tqdm(range(1, rounds), desc="searching elasticsearch"):
         qurry_body = {
-                        "size": 100,
-                        "query": {
-                            "match_all": {}
-                        },
-                        "pit": {
-                            "id": current_pit,
-                            "keep_alive": "1m"
-                        },
-                        "sort": [
-                                {
-                                    "id.keyword": "asc"
-                                }
-                            ],
-                        "search_after": current_last_result,
-                        "track_total_hits": False
-                    }
+            "size": 100,
+            "query": {"match_all": {}},
+            "pit": {"id": current_pit, "keep_alive": "1m"},
+            "sort": [{"id.keyword": "asc"}],
+            "search_after": current_last_result,
+            "track_total_hits": False,
+        }
         query_resp = client.search(body=qurry_body)
-    
+
         data = query_resp["hits"]["hits"]
         # set search after value
         current_last_result = data[-1]["sort"]
