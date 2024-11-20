@@ -62,19 +62,25 @@ def save_to_file(obj: Any, full_path: str) -> None:
     """
     Saves an object to a file using pickle serialization in the specific file path
     """
-    with open(full_path, "wb") as file:
-        pickle.dump(obj, file)
-        logger.info(f"Saved to {full_path}")
+    try:
+        with open(full_path, "wb") as file:
+            pickle.dump(obj, file)
+            logger.info(f"Saved to {full_path}")
+    except Exception as e:
+        logger.error(e)
 
 
 def load_from_file(full_path: str) -> Any:
     """
     Loads an object from a file in the input folder using pickle deserialization.
     """
-    with open(full_path, "rb") as file:
-        obj = pickle.load(file)
-        logger.info(f"Load from {full_path}")
-    return obj
+    try:
+        with open(full_path, "rb") as file:
+            obj = pickle.load(file)
+            logger.info(f"Load from {full_path}")
+        return obj
+    except Exception as e:
+        logger.error(e)
 
 
 def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:

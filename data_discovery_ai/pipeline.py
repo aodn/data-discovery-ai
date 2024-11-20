@@ -116,13 +116,12 @@ class KeywordClassifierPipeline:
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
 
         # drop empty keywords rows
-        sampleSet_filtered = sampleSet[sampleSet["keywords"].apply(lambda x: x != [])]
+        filtered_sampleSet = sampleSet[sampleSet["keywords"].apply(lambda x: x != [])]
 
         full_path = os.path.join(self.temp_dir, KEYWORD_SAMPLE_FILE)
 
-        preprocessor.save_to_file(sampleSet_filtered, full_path)
-        sampleSet_filtered = preprocessor.load_from_file(full_path)
-        return sampleSet_filtered
+        preprocessor.save_to_file(filtered_sampleSet, full_path)
+        return filtered_sampleSet
 
     def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
         """
@@ -267,10 +266,10 @@ def pipeline(
     # data not changed, so load the preprocessed data from resource
     if not isDataChanged:
         sampleSet = preprocessor.load_from_file(full_sampleSet_path)
-        predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
 
         # usePretrainedModel = True
         if keyword_classifier_pipeline.usePretrainedModel:
+            predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
             keyword_classifier_pipeline.set_labels(labels=predefinedLabels)
         # usePretrainedModel = False
         else:
@@ -288,9 +287,11 @@ def pipeline(
         raw_data = keyword_classifier_pipeline.fetch_raw_data()
         sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         preprocessor.save_to_file(sampleSet, full_sampleSet_path)
+
+        train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         preprocessor.save_to_file(
             keyword_classifier_pipeline.labels, full_labelMap_path
         )
-        train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
+
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
     keyword_classifier_pipeline.make_prediction(description)
