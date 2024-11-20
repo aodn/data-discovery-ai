@@ -9,6 +9,9 @@ from data_discovery_ai.common.constants import (
     AVAILABLE_MODELS,
     KEYWORD_SAMPLE_FILE,
     KEYWORD_LABEL_FILE,
+    BATCH_SIZE,
+    SLEEP_TIME,
+    ES_INDEX_NAME,
 )
 
 import sys
@@ -93,7 +96,11 @@ class KeywordClassifierPipeline:
         es_config = self.config.load_es_config()
 
         client = connector.connect_es(es_config)
-        raw_data = connector.search_es(client)
+        # get ES_INDEX_NAME from environment
+        index = os.getenv("ES_INDEX_NAME", default=ES_INDEX_NAME)
+        raw_data = connector.search_es(
+            client=client, index=index, batch_size=BATCH_SIZE, sleep_time=SLEEP_TIME
+        )
         return raw_data
 
     def prepare_sampleSet(self, raw_data: pd.DataFrame) -> pd.DataFrame:

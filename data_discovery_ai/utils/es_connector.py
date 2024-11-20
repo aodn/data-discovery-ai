@@ -31,7 +31,7 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
         logging.info("Connected to ElasticSearch")
         return client
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Elasticsearch connection failed: {e}")
 
 
 """
@@ -75,49 +75,83 @@ def search_es(
     }
     first_query_resp = client.search(body=first_query_body)
 
-    data = first_query_resp["hits"]["hits"]
-    # set search after value
-    current_last_result = data[-1]["sort"]
+    try:
+        if "hits" not in first_query_resp or "hits" not in first_query_resp["hits"]:
+            raise KeyError("Invalid first query response: missing 'hits.hits'.")
 
-    # save the first search result
-    df = pd.json_normalize(data)
-    dataframes.append(df)
+        data = first_query_resp["hits"]["hits"]
+        if not data:
+            logger.warning("First query response returned no results.")
+            return pd.DataFrame()
 
-    # set current pit as the first one
-    current_pit = first_query_resp["pit_id"]
+        # set search after value
+        if "sort" not in data[-1]:
+            raise KeyError("The last result in 'hits.hits' is missing the 'sort' key.")
+        current_last_result = data[-1]["sort"]
 
-    # conduct further search
-    for round in tqdm(range(1, rounds), desc="searching elasticsearch"):
-        query_body = {
-            "size": batch_size,
-            "query": {"match_all": {}},
-            "pit": {"id": current_pit, "keep_alive": "1m"},
-            "sort": [{"id.keyword": "asc"}],
-            "search_after": current_last_result,
-            "track_total_hits": False,
-        }
-        query_resp = client.search(body=query_body)
+        # save the first search result
+        df = pd.json_normalize(data)
+        dataframes.append(df)
 
+        # set current pit as the first one
+        if "pit_id" not in first_query_resp:
+            raise KeyError("First query response is missing 'pit_id'.")
+        current_pit = first_query_resp["pit_id"]
+
+        # conduct further search
+        for round in tqdm(range(1, rounds), desc="searching elasticsearch"):
+            query_body = {
+                "size": batch_size,
+                "query": {"match_all": {}},
+                "pit": {"id": current_pit, "keep_alive": "1m"},
+                "sort": [{"id.keyword": "asc"}],
+                "search_after": current_last_result,
+                "track_total_hits": False,
+            }
+            query_resp = client.search(body=query_body)
+
+            try:
+                if (
+                    "hits" not in first_query_resp
+                    or "hits" not in first_query_resp["hits"]
+                ):
+                    raise KeyError("Invalid first query response: missing 'hits.hits'.")
+                data = query_resp["hits"]["hits"]
+                if not data:
+                    logger.info("No more results returned. Ending search.")
+                    break
+
+                # set search after value
+                if "sort" not in data[-1]:
+                    raise KeyError(
+                        "The last result in 'hits.hits' is missing the 'sort' key."
+                    )
+
+                current_last_result = data[-1]["sort"]
+
+                # save the current search result
+                df = pd.json_normalize(data)
+                dataframes.append(df)
+
+                # set current pit
+                if "pit_id" not in first_query_resp:
+                    raise KeyError("First query response is missing 'pit_id'.")
+                current_pit = first_query_resp["pit_id"]
+
+                round += 1
+                time.sleep(sleep_time)
+            except Exception as e:
+                logger.error(e)
+
+        # close pit
         try:
-            data = query_resp["hits"]["hits"]
-            # set search after value
-            current_last_result = data[-1]["sort"]
-
-            # save the current search result
-            df = pd.json_normalize(data)
-            dataframes.append(df)
-
-            # set current pit
-            current_pit = query_resp["pit_id"]
-
-            round += 1
-            time.sleep(sleep_time)
+            client.close_point_in_time(
+                id=current_pit,
+            )
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Failed to close point-in-time: {e}")
 
-    # close pit
-    client.close_point_in_time(
-        id=current_pit,
-    )
+        return pd.concat(dataframes, ignore_index=True)
 
-    return pd.concat(dataframes, ignore_index=True)
+    except Exception as e:
+        logger.error(f"Elasticsearch Search Faild: {e}")
