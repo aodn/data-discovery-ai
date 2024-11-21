@@ -294,7 +294,7 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
         saved_model = load_model(model_file_path, compile=False)
         return saved_model
     except Exception as e:
-        logger.info(
+        logger.error(
             f"Failed to load selected model {trained_model} from folder data_discovery_ai/resources"
         )
         return None

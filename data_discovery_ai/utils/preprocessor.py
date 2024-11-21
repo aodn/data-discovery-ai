@@ -265,14 +265,14 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
     k_list = []
     for keyword in keywords:
         if keyword.get("concepts") is not None:
-            for con in keyword.get("concepts"):
-                if keyword.get("title") in vocabs and con.get("id") != "":
-                    concept = Concept(
-                        value=con.get("id").lower(),
-                        url=con.get("url"),
+            for concept in keyword.get("concepts"):
+                if keyword.get("title") in vocabs and concept.get("id") != "":
+                    conceptObj = Concept(
+                        value=concept.get("id").lower(),
+                        url=concept.get("url"),
                         vocab_type=keyword.get("title"),
                     )
-                    k_list.append(concept.to_json())
+                    k_list.append(conceptObj.to_json())
     return list(k_list)
 
 
