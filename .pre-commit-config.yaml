@@ -15,6 +15,7 @@ repos:
           - "--autofix"
           - "--indent=2"
           - "--no-sort-keys"
+        exclude: \.ipynb$
       - id: end-of-file-fixer
         exclude: \.ipynb$
       - id: check-yaml
