@@ -9,6 +9,9 @@ from data_discovery_ai.common.constants import (
     AVAILABLE_MODELS,
     KEYWORD_SAMPLE_FILE,
     KEYWORD_LABEL_FILE,
+    BATCH_SIZE,
+    SLEEP_TIME,
+    ES_INDEX_NAME,
 )
 
 import sys
@@ -93,7 +96,11 @@ class KeywordClassifierPipeline:
         es_config = self.config.load_es_config()
 
         client = connector.connect_es(es_config)
-        raw_data = connector.search_es(client)
+        # get ES_INDEX_NAME from environment
+        index = os.getenv("ES_INDEX_NAME", default=ES_INDEX_NAME)
+        raw_data = connector.search_es(
+            client=client, index=index, batch_size=BATCH_SIZE, sleep_time=SLEEP_TIME
+        )
         return raw_data
 
     def prepare_sampleSet(self, raw_data: pd.DataFrame) -> pd.DataFrame:
@@ -115,11 +122,13 @@ class KeywordClassifierPipeline:
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
 
+        # drop empty keywords rows
+        filtered_sampleSet = sampleSet[sampleSet["keywords"].apply(lambda x: x != [])]
+
         full_path = os.path.join(self.temp_dir, KEYWORD_SAMPLE_FILE)
 
-        preprocessor.save_to_file(sampleSet, full_path)
-        sampleSet = preprocessor.load_from_file(full_path)
-        return sampleSet
+        preprocessor.save_to_file(filtered_sampleSet, full_path)
+        return filtered_sampleSet
 
     def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
         """
@@ -264,10 +273,10 @@ def pipeline(
     # data not changed, so load the preprocessed data from resource
     if not isDataChanged:
         sampleSet = preprocessor.load_from_file(full_sampleSet_path)
-        predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
 
         # usePretrainedModel = True
         if keyword_classifier_pipeline.usePretrainedModel:
+            predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
             keyword_classifier_pipeline.set_labels(labels=predefinedLabels)
         # usePretrainedModel = False
         else:
@@ -285,9 +294,11 @@ def pipeline(
         raw_data = keyword_classifier_pipeline.fetch_raw_data()
         sampleSet = keyword_classifier_pipeline.prepare_sampleSet(raw_data=raw_data)
         preprocessor.save_to_file(sampleSet, full_sampleSet_path)
+
+        train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
         preprocessor.save_to_file(
             keyword_classifier_pipeline.labels, full_labelMap_path
         )
-        train_test_data = keyword_classifier_pipeline.prepare_train_test_sets(sampleSet)
+
         keyword_classifier_pipeline.train_evaluate_model(train_test_data)
     keyword_classifier_pipeline.make_prediction(description)
