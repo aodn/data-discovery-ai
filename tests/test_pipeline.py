@@ -30,6 +30,6 @@ def test_make_prediction():
     # set labels is None
     pipeline.set_labels(labels=None)
     # Test raise valueerror if with no labels
-    with pytest.raises(ValueError, match=r"Prefined keywords should not be None"):
+    with pytest.raises(ValueError, match=r"Predefined keywords should not be None"):
         pipeline.make_prediction(description="description")
 

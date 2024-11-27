@@ -241,6 +241,9 @@ class KeywordClassifierPipeline:
         Output:
             predicted_labels: str. The predicted keywords by the trained keyword classifier model
         """
+        if self.labels is None:
+            raise ValueError("Predefined keywords should not be None")
+
         predicted_labels = keywordClassifier.keywordClassifier(
             trained_model=self.model_name, description=description, labels=self.labels
         )
