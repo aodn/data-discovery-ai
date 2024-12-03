@@ -118,6 +118,19 @@ syntax is :/....
 
 
 # File Structure
+```
+data_discovery_ai/
+├── common/         # Common utilities, including shared configurations and constants, used across modules
+├── model/          # Core ML logic, including model training, evaluation, and inference implementations
+├── pipeline/       # Data pipelines for using ML models
+├── resources/      # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
+├── services/       # Service modules for providing service functions for API use
+├── utils/          # Utility functions and helper scripts for various tasks
+├── extras/         # Supplementary files
+├── notebooks/      # Jupyter notebooks documenting the design, experiments, and practical usage of AI features
+├── tests/          # Unit test for critical functions
+```
+
 ## Required Configuration Files
 1. Elasticsearch configuration file
 File name `esManager.ini` saved under folder `data_discovery_ai/common`. Specific fileds & values required:

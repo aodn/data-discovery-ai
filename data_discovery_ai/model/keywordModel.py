@@ -29,6 +29,7 @@ from typing import Dict, Callable, Any, Tuple, Optional, List
 import os
 from pathlib import Path
 import json
+from data_discovery_ai.common.constants import KEYWORD_FOLDER
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -158,7 +159,10 @@ def keyword_model(
         callbacks=[early_stopping, reduce_lr],
     )
     model_file_path = (
-        Path(__file__).resolve().parent.parent / "resources" / model_name
+        Path(__file__).resolve().parent.parent
+        / "resources"
+        / KEYWORD_FOLDER
+        / model_name
     ).with_suffix(".keras")
     # make sure folder exist
     model_file_path.parent.mkdir(
@@ -288,7 +292,10 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
         Optional[keras_load_model]: The loaded Keras model if successful, otherwise `None`.
     """
     model_file_path = (
-        Path(__file__).resolve().parent.parent / "resources" / trained_model
+        Path(__file__).resolve().parent.parent
+        / "resources"
+        / KEYWORD_FOLDER
+        / trained_model
     ).with_suffix(".keras")
     try:
         saved_model = load_model(model_file_path, compile=False)

@@ -5,7 +5,9 @@ from pydantic import BaseModel
 import logging
 from data_discovery_ai.common.constants import API_PREFIX
 from data_discovery_ai.utils.api_utils import api_key_auth, validate_model_name
-from data_discovery_ai.pipeline import KeywordClassifierPipeline
+from data_discovery_ai.pipeline.pipeline import (
+    KeywordClassifierPipeline,
+)
 
 router = APIRouter(prefix=API_PREFIX)
 logger = logging.getLogger(__name__)
