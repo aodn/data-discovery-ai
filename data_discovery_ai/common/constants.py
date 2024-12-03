@@ -3,8 +3,11 @@ API_KEY_NAME = "X-API-Key"
 AVAILABLE_MODELS = ["development", "staging", "production", "experimental", "benchmark"]
 KEYWORD_CONFIG = "keyword_classification_parameters.ini"
 ELASTICSEARCH_CONFIG = "esManager.ini"
+KEYWORD_FOLDER = "KeywordClassifier"
 KEYWORD_SAMPLE_FILE = "keyword_sample.pkl"
 KEYWORD_LABEL_FILE = "keyword_label.pkl"
+FILTER_PREPROCESSED_FILE = "filter_preprocessed.pkl"
+FILTER_FOLDER = "DataDeliveryModeFilter"
 
 #  global constants for es_connector
 BATCH_SIZE = 100
