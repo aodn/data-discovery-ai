@@ -28,12 +28,14 @@ import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
 import os
 from pathlib import Path
-import json
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# TODO: Delete this line after fix 'module not exist issue' in notebooks
+KEYWORD_FOLDER = "KeywordClassifier"
 
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
@@ -158,12 +160,13 @@ def keyword_model(
         callbacks=[early_stopping, reduce_lr],
     )
     model_file_path = (
-        Path(__file__).resolve().parent.parent / "resources" / model_name
+        Path(__file__).resolve().parent.parent
+        / "resources"
+        / KEYWORD_FOLDER
+        / model_name
     ).with_suffix(".keras")
     # make sure folder exist
-    model_file_path.parent.mkdir(
-        parents=True, exist_ok=True
-    )  # Ensure the folder exists
+    model_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     model.save(model_file_path)
 
@@ -288,7 +291,10 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
         Optional[keras_load_model]: The loaded Keras model if successful, otherwise `None`.
     """
     model_file_path = (
-        Path(__file__).resolve().parent.parent / "resources" / trained_model
+        Path(__file__).resolve().parent.parent
+        / "resources"
+        / KEYWORD_FOLDER
+        / trained_model
     ).with_suffix(".keras")
     try:
         saved_model = load_model(model_file_path, compile=False)

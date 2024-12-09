@@ -83,7 +83,46 @@ def load_from_file(full_path: str) -> Any:
         logger.error(e)
 
 
-def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
+# data preprocessor for data delivery mode filter model
+def identify_ddm_sample(raw_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Identifies a sample set (labelled data) from raw data based on specified vocabulary terms. This function filters raw data (obtained from an Elasticsearch search result).
+    This function filters raw data (obtained from an Elasticsearch search result) to identify records with 'onGoing' status.
+    Input:
+        raw_data: pd.DataFrame. The search result DataFrame from Elasticsearch, expected to contain fields '_id', '_source.title', '_source.description', '_source.summaries.statement' and '_source.summaries.status'.
+    Output:
+        preprocessed_data: pd.DataFrame. The preprocessed DataFrame containing the necessary information for the data delivery mode filter model with one more column 'information'. The 'information' column is the combination of 'title', 'description' and 'lineage'.
+    """  # only keep selected columns
+    columns = [
+        "_id",
+        "_source.title",
+        "_source.description",
+        "_source.summaries.statement",
+        "_source.summaries.status",
+    ]
+    preprocessed_data = raw_data[columns].copy()
+
+    # change column names
+    preprocessed_data.columns = ["id", "title", "description", "lineage"]
+
+    # add information column, which is the text of title, description and lineage
+    preprocessed_data["information"] = (
+        preprocessed_data["title"]
+        + " [SEP] "
+        + preprocessed_data["description"]
+        + " [SEP] "
+        + preprocessed_data["lineage"]
+        + " [SEP]"
+    )
+
+    # only focus on onGoing records
+    preprocessed_data = preprocessed_data[
+        preprocessed_data["_source.summaries.status"] == "onGoing"
+    ]
+    return preprocessed_data
+
+
+def identify_km_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     """
     Identifies a sample set from raw data based on specified vocabulary terms. This function filters raw data (obtained from an Elasticsearch search result) to identify records containing specific vocabulary terms in the `keywords` field.
 
@@ -119,6 +158,9 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
 
     sampleSet["keywords"] = sampleSet["keywords"].apply(
         lambda x: keywords_formatter(x, vocabs)
+    )
+    sampleSet["information"] = (
+        sampleSet["title"] + " [SEP] " + sampleSet["description"] + " [SEP]"
     )
     return sampleSet
 
@@ -196,10 +238,13 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
         ds: pd.DataFrame, the dataset with one more embedding column
     """
     tqdm.pandas()
-    ds["information"] = ds["title"] + ": " + ds["description"]
-    ds["embedding"] = ds["information"].progress_apply(
-        lambda x: get_description_embedding(x)
-    )
+    # add try except
+    try:
+        ds["embedding"] = ds["information"].progress_apply(
+            lambda x: get_description_embedding(x)
+        )
+    except Exception as e:
+        logger.error(e)
     return ds
 
 
