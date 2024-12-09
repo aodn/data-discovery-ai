@@ -4,7 +4,10 @@ on:
     branches:
       - main
     paths-ignore:
-      - "**/*.md"
+      - '**/*.md'
+      - "notebooks/**"
+      - "extras/**"
+      - '.github/environment/**'
 permissions:
   contents: write
 concurrency:

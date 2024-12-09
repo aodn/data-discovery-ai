@@ -20,10 +20,9 @@ from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from typing import Dict
-import re
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+import tempfile
+import json
+from data_discovery_ai import logger
 
 
 class Concept:
@@ -180,6 +179,7 @@ def prepare_X_Y(
     X = np.array(sampleSet["embedding"].tolist())
     Y_df, labels = prepare_Y_matrix(sampleSet)
     Y = Y_df.to_numpy()
+    # TODO: labels set to be List not Dict but identify_rare_labels where labels being consumed expects Dict?
     return X, Y, Y_df, labels
 
 
@@ -331,7 +331,7 @@ def prepare_train_test(
 ) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Prepares the training and testing datasets using multi-label stratified splitting.
-    This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It prints dataset information and returns the dimensions, number of labels, and split data for training and testing.
+    This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It logger.infos dataset information and returns the dimensions, number of labels, and split data for training and testing.
     Input:
         X: np.ndarray. Feature matrix of shape (n_samples, dimension).
         Y: np.ndarray. Target matrix of shape (n_samples, n_labels).
@@ -440,10 +440,10 @@ def resampling(
             [list(map(int, list(row))) for row in Y_combined_resampled]
         )
 
-    print(" ======== After Resampling ========")
-    print(f"Total samples: {len(X_train_resampled)}")
-    print(f"Dimension: {X_train_resampled.shape[1]}")
-    print(f"No. of labels: {Y_train_resampled.shape[1]}")
-    print(f"X resampled set size: {X_train_resampled.shape[0]}")
-    print(f"Y resampled set size: {Y_train_resampled.shape[0]}")
+    logger.info(" ======== After Resampling ========")
+    logger.info(f"Total samples: {len(X_train_resampled)}")
+    logger.info(f"Dimension: {X_train_resampled.shape[1]}")
+    logger.info(f"No. of labels: {Y_train_resampled.shape[1]}")
+    logger.info(f"X resampled set size: {X_train_resampled.shape[0]}")
+    logger.info(f"Y resampled set size: {Y_train_resampled.shape[0]}")
     return X_train_resampled, Y_train_resampled

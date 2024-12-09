@@ -113,13 +113,13 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         else:
             # load preprocessed data from resource
             preprocessed_data = preprocessor.load_from_file(full_path)
-        print(preprocessed_data)
+        logger.info(preprocessed_data)
         return preprocessed_data
 
 
 class KeywordClassifierPipeline(BasePipeline):
     def __init__(
-        self, isDataChanged: bool, usePretrainedModel: bool, model_name: str
+        self, is_data_changed: bool, use_pretrained_model: bool, model_name: str
     ) -> None:
         """
         Init the pipeline, load parameters from file.
@@ -130,11 +130,10 @@ class KeywordClassifierPipeline(BasePipeline):
         """
         # extends the BasePipeline class
         super().__init__(
-            isDataChanged=isDataChanged,
-            usePretrainedModel=usePretrainedModel,
+            is_data_changed=is_data_changed,
+            use_pretrained_model=use_pretrained_model,
             model_name=model_name,
         )
-        self.config = ConfigUtil()
         self.params = self.config.load_keyword_config()
 
         # create temp folder
