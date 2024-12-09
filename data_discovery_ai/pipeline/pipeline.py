@@ -103,9 +103,17 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         base_dir = self.config.base_dif
         full_path = base_dir / "resources" / FILTER_FOLDER / FILTER_PREPROCESSED_FILE
 
-        raw_data = self.fetch_raw_data()
-        preprocessed_data = preprocessor.filter_embedding_processor(raw_data)
-        preprocessor.save_to_file(preprocessed_data, full_path)
+        if self.isDataChanged:
+            raw_data = self.fetch_raw_data()
+            preprocessed_data = preprocessor.identify_ddm_sample(raw_data)
+            preprocessed_data_embedding = preprocessor.calculate_embedding(
+                preprocessed_data
+            )
+            preprocessor.save_to_file(preprocessed_data_embedding, full_path)
+        else:
+            # load preprocessed data from resource
+            preprocessed_data = preprocessor.load_from_file(full_path)
+        print(preprocessed_data)
         return preprocessed_data
 
 
@@ -146,7 +154,7 @@ class KeywordClassifierPipeline(BasePipeline):
         """
         Prepares a processed sample set from raw data via filtering, preprocessing and embedding calculations.
         This method executes several processing steps on the raw data:
-            1. identify_sample: Identifies samples containing specific vocabulary terms from the "vocabs" parameter.
+            1. identify_km_sample: Identifies samples containing specific vocabulary terms from the "vocabs" parameter.
             2. sample_preprocessor: Cleans and preprocesses the identified sample set by reformatting labels and removing empty records.
             3. calculate_embedding: Calculates embeddings for each entry in the preprocessed samples.
             4. Saves the processed sample set to a file, then reloads it for subsequent use.
@@ -157,7 +165,7 @@ class KeywordClassifierPipeline(BasePipeline):
             preprocessed_sampleSet: pd.DataFrame. Representing the processed sample set, with an additional embedding column.
         """
         vocabs = self.params["preprocessor"]["vocabs"].split(", ")
-        labelledDS = preprocessor.identify_sample(raw_data, vocabs)
+        labelledDS = preprocessor.identify_km_sample(raw_data, vocabs)
         preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
         sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
 
