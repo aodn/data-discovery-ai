@@ -14,16 +14,11 @@ sys.modules["preprocessor"] = preprocessor
 
 import numpy as np
 import pandas as pd
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 from dataclasses import dataclass
-import logging
 import tempfile
 import os
-import json
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from data_discovery_ai import logger
 
 
 @dataclass
@@ -38,9 +33,12 @@ class TrainTestData:
 
 
 class BasePipeline:
-    def __init__(self, isDataChanged: bool, usePretrainedModel: bool, model_name: str):
-        self.isDataChanged = isDataChanged
-        self.usePretrainedModel = usePretrainedModel
+    def __init__(
+        self, is_data_changed: bool, use_pretrained_model: bool, model_name: str
+    ):
+        self.config = ConfigUtil()
+        self.is_data_changed = is_data_changed
+        self.use_pretrained_model = use_pretrained_model
         self.model_name = model_name
         # validate model name with accepted values, defined in data_discovery_ai/common/constants.py
         if not self.is_valid_model():
@@ -81,14 +79,13 @@ class BasePipeline:
 
 class DataDeliveryModeFilterPipeline(BasePipeline):
     def __init__(
-        self, isDataChanged: bool, usePretrainedModel: bool, model_name: str
+        self, is_data_changed: bool, use_pretrained_model: bool, model_name: str
     ) -> None:
         super().__init__(
-            isDataChanged=isDataChanged,
-            usePretrainedModel=usePretrainedModel,
+            is_data_changed=is_data_changed,
+            use_pretrained_model=use_pretrained_model,
             model_name=model_name,
         )
-        self.config = ConfigUtil()
 
         # create temp folder
         self.temp_dir = tempfile.mkdtemp()
@@ -103,7 +100,7 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         base_dir = self.config.base_dif
         full_path = base_dir / "resources" / FILTER_FOLDER / FILTER_PREPROCESSED_FILE
 
-        if self.isDataChanged:
+        if self.is_data_changed:
             raw_data = self.fetch_raw_data()
             preprocessed_data = preprocessor.identify_ddm_sample(raw_data)
             preprocessed_data_embedding = preprocessor.calculate_embedding(
@@ -113,13 +110,13 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         else:
             # load preprocessed data from resource
             preprocessed_data = preprocessor.load_from_file(full_path)
-        print(preprocessed_data)
+        logger.info(preprocessed_data)
         return preprocessed_data
 
 
 class KeywordClassifierPipeline(BasePipeline):
     def __init__(
-        self, isDataChanged: bool, usePretrainedModel: bool, model_name: str
+        self, is_data_changed: bool, use_pretrained_model: bool, model_name: str
     ) -> None:
         """
         Init the pipeline, load parameters from file.
@@ -130,11 +127,10 @@ class KeywordClassifierPipeline(BasePipeline):
         """
         # extends the BasePipeline class
         super().__init__(
-            isDataChanged=isDataChanged,
-            usePretrainedModel=usePretrainedModel,
+            is_data_changed=is_data_changed,
+            use_pretrained_model=use_pretrained_model,
             model_name=model_name,
         )
-        self.config = ConfigUtil()
         self.params = self.config.load_keyword_config()
 
         # create temp folder
@@ -150,7 +146,7 @@ class KeywordClassifierPipeline(BasePipeline):
     def set_labels(self, labels):
         self.labels = labels
 
-    def prepare_sampleSet(self, raw_data: pd.DataFrame) -> pd.DataFrame:
+    def prepare_sample_set(self, raw_data: pd.DataFrame) -> pd.DataFrame:
         """
         Prepares a processed sample set from raw data via filtering, preprocessing and embedding calculations.
         This method executes several processing steps on the raw data:
@@ -165,19 +161,21 @@ class KeywordClassifierPipeline(BasePipeline):
             preprocessed_sampleSet: pd.DataFrame. Representing the processed sample set, with an additional embedding column.
         """
         vocabs = self.params["preprocessor"]["vocabs"].split(", ")
-        labelledDS = preprocessor.identify_km_sample(raw_data, vocabs)
-        preprocessed_samples = preprocessor.sample_preprocessor(labelledDS, vocabs)
-        sampleSet = preprocessor.calculate_embedding(preprocessed_samples)
+        labelled_ds = preprocessor.identify_km_sample(raw_data, vocabs)
+        preprocessed_samples = preprocessor.sample_preprocessor(labelled_ds, vocabs)
+        sample_set = preprocessor.calculate_embedding(preprocessed_samples)
 
         # drop empty keywords rows
-        filtered_sampleSet = sampleSet[sampleSet["keywords"].apply(lambda x: x != [])]
+        filtered_sample_set = sample_set[
+            sample_set["keywords"].apply(lambda x: x != [])
+        ]
 
         full_path = os.path.join(self.temp_dir, KEYWORD_SAMPLE_FILE)
 
-        preprocessor.save_to_file(filtered_sampleSet, full_path)
-        return filtered_sampleSet
+        preprocessor.save_to_file(filtered_sample_set, full_path)
+        return filtered_sample_set
 
-    def prepare_train_test_sets(self, sampleSet: pd.DataFrame) -> TrainTestData:
+    def prepare_train_test_sets(self, sample_set: pd.DataFrame) -> TrainTestData:
         """
         Prepares training and test sets from a given sample set by processing features and labels,
         handling rare labels, and applying resampling techniques.
@@ -202,7 +200,7 @@ class KeywordClassifierPipeline(BasePipeline):
         """
 
         # Prepare feature matrix (X) and label matrix (Y) from the sample set
-        X, Y, Y_df, labels = preprocessor.prepare_X_Y(sampleSet)
+        X, Y, Y_df, labels = preprocessor.prepare_X_Y(sample_set)
 
         self.labels = labels
 
@@ -214,6 +212,7 @@ class KeywordClassifierPipeline(BasePipeline):
         rare_label_threshold = self.params.getint(
             "preprocessor", "rare_label_threshold"
         )
+        # TODO fix type of "labels": not Dict from here: Expected type 'dict', got 'list[str]' instead
         rare_label_index = preprocessor.identify_rare_labels(
             Y_df, rare_label_threshold, labels
         )
@@ -232,6 +231,7 @@ class KeywordClassifierPipeline(BasePipeline):
         label_weight_dict = model.get_class_weights(Y_train)
 
         # Apply additional oversampling (Random Over Sampling) to the training set
+        # TODO: rare_keyword_index needs attention: Expected type 'list[int]', got 'None' instead
         X_train_oversampled, Y_train_oversampled = preprocessor.resampling(
             X_train=X_train, Y_train=Y_train, strategy="ROS", rare_keyword_index=None
         )
@@ -274,12 +274,12 @@ class KeywordClassifierPipeline(BasePipeline):
         predicted_labels = model.prediction(
             train_test_data.X_test, trained_model, confidence, top_N
         )
-        eval = model.evaluation(
+        eval_results = model.evaluation(
             Y_test=train_test_data.Y_test, predictions=predicted_labels
         )
-        print(eval)
+        logger.info(eval_results)
 
-    def make_prediction(self, description: str) -> str:
+    def make_prediction(self, description: str) -> list[Any]:
         """
         Makes a prediction on the given description using a trained keyword classifier model Generates predicted labels for the given description using the trained keyword
         classifier model specified by self.model_name.
@@ -288,10 +288,10 @@ class KeywordClassifierPipeline(BasePipeline):
         Output:
             predicted_labels: str. The predicted keywords by the trained keyword classifier model
         """
-        predicted_labels = keywordClassifier.keywordClassifier(
+        predicted_labels = keywordClassifier.classify_keyword(
             trained_model=self.model_name, description=description, labels=self.labels
         )
-        print(predicted_labels)
+        logger.info(predicted_labels)
         return predicted_labels
 
     def pipeline(self, description: str) -> None:
@@ -305,36 +305,36 @@ class KeywordClassifierPipeline(BasePipeline):
         """
         # define resource files paths
         base_dir = self.config.base_dif
-        full_sampleSet_path = (
+        full_sample_set_path = (
             base_dir / "resources" / KEYWORD_FOLDER / KEYWORD_SAMPLE_FILE
         )
-        full_labelMap_path = (
+        full_label_map_path = (
             base_dir / "resources" / KEYWORD_FOLDER / KEYWORD_LABEL_FILE
         )
 
         # data not changed, so load the preprocessed data from resource
-        if not self.isDataChanged:
-            sampleSet = preprocessor.load_from_file(full_sampleSet_path)
+        if not self.is_data_changed:
+            sample_set = preprocessor.load_from_file(full_sample_set_path)
 
             # usePretrainedModel = True
-            if self.usePretrainedModel:
-                predefinedLabels = preprocessor.load_from_file(full_labelMap_path)
-                self.set_labels(labels=predefinedLabels)
+            if self.use_pretrained_model:
+                predefined_labels = preprocessor.load_from_file(full_label_map_path)
+                self.set_labels(labels=predefined_labels)
             # usePretrainedModel = False
             else:
                 # retrain the model
-                train_test_data = self.prepare_train_test_sets(sampleSet)
-                preprocessor.save_to_file(self.labels, full_labelMap_path)
+                train_test_data = self.prepare_train_test_sets(sample_set)
+                preprocessor.save_to_file(self.labels, full_label_map_path)
                 self.train_evaluate_model(train_test_data)
 
         # data changed, so start from the data preprocessing module
         else:
             raw_data = self.fetch_raw_data()
-            sampleSet = self.prepare_sampleSet(raw_data=raw_data)
-            preprocessor.save_to_file(sampleSet, full_sampleSet_path)
+            sample_set = self.prepare_sample_set(raw_data=raw_data)
+            preprocessor.save_to_file(sample_set, full_sample_set_path)
 
-            train_test_data = self.prepare_train_test_sets(sampleSet)
-            preprocessor.save_to_file(self.labels, full_labelMap_path)
+            train_test_data = self.prepare_train_test_sets(sample_set)
+            preprocessor.save_to_file(self.labels, full_label_map_path)
 
             self.train_evaluate_model(train_test_data)
         self.make_prediction(description)
