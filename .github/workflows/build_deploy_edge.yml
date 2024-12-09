@@ -1,0 +1,66 @@
+name: Build/Deploy Edge
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - "notebooks/**"
+      - "extras/**"
+      - '.github/environment/**'
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  build_push:
+    runs-on: ubuntu-latest
+    environment: central
+    outputs:
+      digest: ${{ steps.build_and_push.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        #      - name: Set up JDK 17
+        #        uses: actions/setup-java@v4
+        #        with:
+        #          distribution: 'temurin'
+        #          java-version: '17'
+        #          cache: 'maven'
+        #          server-id: 'codeartifact'
+        #          server-password: 'CODEARTIFACT_AUTH_TOKEN'
+      - name: Configure AWS Credentials
+        id: aws_auth
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          #      - name: Build with Maven
+          #        run: mvn -B verify --file pom.xml
+      - name: Login to ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ECR_REGISTRY }}
+      - name: Build and Push Docker Image
+        id: build_and_push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          #          Only building for AMD64 for now
+          #          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:latest
+  trigger_edge_deploy:
+    needs: [build_push]
+    uses: ./.github/workflows/trigger_deploy.yml
+    with:
+      app_name: data-discovery-ai
+      environment: edge
+      digest: ${{ needs.build_push.outputs.digest }}
+    secrets: inherit
