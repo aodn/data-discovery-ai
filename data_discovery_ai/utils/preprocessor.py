@@ -19,10 +19,8 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
-from pathlib import Path
 from typing import Dict
-import tempfile
-import json
+import re
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -312,12 +310,19 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         if keyword.get("concepts") is not None:
             for concept in keyword.get("concepts"):
                 if keyword.get("title") in vocabs and concept.get("id") != "":
-                    conceptObj = Concept(
-                        value=concept.get("id").lower(),
-                        url=concept.get("url"),
-                        vocab_type=keyword.get("title"),
-                    )
-                    k_list.append(conceptObj.to_json())
+                    # check if the url is valid: start with http or https
+                    try:
+                        concept_url = concept.get("url")
+                        if re.match(r"^https?://", concept_url):
+                            conceptObj = Concept(
+                                value=concept.get("id").lower(),
+                                url=concept_url,
+                                vocab_type=keyword.get("title"),
+                            )
+                            k_list.append(conceptObj.to_json())
+                    except Exception as e:
+                        logger.error(e)
+                    
     return list(k_list)
 
 
