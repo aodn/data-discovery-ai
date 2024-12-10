@@ -38,6 +38,6 @@ async def predict_keyword(payload: PredictKeywordRequest):
     logger.info(
         f"selected_model: {payload.selected_model}, title: {payload.title}, abstract: {payload.abstract}"
     )
-    keyword_classifier_pipeline.pipeline(f"{payload.title}: {payload.abstract}")
+    keyword_classifier_pipeline.pipeline(title=payload.title, abstract=payload.abstract)
     response = {"predicted_labels": keyword_classifier_pipeline.predicted_labels}
     return response

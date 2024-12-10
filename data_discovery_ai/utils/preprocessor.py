@@ -20,7 +20,6 @@ from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from typing import Dict
-import re
 
 # TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
 # from data_discovery_ai import logger
@@ -313,19 +312,22 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         keywords = ast.literal_eval(text)
     k_list = []
     for keyword in keywords:
-        if keyword.get("concepts") is not None:
-            for concept in keyword.get("concepts"):
-                if keyword.get("title") in vocabs and concept.get("id") != "":
-                    # check if the url is valid: start with http or https and not None
-                    if concept.get("url") is not None:
-                        concept_url = concept.get("url")
-                        if re.match(r"^https?://", concept_url):
-                            conceptObj = Concept(
-                                value=concept.get("id").lower(),
-                                url=concept_url,
-                                vocab_type=keyword.get("title"),
-                            )
-                            k_list.append(conceptObj.to_json())
+        try:
+            if keyword.get("concepts") is not None:
+                for concept in keyword.get("concepts"):
+                    if keyword.get("title") in vocabs and concept.get("id") != "":
+                        # check if the url is valid: start with http and not None or empty
+                        if concept.get("url") is not None and concept.get("url") != "":
+                            concept_url = concept.get("url")
+                            if concept_url.startswith("http"):
+                                conceptObj = Concept(
+                                    value=concept.get("id").lower(),
+                                    url=concept_url,
+                                    vocab_type=keyword.get("title"),
+                                )
+                                k_list.append(conceptObj.to_json())
+        except Exception as e:
+            logger.error(e)
     return list(k_list)
 
 
