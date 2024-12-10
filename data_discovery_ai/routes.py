@@ -37,6 +37,6 @@ async def predict_keyword(payload: PredictKeywordRequest):
     logger.info(
         f"selected_model: {payload.selected_model}, raw_input: {payload.raw_input}"
     )
-    predicted_labels = keyword_classifier_pipeline.make_prediction(payload.raw_input)
-    response = {"predicted_labels": predicted_labels}
+    keyword_classifier_pipeline.pipeline(payload.raw_input)
+    response = {"predicted_labels": keyword_classifier_pipeline.predicted_labels}
     return response

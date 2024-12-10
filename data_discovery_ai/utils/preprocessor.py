@@ -20,9 +20,15 @@ from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from typing import Dict
-import tempfile
-import json
-from data_discovery_ai import logger
+import re
+
+# TODO: use this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+# from data_discovery_ai import logger
+
+# TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 class Concept:
@@ -310,8 +316,8 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         if keyword.get("concepts") is not None:
             for concept in keyword.get("concepts"):
                 if keyword.get("title") in vocabs and concept.get("id") != "":
-                    # check if the url is valid: start with http or https
-                    try:
+                    # check if the url is valid: start with http or https and not None
+                    if concept.get("url") is not None:
                         concept_url = concept.get("url")
                         if re.match(r"^https?://", concept_url):
                             conceptObj = Concept(
@@ -320,9 +326,6 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
                                 vocab_type=keyword.get("title"),
                             )
                             k_list.append(conceptObj.to_json())
-                    except Exception as e:
-                        logger.error(e)
-                    
     return list(k_list)
 
 
@@ -331,7 +334,7 @@ def prepare_train_test(
 ) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Prepares the training and testing datasets using multi-label stratified splitting.
-    This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It logger.infos dataset information and returns the dimensions, number of labels, and split data for training and testing.
+    This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It prints dataset information and returns the dimensions, number of labels, and split data for training and testing.
     Input:
         X: np.ndarray. Feature matrix of shape (n_samples, dimension).
         Y: np.ndarray. Target matrix of shape (n_samples, n_labels).
@@ -385,7 +388,7 @@ def customized_resample(X_train, Y_train, rare_class):
     """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
-    num_copies = 10
+    num_copies = 5
     for label_idx in rare_class:
         sample_idx = np.where(Y_train[:, label_idx] == 1)[0]
 
