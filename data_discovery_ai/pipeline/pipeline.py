@@ -18,6 +18,7 @@ from typing import Any, Dict
 from dataclasses import dataclass
 import tempfile
 import os
+
 from data_discovery_ai import logger
 
 
@@ -136,8 +137,11 @@ class KeywordClassifierPipeline(BasePipeline):
         # create temp folder
         self.temp_dir = tempfile.mkdtemp()
 
-        # define labels for prediction
+        # predefine label set for prediction
         self.labels = None
+
+        # define predicted labels
+        self.predicted_labels = None
 
     # extends the fetch_raw_data method from BasePipeline
     def fetch_raw_data(self) -> pd.DataFrame:
@@ -292,6 +296,7 @@ class KeywordClassifierPipeline(BasePipeline):
             trained_model=self.model_name, description=description, labels=self.labels
         )
         logger.info(predicted_labels)
+        self.predicted_labels = predicted_labels
         return predicted_labels
 
     def pipeline(self, description: str) -> None:
