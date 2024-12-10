@@ -9,7 +9,7 @@ import ast
 import os
 import numpy as np
 import configparser
-from typing import Any, List, Tuple, Union, Dict
+from typing import Any, List, Tuple, Union, Dict, Optional
 
 import torch
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -22,13 +22,14 @@ from tqdm import tqdm
 from typing import Dict
 import re
 
-# TODO: use this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+# TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
 # from data_discovery_ai import logger
 
 # TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
+import logging
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class Concept:
@@ -170,7 +171,7 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
 
 def prepare_X_Y(
     sampleSet: pd.DataFrame,
-) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict]:
     """
     Prepares the input feature matrix (X) and target matrix (Y) from the sample set data.
     Input:
@@ -185,7 +186,6 @@ def prepare_X_Y(
     X = np.array(sampleSet["embedding"].tolist())
     Y_df, labels = prepare_Y_matrix(sampleSet)
     Y = Y_df.to_numpy()
-    # TODO: labels set to be List not Dict but identify_rare_labels where labels being consumed expects Dict?
     return X, Y, Y_df, labels
 
 
@@ -404,7 +404,7 @@ def resampling(
     X_train: np.ndarray,
     Y_train: np.ndarray,
     strategy: str,
-    rare_keyword_index: List[int],
+    rare_keyword_index: Optional[List[int]],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Resamples the training data using the specified strategy to address class imbalance.
@@ -419,7 +419,7 @@ def resampling(
         X_train: np.ndarray. The training feature X matrix.
         Y_train: np.ndarray. The training traget Y matrix.
         strategy: str. Resampling strategy to apply ("custom", "ROS", "RUS", or "SMOTE").
-        rare_keyword_index: List[int]. A list of indices representing rare class labels for custom resampling.
+        rare_keyword_index: List[int] or None. List[int] as a list of indices representing rare class labels for custom resampling or None for ROS, RUS, and SMOTE.
     Output:
         X_train_resampled, Y_train_resampled: Tuple[np.ndarray, np.ndarray]. The resampled training feature matrix X_train_resampled and target matrix Y_train_resampled.
     """

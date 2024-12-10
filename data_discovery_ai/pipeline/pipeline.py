@@ -18,13 +18,9 @@ from typing import Any, Dict
 from dataclasses import dataclass
 import tempfile
 import os
-# TODO: use this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
-#from data_discovery_ai import logger
 
-# TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+from data_discovery_ai import logger
+
 
 @dataclass
 class TrainTestData:
@@ -143,7 +139,7 @@ class KeywordClassifierPipeline(BasePipeline):
 
         # predefine label set for prediction
         self.labels = None
-        
+
         # define predicted labels
         self.predicted_labels = None
 
