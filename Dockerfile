@@ -34,4 +34,4 @@ USER appuser
 EXPOSE 8000
 
 # Default command to run the application
-CMD ["poetry", "run", "uvicorn", "--host", "0.0.0.0", "data_discovery_ai.server:app"]
+#CMD ["poetry", "run", "uvicorn", "--host", "0.0.0.0", "data_discovery_ai.server:app"]
