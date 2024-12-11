@@ -9,7 +9,7 @@ import ast
 import os
 import numpy as np
 import configparser
-from typing import Any, List, Tuple, Union, Dict
+from typing import Any, List, Tuple, Union, Dict, Optional
 
 import torch
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -19,11 +19,16 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
-from pathlib import Path
 from typing import Dict
-import tempfile
-import json
-from data_discovery_ai import logger
+
+# TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+# from data_discovery_ai import logger
+
+# TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class Concept:
@@ -165,7 +170,7 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
 
 def prepare_X_Y(
     sampleSet: pd.DataFrame,
-) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict]:
     """
     Prepares the input feature matrix (X) and target matrix (Y) from the sample set data.
     Input:
@@ -180,7 +185,6 @@ def prepare_X_Y(
     X = np.array(sampleSet["embedding"].tolist())
     Y_df, labels = prepare_Y_matrix(sampleSet)
     Y = Y_df.to_numpy()
-    # TODO: labels set to be List not Dict but identify_rare_labels where labels being consumed expects Dict?
     return X, Y, Y_df, labels
 
 
@@ -308,15 +312,22 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         keywords = ast.literal_eval(text)
     k_list = []
     for keyword in keywords:
-        if keyword.get("concepts") is not None:
-            for concept in keyword.get("concepts"):
-                if keyword.get("title") in vocabs and concept.get("id") != "":
-                    conceptObj = Concept(
-                        value=concept.get("id").lower(),
-                        url=concept.get("url"),
-                        vocab_type=keyword.get("title"),
-                    )
-                    k_list.append(conceptObj.to_json())
+        try:
+            if keyword.get("concepts") is not None:
+                for concept in keyword.get("concepts"):
+                    if keyword.get("title") in vocabs and concept.get("id") != "":
+                        # check if the url is valid: start with http and not None or empty
+                        if concept.get("url") is not None and concept.get("url") != "":
+                            concept_url = concept.get("url")
+                            if concept_url.startswith("http"):
+                                conceptObj = Concept(
+                                    value=concept.get("id").lower(),
+                                    url=concept_url,
+                                    vocab_type=keyword.get("title"),
+                                )
+                                k_list.append(conceptObj.to_json())
+        except Exception as e:
+            logger.error(e)
     return list(k_list)
 
 
@@ -325,7 +336,7 @@ def prepare_train_test(
 ) -> Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Prepares the training and testing datasets using multi-label stratified splitting.
-    This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It logger.infos dataset information and returns the dimensions, number of labels, and split data for training and testing.
+    This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It prints dataset information and returns the dimensions, number of labels, and split data for training and testing.
     Input:
         X: np.ndarray. Feature matrix of shape (n_samples, dimension).
         Y: np.ndarray. Target matrix of shape (n_samples, n_labels).
@@ -379,7 +390,7 @@ def customized_resample(X_train, Y_train, rare_class):
     """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
-    num_copies = 10
+    num_copies = 5
     for label_idx in rare_class:
         sample_idx = np.where(Y_train[:, label_idx] == 1)[0]
 
@@ -395,7 +406,7 @@ def resampling(
     X_train: np.ndarray,
     Y_train: np.ndarray,
     strategy: str,
-    rare_keyword_index: List[int],
+    rare_keyword_index: Optional[List[int]],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Resamples the training data using the specified strategy to address class imbalance.
@@ -410,7 +421,7 @@ def resampling(
         X_train: np.ndarray. The training feature X matrix.
         Y_train: np.ndarray. The training traget Y matrix.
         strategy: str. Resampling strategy to apply ("custom", "ROS", "RUS", or "SMOTE").
-        rare_keyword_index: List[int]. A list of indices representing rare class labels for custom resampling.
+        rare_keyword_index: List[int] or None. List[int] as a list of indices representing rare class labels for custom resampling or None for ROS, RUS, and SMOTE.
     Output:
         X_train_resampled, Y_train_resampled: Tuple[np.ndarray, np.ndarray]. The resampled training feature matrix X_train_resampled and target matrix Y_train_resampled.
     """

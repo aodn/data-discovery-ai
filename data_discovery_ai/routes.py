@@ -13,7 +13,8 @@ router = APIRouter(prefix=API_PREFIX)
 
 class PredictKeywordRequest(BaseModel):
     selected_model: str
-    raw_input: str
+    title: str
+    abstract: str
 
 
 class HealthCheckResponse(BaseModel):
@@ -35,8 +36,8 @@ async def predict_keyword(payload: PredictKeywordRequest):
         model_name=payload.selected_model,
     )
     logger.info(
-        f"selected_model: {payload.selected_model}, raw_input: {payload.raw_input}"
+        f"selected_model: {payload.selected_model}, title: {payload.title}, abstract: {payload.abstract}"
     )
-    predicted_labels = keyword_classifier_pipeline.make_prediction(payload.raw_input)
-    response = {"predicted_labels": predicted_labels}
+    keyword_classifier_pipeline.pipeline(title=payload.title, abstract=payload.abstract)
+    response = {"predicted_labels": keyword_classifier_pipeline.predicted_labels}
     return response

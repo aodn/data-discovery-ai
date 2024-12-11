@@ -18,6 +18,7 @@ from typing import Any, Dict
 from dataclasses import dataclass
 import tempfile
 import os
+
 from data_discovery_ai import logger
 
 
@@ -136,8 +137,11 @@ class KeywordClassifierPipeline(BasePipeline):
         # create temp folder
         self.temp_dir = tempfile.mkdtemp()
 
-        # define labels for prediction
+        # predefine label set for prediction
         self.labels = None
+
+        # define predicted labels
+        self.predicted_labels = None
 
     # extends the fetch_raw_data method from BasePipeline
     def fetch_raw_data(self) -> pd.DataFrame:
@@ -292,17 +296,20 @@ class KeywordClassifierPipeline(BasePipeline):
             trained_model=self.model_name, description=description, labels=self.labels
         )
         logger.info(predicted_labels)
+        self.predicted_labels = predicted_labels
         return predicted_labels
 
-    def pipeline(self, description: str) -> None:
+    def pipeline(self, title: str, abstract: str) -> None:
         """
         The keyword classifier pipeline.
         Inputs:
             isDataChanged: bool. The indicator to call the data preprocessing module or not.
             usePretrainedModel: bool. The indicator to use the pretrained model or not.
-            description: str. The item description which is used for making prediction.
+            title: str. The item title which is used for making prediction.
+            abstract: str. The item abstract which is used for making prediction
             selected_model: str. The model name for a selected pretrained model.
         """
+        description = f"{title} [SEP] {abstract}"
         # define resource files paths
         base_dir = self.config.base_dif
         full_sample_set_path = (
