@@ -4,6 +4,9 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
+# Create a non-root user
+RUN useradd --create-home appuser
+
 # Copy only necessary files for dependency installation
 COPY pyproject.toml poetry.lock ./
 
@@ -20,6 +23,12 @@ RUN apt update && \
 
 # Copy the rest of the application code
 COPY . /app
+
+# Ensure correct permissions for the non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to the non-root user
+USER appuser
 
 # Make sure log config file (if provided) is available in the working directory
 COPY log_config.yaml /app/log_config.yaml
