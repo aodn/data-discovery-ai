@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    container_name: data-discovery-ai
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    command: poetry run uvicorn --host=0.0.0.0 --reload --log-config=log_config.yaml data_discovery_ai.server:app
