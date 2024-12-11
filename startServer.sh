@@ -16,7 +16,7 @@ echo "Building the Docker image: $IMAGE_NAME (no cache)"
 docker build --no-cache -t $IMAGE_NAME .
 
 # Run the container with the .env file
-docker run -d --name $CONTAINER_NAME \
+docker run --name $CONTAINER_NAME \
   --env-file .env \
   -p 8000:8000 \
   $IMAGE_NAME
