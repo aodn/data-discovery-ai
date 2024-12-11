@@ -1,0 +1,80 @@
+name: Trigger Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        required: true
+        description: The short-name of the app corresponding to the folder in appdeploy.
+        type: string
+      environment:
+        required: true
+        description: The environment to use for the deploy job.
+        type: choice
+        options:
+          - edge
+          - staging
+          - production
+      digest:
+        required: false
+        description: The image digest to pass to the deploy job.
+        type: string
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      digest:
+        required: false
+        type: string
+      environment:
+        required: true
+        type: string
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  trigger_deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      - name: Push Image Digest to SSM
+        if: ${{ inputs.digest != '' }}
+        run: |
+          aws ssm put-parameter \
+            --name "/apps/${{ inputs.app_name }}/${{ inputs.environment }}/image_digest" \
+            --type "String" \
+            --value "$digest" \
+            --overwrite
+        env:
+          digest: ${{ inputs.digest }}
+      - name: Generate App Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: "appdeploy"
+      - name: Trigger Deploy Workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          retries: 3
+          retry-exempt-status-codes: 204
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: 'aodn',
+              repo: 'appdeploy',
+              workflow_id: 'deploy.yml',
+              ref: 'main',
+              inputs: {
+                app_name: '${{ inputs.app_name }}',
+                environment: '${{ inputs.environment }}'
+              }
+            })

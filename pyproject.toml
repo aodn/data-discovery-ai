@@ -3,7 +3,6 @@ name = "data-discovery-ai"
 version = "0.1.0"
 description = ""
 authors = ["Viet Nguyen <vh.nguyen@utas.edu.au>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "~3.10"
