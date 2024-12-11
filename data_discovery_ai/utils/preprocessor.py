@@ -9,7 +9,7 @@ import ast
 import os
 import numpy as np
 import configparser
-from typing import Any, List, Tuple, Union, Dict
+from typing import Any, List, Tuple, Union, Dict, Optional
 
 import torch
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -19,10 +19,13 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
-from pathlib import Path
 from typing import Dict
-import tempfile
-import json
+
+# TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+# from data_discovery_ai import logger
+
+# TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -167,7 +170,7 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
 
 def prepare_X_Y(
     sampleSet: pd.DataFrame,
-) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict]:
     """
     Prepares the input feature matrix (X) and target matrix (Y) from the sample set data.
     Input:
@@ -309,15 +312,22 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         keywords = ast.literal_eval(text)
     k_list = []
     for keyword in keywords:
-        if keyword.get("concepts") is not None:
-            for concept in keyword.get("concepts"):
-                if keyword.get("title") in vocabs and concept.get("id") != "":
-                    conceptObj = Concept(
-                        value=concept.get("id").lower(),
-                        url=concept.get("url"),
-                        vocab_type=keyword.get("title"),
-                    )
-                    k_list.append(conceptObj.to_json())
+        try:
+            if keyword.get("concepts") is not None:
+                for concept in keyword.get("concepts"):
+                    if keyword.get("title") in vocabs and concept.get("id") != "":
+                        # check if the url is valid: start with http and not None or empty
+                        if concept.get("url") is not None and concept.get("url") != "":
+                            concept_url = concept.get("url")
+                            if concept_url.startswith("http"):
+                                conceptObj = Concept(
+                                    value=concept.get("id").lower(),
+                                    url=concept_url,
+                                    vocab_type=keyword.get("title"),
+                                )
+                                k_list.append(conceptObj.to_json())
+        except Exception as e:
+            logger.error(e)
     return list(k_list)
 
 
@@ -380,7 +390,7 @@ def customized_resample(X_train, Y_train, rare_class):
     """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
-    num_copies = 10
+    num_copies = 5
     for label_idx in rare_class:
         sample_idx = np.where(Y_train[:, label_idx] == 1)[0]
 
@@ -396,7 +406,7 @@ def resampling(
     X_train: np.ndarray,
     Y_train: np.ndarray,
     strategy: str,
-    rare_keyword_index: List[int],
+    rare_keyword_index: Optional[List[int]],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Resamples the training data using the specified strategy to address class imbalance.
@@ -411,7 +421,7 @@ def resampling(
         X_train: np.ndarray. The training feature X matrix.
         Y_train: np.ndarray. The training traget Y matrix.
         strategy: str. Resampling strategy to apply ("custom", "ROS", "RUS", or "SMOTE").
-        rare_keyword_index: List[int]. A list of indices representing rare class labels for custom resampling.
+        rare_keyword_index: List[int] or None. List[int] as a list of indices representing rare class labels for custom resampling or None for ROS, RUS, and SMOTE.
     Output:
         X_train_resampled, Y_train_resampled: Tuple[np.ndarray, np.ndarray]. The resampled training feature matrix X_train_resampled and target matrix Y_train_resampled.
     """
@@ -435,10 +445,10 @@ def resampling(
             [list(map(int, list(row))) for row in Y_combined_resampled]
         )
 
-    print(" ======== After Resampling ========")
-    print(f"Total samples: {len(X_train_resampled)}")
-    print(f"Dimension: {X_train_resampled.shape[1]}")
-    print(f"No. of labels: {Y_train_resampled.shape[1]}")
-    print(f"X resampled set size: {X_train_resampled.shape[0]}")
-    print(f"Y resampled set size: {Y_train_resampled.shape[0]}")
+    logger.info(" ======== After Resampling ========")
+    logger.info(f"Total samples: {len(X_train_resampled)}")
+    logger.info(f"Dimension: {X_train_resampled.shape[1]}")
+    logger.info(f"No. of labels: {Y_train_resampled.shape[1]}")
+    logger.info(f"X resampled set size: {X_train_resampled.shape[0]}")
+    logger.info(f"Y resampled set size: {Y_train_resampled.shape[0]}")
     return X_train_resampled, Y_train_resampled

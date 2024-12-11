@@ -7,9 +7,10 @@ on:
     branches:
       - main
     paths-ignore:
-      - "**/*.md"
+      - '**/*.md'
       - "notebooks/**"
       - "extras/**"
+      - '.github/environment/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
