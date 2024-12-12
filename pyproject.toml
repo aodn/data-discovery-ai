@@ -25,7 +25,7 @@ tensorflow-io-gcs-filesystem = [
     { version = "0.37.1", markers = "platform_system == 'Windows'" }
 ]
 starlette = "0.40.0"
-torch = "2.5.0"
+torch = { version = "2.5.0+cpu", source = "https://download.pytorch.org/whl/cpu" }
 imblearn = "^0.0"
 iterative-stratification = "^0.1.9"
 pyyaml = "^6.0.2"
