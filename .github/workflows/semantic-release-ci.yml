@@ -1,5 +1,8 @@
 name: Semantic Release CI
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
