@@ -50,7 +50,7 @@ jobs:
     needs: [build_push]
     uses: ./.github/workflows/trigger_deploy.yml
     with:
-      app_name: data-access-service
+      app_name: data-discovery-ai
       environment: edge
       digest: ${{ needs.build_push.outputs.digest }}
     secrets: inherit
