@@ -1,8 +1,5 @@
 name: Build/Deploy Edge
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
