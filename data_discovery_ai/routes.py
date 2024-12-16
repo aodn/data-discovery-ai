@@ -29,7 +29,6 @@ async def health_check() -> HealthCheckResponse:
 
 @router.post("/predict", dependencies=[Depends(api_key_auth)])
 async def predict_keyword(payload: PredictKeywordRequest):
-    # selected_model = validate_model_name(payload.selected_model)
     keyword_classifier_pipeline = KeywordClassifierPipeline(
         is_data_changed=False,
         use_pretrained_model=True,
