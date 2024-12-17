@@ -1,0 +1,36 @@
+name: Test
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '.github/environment/**'
+permissions:
+  id-token: write
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  pre-commit-and-pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Set up Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: "latest"
+      - name: Install dependencies
+        run: |
+          poetry lock --no-update
+          poetry install
+      - name: Run pre-commit checks
+        run: |
+          poetry run pre-commit run --all-files
+      - name: Run tests
+        run: |
+          if [ -z "$(find . -name 'test_*.py')" ]; then echo "No tests found"; else poetry run pytest; fi
