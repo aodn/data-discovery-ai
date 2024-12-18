@@ -11,10 +11,9 @@ import numpy as np
 import configparser
 from typing import Any, List, Tuple, Union, Dict, Optional
 
-import torch
 from sklearn.preprocessing import MultiLabelBinarizer
-from transformers import BertTokenizer, BertModel
-from sklearn.model_selection import train_test_split
+from transformers import AutoTokenizer, TFBertModel
+import tensorflow as tf
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
@@ -29,6 +28,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# hide warning information from transformers
+from transformers import logging as tf_logging
+
+tf_logging.set_verbosity_error()
 
 
 class Concept:
@@ -115,7 +119,6 @@ def identify_ddm_sample(raw_data: pd.DataFrame) -> pd.DataFrame:
         + preprocessed_data["description"]
         + " [SEP] "
         + preprocessed_data["lineage"]
-        + " [SEP]"
     )
 
     # only focus on onGoing records
@@ -162,9 +165,7 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
     sampleSet["keywords"] = sampleSet["keywords"].apply(
         lambda x: keywords_formatter(x, vocabs)
     )
-    sampleSet["information"] = (
-        sampleSet["title"] + " [SEP] " + sampleSet["description"] + " [SEP]"
-    )
+    sampleSet["information"] = sampleSet["title"] + " [SEP] " + sampleSet["description"]
     return sampleSet
 
 
@@ -216,20 +217,18 @@ def get_description_embedding(text: str) -> np.ndarray:
     Output:
         text_embedding: np.ndarray. A numpy array representing the text embedding as a feature vector.
     """
-    tokenizer = BertTokenizer.from_pretrained(
-        "bert-base-uncased", clean_up_tokenization_spaces=False
-    )
-    model = BertModel.from_pretrained("bert-base-uncased")
+    # https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/bert#transformers.TFBertModel
+    tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 
-    inputs = tokenizer(
-        text, return_tensors="pt", max_length=512, truncation=True, padding="max_length"
-    )
+    # use in Tensorflow https://huggingface.co/google-bert/bert-base-uncased
+    model = TFBertModel.from_pretrained("bert-base-uncased")
 
-    with torch.no_grad():
-        outputs = model(**inputs)
-    cls_embedding = outputs.last_hidden_state[:, 0, :]
-    text_embedding = cls_embedding.squeeze().numpy()
-    return text_embedding
+    # https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__.return_tensors, set as 'tf' to return tensorflow tensor
+    inputs = tokenizer(text, return_tensors="tf", max_length=512, truncation=True)
+    outputs = model(inputs)
+    text_embedding = outputs.last_hidden_state[:, 0, :].numpy()
+    # output as a 1D array, shape (768,)
+    return text_embedding.squeeze()
 
 
 def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
