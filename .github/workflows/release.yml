@@ -36,6 +36,7 @@ jobs:
         with:
           context: .
           #          Only building for AMD64 for now
+
           #          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ github.ref_name }}
