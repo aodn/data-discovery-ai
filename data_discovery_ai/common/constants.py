@@ -15,4 +15,4 @@ SLEEP_TIME = 5
 ES_INDEX_NAME = "es-indexer-staging"
 
 # global constants for preprocessor
-RARE_LABEL_THRESHOLD = 5
+RARE_LABEL_THRESHOLD = 3

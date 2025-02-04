@@ -20,6 +20,8 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from typing import Dict
 
+from data_discovery_ai.common.constants import RARE_LABEL_THRESHOLD
+
 # TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
 # from data_discovery_ai import logger
 
@@ -389,7 +391,9 @@ def customized_resample(X_train, Y_train, rare_class):
     """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
-    num_copies = 5
+    
+    # set the number of copies as the same of the rare label threshold so that no need to manually adjust this value
+    num_copies = RARE_LABEL_THRESHOLD
     for label_idx in rare_class:
         sample_idx = np.where(Y_train[:, label_idx] == 1)[0]
 
