@@ -213,13 +213,9 @@ class KeywordClassifierPipeline(BasePipeline):
         full_path = os.path.join(self.temp_dir, KEYWORD_LABEL_FILE)
         preprocessor.save_to_file(labels, full_path)
 
-        # Identify rare labels based on a predefined threshold
-        rare_label_threshold = self.params.getint(
-            "preprocessor", "rare_label_threshold"
-        )
         # TODO fix type of "labels": not Dict from here: Expected type 'dict', got 'list[str]' instead
         rare_label_index = preprocessor.identify_rare_labels(
-            Y_df, rare_label_threshold, labels
+            Y_df, RARE_LABEL_THRESHOLD, labels
         )
 
         # Apply custom resampling to handle rare labels
@@ -282,6 +278,7 @@ class KeywordClassifierPipeline(BasePipeline):
         eval_results = model.evaluation(
             Y_test=train_test_data.Y_test, predictions=predicted_labels
         )
+        print(eval_results)
         logger.info(eval_results)
 
     def make_prediction(self, description: str) -> list[Any]:
