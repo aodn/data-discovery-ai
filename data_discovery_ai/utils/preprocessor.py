@@ -391,7 +391,7 @@ def customized_resample(X_train, Y_train, rare_class):
     """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
-    
+
     # set the number of copies as the same of the rare label threshold so that no need to manually adjust this value
     num_copies = RARE_LABEL_THRESHOLD
     for label_idx in rare_class:
