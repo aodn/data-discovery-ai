@@ -127,11 +127,10 @@ def identify_ddm_sample(raw_data: pd.DataFrame) -> pd.DataFrame:
     )
 
     # only focus on onGoing records
-    preprocessed_data = preprocessed_data[
-        preprocessed_data["status"] == "onGoing"
-    ]
+    preprocessed_data = preprocessed_data[preprocessed_data["status"] == "onGoing"]
 
     return preprocessed_data
+
 
 def label_ddm_sample(filtered_data: pd.DataFrame) -> pd.DataFrame:
     """
@@ -149,34 +148,41 @@ def label_ddm_sample(filtered_data: pd.DataFrame) -> pd.DataFrame:
 
     # find rows with title contains 'real time' and its variants
     # define real time string and variants and ignore case
-    real_time_variants = ['real time', 'real-time', 'realtime']
-    real_time_data = temp[temp['title'].str.contains('|'.join(real_time_variants), case=False)]
-    real_time_data.loc[:, 'mode'] = 'Real-Time'
+    real_time_variants = ["real time", "real-time", "realtime"]
+    real_time_data = temp[
+        temp["title"].str.contains("|".join(real_time_variants), case=False)
+    ]
+    real_time_data.loc[:, "mode"] = "Real-Time"
     # and also for 'delayed' and its variants
-    delayed_variants = ['delayed', 'delay', 'delaying']
-    delayed_data = temp[temp['title'].str.contains('|'.join(delayed_variants), case=False)]
-    delayed_data.loc[:, 'mode'] = 'Delayed'
+    delayed_variants = ["delayed", "delay", "delaying"]
+    delayed_data = temp[
+        temp["title"].str.contains("|".join(delayed_variants), case=False)
+    ]
+    delayed_data.loc[:, "mode"] = "Delayed"
 
     real_time_delayed_data = pd.concat([real_time_data, delayed_data])
-    data_with_mode = filtered_data.join(real_time_delayed_data['mode'])
+    data_with_mode = filtered_data.join(real_time_delayed_data["mode"])
 
     label_map = {"Real-Time": 0, "Delayed": 1, np.nan: -1}
     data_with_mode["mode"] = data_with_mode["mode"].map(label_map)
-    
+
     return data_with_mode
 
-def prepare_train_test_ddm(data_with_mode: pd.DataFrame, params: configparser.ConfigParser) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+def prepare_train_test_ddm(
+    data_with_mode: pd.DataFrame, params: configparser.ConfigParser
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-        Prepares the training and testing datasets for the data delivery mode filter model.
-        Input:
-            data_with_mode: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
-        Output:
-            X_labelled_train: np.ndarray. The training feature set for labelled data.
-            y_labelled_train: np.ndarray. The training target set for labelled data.
-            X_combined_train: np.ndarray. The combined training feature set for both labelled and unlabelled data.
-            y_combined_train: np.ndarray. The combined training target set for both labelled and unlabelled data.
-            X_val: np.ndarray. The testing feature set.
-            y_val: np.ndarray. The testing target set.
+    Prepares the training and testing datasets for the data delivery mode filter model.
+    Input:
+        data_with_mode: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
+    Output:
+        X_labelled_train: np.ndarray. The training feature set for labelled data.
+        y_labelled_train: np.ndarray. The training target set for labelled data.
+        X_combined_train: np.ndarray. The combined training feature set for both labelled and unlabelled data.
+        y_combined_train: np.ndarray. The combined training target set for both labelled and unlabelled data.
+        X_val: np.ndarray. The testing feature set.
+        y_val: np.ndarray. The testing target set.
     """
     # split the data into labelled and unlabelled sets
     labelled_data = data_with_mode[data_with_mode["mode"] != -1]
@@ -191,8 +197,12 @@ def prepare_train_test_ddm(data_with_mode: pd.DataFrame, params: configparser.Co
 
     # split labelled data into training and testing sets for validation
     test_size = params.getfloat("preprocessor", "test_size")
-    X_labelled_train, X_val, y_train, y_val = train_test_split(X_labelled, y_labelled, test_size=test_size, random_state=42)
-    logger.info(f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_val)}")
+    X_labelled_train, X_val, y_train, y_val = train_test_split(
+        X_labelled, y_labelled, test_size=test_size, random_state=42
+    )
+    logger.info(
+        f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_val)}"
+    )
 
     # only keep embedding column as feature X and mode column as target y for unlabelled data
     X_unlabelled = unlabelled_data["embedding"].tolist()
@@ -206,12 +216,20 @@ def prepare_train_test_ddm(data_with_mode: pd.DataFrame, params: configparser.Co
     # just to make sure X and y are same size
     if len(X_combined_train) != len(y_combined_train):
         raise ValueError("X and y are not the same size")
-    
+
     # just to make sure train and test sets have same dimension
     if len(X_combined_train[0]) != len(X_val[0]):
         raise ValueError("Train and test sets have different dimensions")
-    
-    return np.array(X_labelled_train), np.array(y_train), X_combined_train, y_combined_train, np.array(X_val), np.array(y_val)
+
+    return (
+        np.array(X_labelled_train),
+        np.array(y_train),
+        X_combined_train,
+        y_combined_train,
+        np.array(X_val),
+        np.array(y_val),
+    )
+
 
 def identify_km_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     """

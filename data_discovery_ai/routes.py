@@ -50,7 +50,7 @@ async def predict_keyword(payload: PredictKeywordRequest):
     return response
 
 
-@router.get("/datadeliverymode", dependencies=[Depends(api_key_auth)])
+@router.post("/datadeliverymode", dependencies=[Depends(api_key_auth)])
 async def predict_data_delivery_mode(payload: PredictDataDeliveryModeRequest):
     ddm_classifier_pipeline = DataDeliveryModeFilterPipeline(
         is_data_changed=False,
@@ -60,6 +60,8 @@ async def predict_data_delivery_mode(payload: PredictDataDeliveryModeRequest):
     logger.info(
         f"selected_model: {payload.selected_model}, title: {payload.title}, abstract: {payload.abstract}, lineage: {payload.lineage}"
     )
-    ddm_classifier_pipeline.pipeline(title=payload.title, abstract=payload.abstract, lineage=payload.lineage)
+    ddm_classifier_pipeline.pipeline(
+        title=payload.title, abstract=payload.abstract, lineage=payload.lineage
+    )
     response = {"predicted_mode": ddm_classifier_pipeline.predicted_class}
     return response

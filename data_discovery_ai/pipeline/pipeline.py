@@ -33,6 +33,7 @@ class TrainTestData:
     dimension: int
     n_labels: int
 
+
 @dataclass
 class DDMTrainTestData:
     X_labelled_train: np.ndarray
@@ -41,7 +42,6 @@ class DDMTrainTestData:
     y_test: np.ndarray
     X_combined_train: np.ndarray
     y_combined_train: np.ndarray
-
 
 
 class BasePipeline:
@@ -103,32 +103,44 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         self.temp_dir = tempfile.mkdtemp()
 
         self.params = self.config.load_model_config()
-        
+
         # define predicted labels
         self.predicted_class = None
 
     # extends the fetch_raw_data method from BasePipeline
     def fetch_raw_data(self) -> pd.DataFrame:
         return super().fetch_raw_data()
-    
+
     def prepare_train_test_sets(self, preprocessed_data: pd.DataFrame) -> TrainTestData:
         """
-            Prepare the training and testing tests from the preprocessed data.
-            Input:
-                preprocessed_data: pd.DataFrame. The preprocessed data from the raw data which filters the OnGoing records and calculates the embeddings.
-            Output:
-                train_test_data: TrainTestData. The training and testing data for the model follows a customised dataclass object.
-        
+        Prepare the training and testing tests from the preprocessed data.
+        Input:
+            preprocessed_data: pd.DataFrame. The preprocessed data from the raw data which filters the OnGoing records and calculates the embeddings.
+        Output:
+            train_test_data: TrainTestData. The training and testing data for the model follows a customised dataclass object.
+
         """
         # label the data: we have a predefined rule to label the OnGoing data
         label_ddm_sample = preprocessor.label_ddm_sample(preprocessed_data)
 
         # prepare train and test sets.
-        X_labelled_train, y_labelled_train, X_combined_train, y_combined_train, X_test, y_test = preprocessor.prepare_train_test_ddm(label_ddm_sample, self.params)
+        (
+            X_labelled_train,
+            y_labelled_train,
+            X_combined_train,
+            y_combined_train,
+            X_test,
+            y_test,
+        ) = preprocessor.prepare_train_test_ddm(label_ddm_sample, self.params)
 
         # pack the results into a Dataclass object
         train_test_data = DDMTrainTestData(
-            X_labelled_train=X_labelled_train, y_labelled_train=y_labelled_train, X_test=X_test, y_test=y_test, X_combined_train=X_combined_train, y_combined_train=y_combined_train
+            X_labelled_train=X_labelled_train,
+            y_labelled_train=y_labelled_train,
+            X_test=X_test,
+            y_test=y_test,
+            X_combined_train=X_combined_train,
+            y_combined_train=y_combined_train,
         )
         return train_test_data
 
@@ -144,7 +156,6 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         trained_model = ddm_model.load_saved_model(self.model_name)
         prediction = ddm_model.make_prediction(trained_model, description=description)
         self.predicted_class = ddm_model.get_predicted_class_name(prediction)
-        
 
     def pipeline(self, title: str, abstract: str, lineage: str) -> None:
 
@@ -169,8 +180,10 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             # load preprocessed data from resource
             preprocessed_data = preprocessor.load_from_file(full_path)
             train_test_data = self.prepare_train_test_sets(preprocessed_data)
-            print(f"size of training set: {len(train_test_data.X_labelled_train)} \nsize of test set: {len(train_test_data.X_test)}")
-            
+            print(
+                f"size of training set: {len(train_test_data.X_labelled_train)} \nsize of test set: {len(train_test_data.X_test)}"
+            )
+
             # decision-making: use pretrained model or not
             if self.use_pretrained_model:
                 # TODO: add logic function
@@ -178,16 +191,20 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             else:
                 # train the model and save to file
                 trained_model = ddm_model.ddm_filter_model(
-                    model_name=self.model_name, 
-                    X_labelled_train=train_test_data.X_labelled_train, 
-                    y_labelled_train=train_test_data.y_labelled_train, 
+                    model_name=self.model_name,
+                    X_labelled_train=train_test_data.X_labelled_train,
+                    y_labelled_train=train_test_data.y_labelled_train,
                     X_test=train_test_data.X_test,
                     y_test=train_test_data.y_test,
-                    params=self.params)
-                ddm_model.evaluate_model(trained_model, train_test_data.X_test, train_test_data.y_test)
+                    params=self.params,
+                )
+                ddm_model.evaluate_model(
+                    trained_model, train_test_data.X_test, train_test_data.y_test
+                )
 
             # make prediction
             self.make_prediction(description=description)
+
 
 class KeywordClassifierPipeline(BasePipeline):
     def __init__(

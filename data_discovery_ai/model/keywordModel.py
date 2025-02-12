@@ -8,7 +8,7 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     hamming_loss,
-    jaccard_score
+    jaccard_score,
 )
 
 from sklearn.neighbors import KNeighborsClassifier
