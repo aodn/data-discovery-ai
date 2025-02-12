@@ -108,6 +108,6 @@ def get_predicted_class_name(predicted_class: int) -> str:
     """
     TODO: add description
     """
-    class_map = {0: "Real Time", 1: "Delayed", 2: "Other"}
+    class_map = {0: "Real-Time", 1: "Delayed", 2: "Other"}
     pred_class = class_map.get(predicted_class)
     return pred_class
