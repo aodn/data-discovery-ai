@@ -13,6 +13,8 @@ from typing import Any, List, Tuple, Union, Dict, Optional
 
 from sklearn.preprocessing import MultiLabelBinarizer
 from transformers import AutoTokenizer, TFBertModel
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 import tensorflow as tf
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
@@ -110,23 +112,106 @@ def identify_ddm_sample(raw_data: pd.DataFrame) -> pd.DataFrame:
     preprocessed_data = raw_data[columns].copy()
 
     # change column names
-    preprocessed_data.columns = ["id", "title", "description", "lineage"]
+    preprocessed_data.columns = ["id", "title", "abstract", "lineage", "status"]
+
+    # fill na with empty string in lineage column
+    preprocessed_data["lineage"].fillna("", inplace=True)
 
     # add information column, which is the text of title, description and lineage
     preprocessed_data["information"] = (
         preprocessed_data["title"]
         + " [SEP] "
-        + preprocessed_data["description"]
+        + preprocessed_data["abstract"]
         + " [SEP] "
         + preprocessed_data["lineage"]
     )
 
     # only focus on onGoing records
     preprocessed_data = preprocessed_data[
-        preprocessed_data["_source.summaries.status"] == "onGoing"
+        preprocessed_data["status"] == "onGoing"
     ]
+
     return preprocessed_data
 
+def label_ddm_sample(filtered_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    This function is used to label the "onGoing" records based on a decision-making tree.
+    If the title of a record contains "Real-Time" or its variants (ignore case), the records is labelled as "Real-Time" mode. Similarly, if the title of a record contains "Delayed" or its variants (ignore case), the records is labelled as "Delayed" mode.
+    Otherwise, the record remains unlabelled.
+    The mode is mapped with numbers: 0 for "Real-Time", 1 for "Delayed", and -1 for unlabelled records.
+    Input:
+        filtered_data: pd.DataFrame. The preprocessed DataFrame which is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding".
+    Output:
+        sampeSet: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is the same as the input with one more "mode" column.
+    """
+    # make a copy of the input data to ensure the original data is not modified
+    temp = filtered_data.copy()
+
+    # find rows with title contains 'real time' and its variants
+    # define real time string and variants and ignore case
+    real_time_variants = ['real time', 'real-time', 'realtime']
+    real_time_data = temp[temp['title'].str.contains('|'.join(real_time_variants), case=False)]
+    real_time_data.loc[:, 'mode'] = 'Real-Time'
+    # and also for 'delayed' and its variants
+    delayed_variants = ['delayed', 'delay', 'delaying']
+    delayed_data = temp[temp['title'].str.contains('|'.join(delayed_variants), case=False)]
+    delayed_data.loc[:, 'mode'] = 'Delayed'
+
+    real_time_delayed_data = pd.concat([real_time_data, delayed_data])
+    data_with_mode = filtered_data.join(real_time_delayed_data['mode'])
+
+    label_map = {"Real-Time": 0, "Delayed": 1, np.nan: -1}
+    data_with_mode["mode"] = data_with_mode["mode"].map(label_map)
+    
+    return data_with_mode
+
+def prepare_train_test_ddm(data_with_mode: pd.DataFrame, params: configparser.ConfigParser) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+        Prepares the training and testing datasets for the data delivery mode filter model.
+        Input:
+            data_with_mode: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
+        Output:
+            X_labelled_train: np.ndarray. The training feature set for labelled data.
+            y_labelled_train: np.ndarray. The training target set for labelled data.
+            X_combined_train: np.ndarray. The combined training feature set for both labelled and unlabelled data.
+            y_combined_train: np.ndarray. The combined training target set for both labelled and unlabelled data.
+            X_val: np.ndarray. The testing feature set.
+            y_val: np.ndarray. The testing target set.
+    """
+    # split the data into labelled and unlabelled sets
+    labelled_data = data_with_mode[data_with_mode["mode"] != -1]
+    logger.info(f"Size of labelled set: {len(labelled_data)}")
+
+    unlabelled_data = data_with_mode[data_with_mode["mode"] == -1]
+    logger.info(f"Size of unlabelled set: {len(unlabelled_data)}")
+
+    # only keep embedding column as feature X and mode column as target y for labelled data
+    X_labelled = labelled_data["embedding"].tolist()
+    y_labelled = labelled_data["mode"].tolist()
+
+    # split labelled data into training and testing sets for validation
+    test_size = params.getfloat("preprocessor", "test_size")
+    X_labelled_train, X_val, y_train, y_val = train_test_split(X_labelled, y_labelled, test_size=test_size, random_state=42)
+    logger.info(f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_val)}")
+
+    # only keep embedding column as feature X and mode column as target y for unlabelled data
+    X_unlabelled = unlabelled_data["embedding"].tolist()
+    y_unlabelled = unlabelled_data["mode"].tolist()
+
+    # combine unlabelled data with labelled training data for training
+    X_combined_train = np.vstack([X_labelled_train, X_unlabelled])
+    y_combined_train = np.hstack([y_train, y_unlabelled])
+    logger.info(f"size of final training set: {len(X_combined_train)}")
+
+    # just to make sure X and y are same size
+    if len(X_combined_train) != len(y_combined_train):
+        raise ValueError("X and y are not the same size")
+    
+    # just to make sure train and test sets have same dimension
+    if len(X_combined_train[0]) != len(X_val[0]):
+        raise ValueError("Train and test sets have different dimensions")
+    
+    return np.array(X_labelled_train), np.array(y_train), X_combined_train, y_combined_train, np.array(X_val), np.array(y_val)
 
 def identify_km_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     """

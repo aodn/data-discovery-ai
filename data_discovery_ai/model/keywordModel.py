@@ -8,8 +8,9 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     hamming_loss,
-    jaccard_score,
+    jaccard_score
 )
+
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.multioutput import MultiOutputClassifier
@@ -26,6 +27,7 @@ from tensorflow.keras.models import load_model
 
 import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
+from configparser import ConfigParser
 import os
 from pathlib import Path
 
@@ -87,7 +89,7 @@ def keyword_model(
     class_weight: Dict[int, float],
     dim: int,
     n_labels: int,
-    params: Dict[str, Any],
+    params: ConfigParser,
 ) -> Tuple[Sequential, Any, str]:
     """
     Builds, trains, and evaluates a multi-label classification model for keyword prediction. Train neural network model with configurable hyperparameters (through `common/keyword_classification_parameters.json`), compiles it with a focal loss function, and trains it on the provided training data.
