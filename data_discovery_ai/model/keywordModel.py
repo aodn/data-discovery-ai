@@ -36,8 +36,7 @@ os.environ["TF_USE_LEGACY_KERAS"] = "1"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# TODO: Delete this line after fix 'module not exist issue' in notebooks
-KEYWORD_FOLDER = "KeywordClassifier"
+from data_discovery_ai.common.constants import KEYWORD_FOLDER
 
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
@@ -275,7 +274,6 @@ def baseline(
         baseModel = DecisionTreeClassifier(random_state=42)
         baseline_model = MultiOutputClassifier(baseModel)
         baseline_model.fit(X_train, Y_train)
-    # TODO: add more baseline models
     else:
         raise ValueError(
             f"Unsupported model type: {model}. Please choose 'KNN' or 'DT'."

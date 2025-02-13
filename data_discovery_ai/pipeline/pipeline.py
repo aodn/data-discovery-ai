@@ -107,9 +107,11 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         # define predicted labels
         self.predicted_class = None
 
+
     # extends the fetch_raw_data method from BasePipeline
     def fetch_raw_data(self) -> pd.DataFrame:
         return super().fetch_raw_data()
+
 
     def prepare_train_test_sets(self, preprocessed_data: pd.DataFrame) -> TrainTestData:
         """
@@ -144,20 +146,27 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         )
         return train_test_data
 
-    def make_prediction(self, description: str) -> int:
+
+    def make_prediction(self, trained_model: Any, description: str, pca: Any) -> None:
         """
-        TODO: add description
         Make a prediction on the given description using a trained data delivery mode filter model.
         Input:
-            description: str. The textual information for prediction.
-        Output:
-            prediction: int. The predicted class for the given description, 0 as class "Real-Time" and 1 as class "Delayed".
+            trained_model: Any. The trained model which is passed through local saved pickle file, with suffix ".pkl".
+            description: str. The textual information for prediction. It is a combined string of title, abstract, and lineage with the seperator "[SEP]". These values are passed through API requests.
+            pca: Any. The PCA model which is passed through local saved pickle file, with suffix ".pca.pkl".
         """
-        trained_model = ddm_model.load_saved_model(self.model_name)
-        prediction = ddm_model.make_prediction(trained_model, description=description)
+        prediction = ddm_model.make_prediction(trained_model, description=description, pca=pca)
         self.predicted_class = ddm_model.get_predicted_class_name(prediction)
 
+
     def pipeline(self, title: str, abstract: str, lineage: str) -> None:
+        """
+            The data delivery mode filter pipeline. Called by the API request to make prediction with a ML model.
+            Input:
+                title: str. The title of the metadata record.
+                abstract: str. The abstract of the metadata record.
+                lineage: str. The lineage of the metadata record.
+        """
 
         # define resource files paths
         base_dir = self.config.base_dif
@@ -174,36 +183,35 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             preprocessed_data_embedding = preprocessor.calculate_embedding(
                 preprocessed_data
             )
+            # save preprocessed data to resources as calculating embeddings is time-consuming
             preprocessor.save_to_file(preprocessed_data_embedding, full_path)
 
         else:
             # load preprocessed data from resource
             preprocessed_data = preprocessor.load_from_file(full_path)
             train_test_data = self.prepare_train_test_sets(preprocessed_data)
-            print(
-                f"size of training set: {len(train_test_data.X_labelled_train)} \nsize of test set: {len(train_test_data.X_test)}"
-            )
 
-            # decision-making: use pretrained model or not
-            if self.use_pretrained_model:
-                # TODO: add logic function
-                pass
-            else:
-                # train the model and save to file
-                trained_model = ddm_model.ddm_filter_model(
-                    model_name=self.model_name,
-                    X_labelled_train=train_test_data.X_labelled_train,
-                    y_labelled_train=train_test_data.y_labelled_train,
-                    X_test=train_test_data.X_test,
-                    y_test=train_test_data.y_test,
-                    params=self.params,
-                )
-                ddm_model.evaluate_model(
-                    trained_model, train_test_data.X_test, train_test_data.y_test
-                )
+        # decision-making: use pretrained model or not
+        if self.use_pretrained_model:
+            # load saved model and its pca from pickle files
+            trained_model, pca = ddm_model.load_saved_model(self.model_name)
 
             # make prediction
-            self.make_prediction(description=description)
+            self.make_prediction(trained_model=trained_model, description=description, pca=pca)
+        else:
+            # train the model and save to file
+            trained_model, pca = ddm_model.ddm_filter_model(
+                model_name=self.model_name,
+                X_train=train_test_data.X_combined_train,
+                y_train=train_test_data.y_combined_train,
+                params=self.params,
+            )
+            ddm_model.evaluate_model(
+                trained_model, train_test_data.X_test, train_test_data.y_test, pca
+            )
+
+            # make prediction
+            self.make_prediction(trained_model=trained_model, description=description, pca=pca)
 
 
 class KeywordClassifierPipeline(BasePipeline):
@@ -255,7 +263,7 @@ class KeywordClassifierPipeline(BasePipeline):
         Output:
             preprocessed_sampleSet: pd.DataFrame. Representing the processed sample set, with an additional embedding column.
         """
-        vocabs = self.params["preprocessor"]["vocabs"].split(", ")
+        vocabs = self.params["keywordPreprocessor"]["vocabs"].split(", ")
         labelled_ds = preprocessor.identify_km_sample(raw_data, vocabs)
         preprocessed_samples = preprocessor.sample_preprocessor(labelled_ds, vocabs)
 

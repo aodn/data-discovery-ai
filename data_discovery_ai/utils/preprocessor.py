@@ -14,7 +14,6 @@ from typing import Any, List, Tuple, Union, Dict, Optional
 from sklearn.preprocessing import MultiLabelBinarizer
 from transformers import AutoTokenizer, TFBertModel
 from sklearn.model_selection import train_test_split
-from sklearn.decomposition import PCA
 import tensorflow as tf
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
@@ -22,10 +21,6 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from typing import Dict
 
-# TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
-# from data_discovery_ai import logger
-
-# TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
 import logging
 
 logger = logging.getLogger(__name__)
@@ -196,7 +191,7 @@ def prepare_train_test_ddm(
     y_labelled = labelled_data["mode"].tolist()
 
     # split labelled data into training and testing sets for validation
-    test_size = params.getfloat("preprocessor", "test_size")
+    test_size = params.getfloat("filterPreprocessor", "test_size")
     X_labelled_train, X_val, y_train, y_val = train_test_split(
         X_labelled, y_labelled, test_size=test_size, random_state=42
     )
@@ -456,9 +451,9 @@ def prepare_train_test(
     n_labels = Y.shape[1]
     dim = X.shape[1]
 
-    n_splits = params.getint("preprocessor", "n_splits")
-    test_size = params.getfloat("preprocessor", "test_size")
-    train_test_random_state = params.getint("preprocessor", "train_test_random_state")
+    n_splits = params.getint("keywordPreprocessor", "n_splits")
+    test_size = params.getfloat("keywordPreprocessor", "test_size")
+    train_test_random_state = params.getint("keywordPreprocessor", "train_test_random_state")
     msss = MultilabelStratifiedShuffleSplit(
         n_splits=n_splits, test_size=test_size, random_state=train_test_random_state
     )
