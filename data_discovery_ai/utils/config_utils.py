@@ -1,5 +1,5 @@
 from pathlib import Path
-from data_discovery_ai.common.constants import KEYWORD_CONFIG, ELASTICSEARCH_CONFIG
+from data_discovery_ai.common.constants import MODEL_CONFIG, ELASTICSEARCH_CONFIG
 import configparser
 
 
@@ -21,11 +21,11 @@ class ConfigUtil:
         config.read(config_file_path)
         return config
 
-    def load_keyword_config(self) -> configparser.ConfigParser:
+    def load_model_config(self) -> configparser.ConfigParser:
         """
-        The util method for load parameters for from a configuration file, which saved as data_discovery_ai/common/keyword_classification_parameters.ini
+        The util method for load parameters for ML models from a configuration file, which saved as data_discovery_ai/common/classification_parameters.ini
         """
-        return self._load_config(KEYWORD_CONFIG)
+        return self._load_config(MODEL_CONFIG)
 
     def load_es_config(self) -> configparser.ConfigParser:
         """
