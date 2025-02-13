@@ -107,11 +107,9 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         # define predicted labels
         self.predicted_class = None
 
-
     # extends the fetch_raw_data method from BasePipeline
     def fetch_raw_data(self) -> pd.DataFrame:
         return super().fetch_raw_data()
-
 
     def prepare_train_test_sets(self, preprocessed_data: pd.DataFrame) -> TrainTestData:
         """
@@ -146,7 +144,6 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
         )
         return train_test_data
 
-
     def make_prediction(self, trained_model: Any, description: str, pca: Any) -> None:
         """
         Make a prediction on the given description using a trained data delivery mode filter model.
@@ -155,17 +152,18 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             description: str. The textual information for prediction. It is a combined string of title, abstract, and lineage with the seperator "[SEP]". These values are passed through API requests.
             pca: Any. The PCA model which is passed through local saved pickle file, with suffix ".pca.pkl".
         """
-        prediction = ddm_model.make_prediction(trained_model, description=description, pca=pca)
+        prediction = ddm_model.make_prediction(
+            trained_model, description=description, pca=pca
+        )
         self.predicted_class = ddm_model.get_predicted_class_name(prediction)
-
 
     def pipeline(self, title: str, abstract: str, lineage: str) -> None:
         """
-            The data delivery mode filter pipeline. Called by the API request to make prediction with a ML model.
-            Input:
-                title: str. The title of the metadata record.
-                abstract: str. The abstract of the metadata record.
-                lineage: str. The lineage of the metadata record.
+        The data delivery mode filter pipeline. Called by the API request to make prediction with a ML model.
+        Input:
+            title: str. The title of the metadata record.
+            abstract: str. The abstract of the metadata record.
+            lineage: str. The lineage of the metadata record.
         """
 
         # define resource files paths
@@ -197,7 +195,9 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             trained_model, pca = ddm_model.load_saved_model(self.model_name)
 
             # make prediction
-            self.make_prediction(trained_model=trained_model, description=description, pca=pca)
+            self.make_prediction(
+                trained_model=trained_model, description=description, pca=pca
+            )
         else:
             # train the model and save to file
             trained_model, pca = ddm_model.ddm_filter_model(
@@ -211,7 +211,9 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             )
 
             # make prediction
-            self.make_prediction(trained_model=trained_model, description=description, pca=pca)
+            self.make_prediction(
+                trained_model=trained_model, description=description, pca=pca
+            )
 
 
 class KeywordClassifierPipeline(BasePipeline):

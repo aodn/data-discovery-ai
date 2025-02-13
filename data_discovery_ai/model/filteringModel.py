@@ -35,7 +35,7 @@ def ddm_filter_model(
 ) -> Tuple[Any, Any]:
     """
     The classification model for predicting the data delivery mode of metadata records, based on their titles, abstracts, and lineages.
-    Currently, we applied a self-training model with a random forest classifier as the base model. It extends the idea of semi-supervised learning, in which both 
+    Currently, we applied a self-training model with a random forest classifier as the base model. It extends the idea of semi-supervised learning, in which both
     Input:
         model_name: str. The name of the model, which should be stricted within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
         X_labelled_train: np.ndarray. The training data of the metadata records, which is splited from the labelled data.
@@ -76,12 +76,12 @@ def ddm_filter_model(
 
 def load_saved_model(model_name: str) -> Tuple[Any, Any]:
     """
-        Load the saved model and the trained pca model from local pickle files.
-        The fine name is given by the 'selected_model' from the API request. The model file is end up with ".pkl" suffix, while the pca file is end up with the ".pca.pkl" suffix.
-        Input:
-            model_name: str. The name of the model, which should be stricted within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
-        Output:
-            Tuple[Any, Any]. The trained model and pca model
+    Load the saved model and the trained pca model from local pickle files.
+    The fine name is given by the 'selected_model' from the API request. The model file is end up with ".pkl" suffix, while the pca file is end up with the ".pca.pkl" suffix.
+    Input:
+        model_name: str. The name of the model, which should be stricted within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
+    Output:
+        Tuple[Any, Any]. The trained model and pca model
     """
     # load model pickle file
     model_file_path = (
@@ -107,27 +107,28 @@ def load_saved_model(model_name: str) -> Tuple[Any, Any]:
 
 def evaluate_model(model: Any, X_test: np.ndarray, y_test: np.ndarray, pca) -> None:
     """
-        Evaluate the model with the testing data. The evaluation metrics comes from the classification report, which is printed out in the log.
-        Input:
-            model: Any. The trained model.
-            X_test: np.ndarray. The testing data of the metadata records, which is splited from the labelled data.
-            y_test: np.ndarray. The real class ("real-time" or "delayed") of the testing data, which is splited from the labelled data. This can be used as the groundtruth to evaluate the model.
-            pca: Any. The trained pca model.
+    Evaluate the model with the testing data. The evaluation metrics comes from the classification report, which is printed out in the log.
+    Input:
+        model: Any. The trained model.
+        X_test: np.ndarray. The testing data of the metadata records, which is splited from the labelled data.
+        y_test: np.ndarray. The real class ("real-time" or "delayed") of the testing data, which is splited from the labelled data. This can be used as the groundtruth to evaluate the model.
+        pca: Any. The trained pca model.
     """
     X_test_pca = pca.transform(X_test)
     y_pred = model.predict(X_test_pca)
     report = classification_report(y_test, y_pred)
     logger.info(f"Classification report: \n{report}")
 
+
 def make_prediction(model: Any, description: str, pca) -> np.ndarray:
     """
-        Make prediction for a given metadata record, the description is the combination of its title, abstract, and lineage.
-        Input:
-            model: Any. The trained model.
-            description: str. The textual description of the metadata record, which is the combination of its title, abstract, and lineage.
-            pca: Any. The trained pca model.
-        Output:
-            np.ndarray. Return an np.ndarray of size 1, which is the predicted class of the metadata record. This prediction task has only two classes: 0 for "Real-Time" and 1 for "Delayed".
+    Make prediction for a given metadata record, the description is the combination of its title, abstract, and lineage.
+    Input:
+        model: Any. The trained model.
+        description: str. The textual description of the metadata record, which is the combination of its title, abstract, and lineage.
+        pca: Any. The trained pca model.
+    Output:
+        np.ndarray. Return an np.ndarray of size 1, which is the predicted class of the metadata record. This prediction task has only two classes: 0 for "Real-Time" and 1 for "Delayed".
     """
     description_embedding = get_description_embedding(description)
     dimension = description_embedding.shape[0]
@@ -140,11 +141,11 @@ def make_prediction(model: Any, description: str, pca) -> np.ndarray:
 
 def get_predicted_class_name(predicted_class: int) -> str:
     """
-        Conver the numeric class to the textual class name
-        Input:
-            predicted_class: int. The predicted class of the metadata record. It can be 0 or 1.
-        Output:
-            str. The textual class name of the predicted class. It can be "Real-Time" or "Delayed".
+    Conver the numeric class to the textual class name
+    Input:
+        predicted_class: int. The predicted class of the metadata record. It can be 0 or 1.
+    Output:
+        str. The textual class name of the predicted class. It can be "Real-Time" or "Delayed".
     """
     class_map = {0: "Real-Time", 1: "Delayed", 2: "Other"}
     pred_class = class_map.get(predicted_class)

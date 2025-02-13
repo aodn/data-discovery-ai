@@ -453,7 +453,9 @@ def prepare_train_test(
 
     n_splits = params.getint("keywordPreprocessor", "n_splits")
     test_size = params.getfloat("keywordPreprocessor", "test_size")
-    train_test_random_state = params.getint("keywordPreprocessor", "train_test_random_state")
+    train_test_random_state = params.getint(
+        "keywordPreprocessor", "train_test_random_state"
+    )
     msss = MultilabelStratifiedShuffleSplit(
         n_splits=n_splits, test_size=test_size, random_state=train_test_random_state
     )
