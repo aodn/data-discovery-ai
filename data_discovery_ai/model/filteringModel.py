@@ -42,6 +42,7 @@ def ddm_filter_model(
         y_labelled_train: np.ndarray. The labels of the training data, which is splited from the labelled data.
         params: ConfigParser. The configuration parameters for the model, which is loaded from the `MODEL_CONFIG` defined in `data_discovery_ai/common/constants.py`.
     Output:
+        Tuple[Any, Any]. The trained model and pca model
     """
     n_estimators = params.getint("filterModel", "n_estimators")
     random_state = params.getint("filterModel", "random_state")
@@ -64,11 +65,11 @@ def ddm_filter_model(
         / "resources"
         / FILTER_FOLDER
         / model_name
-    ).with_suffix(".pkl")
+    )
 
     # make sure path exists
     model_file_path.parent.mkdir(parents=True, exist_ok=True)
-    save_to_file(self_training_model, model_file_path)
+    save_to_file(self_training_model, model_file_path.with_suffix(".pkl"))
     save_to_file(pca, model_file_path.with_suffix(".pca.pkl"))
 
     return self_training_model, pca
@@ -89,18 +90,11 @@ def load_saved_model(model_name: str) -> Tuple[Any, Any]:
         / "resources"
         / FILTER_FOLDER
         / model_name
-    ).with_suffix(".pkl")
-    trained_model = load_from_file(model_file_path)
+    )
+    trained_model = load_from_file(model_file_path.with_suffix(".pkl"))
 
     # load pca pickle file
-    pca_file_path = (
-        Path(__file__).resolve().parent.parent
-        / "resources"
-        / FILTER_FOLDER
-        / model_name
-    ).with_suffix(".pca.pkl")
-
-    pca = load_from_file(pca_file_path)
+    pca = load_from_file(model_file_path.with_suffix(".pca.pkl"))
 
     return trained_model, pca
 
