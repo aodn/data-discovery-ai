@@ -14,7 +14,7 @@ def classify_keyword(trained_model: str, description: str, labels: Dict) -> List
         predicted_keyword: List of Concept objects, as json format.
     """
     config = ConfigUtil()
-    params = config.load_keyword_config()
+    params = config.load_model_config()
 
     selected_model = model.load_saved_model(trained_model)
     description_embedding = preprocessor.get_description_embedding(description)
