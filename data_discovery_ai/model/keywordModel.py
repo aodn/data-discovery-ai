@@ -10,6 +10,7 @@ from sklearn.metrics import (
     hamming_loss,
     jaccard_score,
 )
+
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.multioutput import MultiOutputClassifier
@@ -26,14 +27,16 @@ from tensorflow.keras.models import load_model
 
 import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
+from configparser import ConfigParser
 import os
 from pathlib import Path
-import json
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+from data_discovery_ai.common.constants import KEYWORD_FOLDER
 
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
@@ -85,7 +88,7 @@ def keyword_model(
     class_weight: Dict[int, float],
     dim: int,
     n_labels: int,
-    params: Dict[str, Any],
+    params: ConfigParser,
 ) -> Tuple[Sequential, Any, str]:
     """
     Builds, trains, and evaluates a multi-label classification model for keyword prediction. Train neural network model with configurable hyperparameters (through `common/keyword_classification_parameters.json`), compiles it with a focal loss function, and trains it on the provided training data.
@@ -158,12 +161,13 @@ def keyword_model(
         callbacks=[early_stopping, reduce_lr],
     )
     model_file_path = (
-        Path(__file__).resolve().parent.parent / "resources" / model_name
+        Path(__file__).resolve().parent.parent
+        / "resources"
+        / KEYWORD_FOLDER
+        / model_name
     ).with_suffix(".keras")
     # make sure folder exist
-    model_file_path.parent.mkdir(
-        parents=True, exist_ok=True
-    )  # Ensure the folder exists
+    model_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     model.save(model_file_path)
 
@@ -270,7 +274,6 @@ def baseline(
         baseModel = DecisionTreeClassifier(random_state=42)
         baseline_model = MultiOutputClassifier(baseModel)
         baseline_model.fit(X_train, Y_train)
-    # TODO: add more baseline models
     else:
         raise ValueError(
             f"Unsupported model type: {model}. Please choose 'KNN' or 'DT'."
@@ -288,7 +291,10 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
         Optional[keras_load_model]: The loaded Keras model if successful, otherwise `None`.
     """
     model_file_path = (
-        Path(__file__).resolve().parent.parent / "resources" / trained_model
+        Path(__file__).resolve().parent.parent
+        / "resources"
+        / KEYWORD_FOLDER
+        / trained_model
     ).with_suffix(".keras")
     try:
         saved_model = load_model(model_file_path, compile=False)

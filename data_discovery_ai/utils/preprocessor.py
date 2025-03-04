@@ -9,23 +9,33 @@ import ast
 import os
 import numpy as np
 import configparser
-from typing import Any, List, Tuple, Union, Dict
+from typing import Any, List, Tuple, Union, Dict, Optional
 
-import torch
 from sklearn.preprocessing import MultiLabelBinarizer
-from transformers import BertTokenizer, BertModel
+from transformers import AutoTokenizer, TFBertModel
 from sklearn.model_selection import train_test_split
+import tensorflow as tf
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
-from pathlib import Path
 from typing import Dict
-import tempfile
-import json
+
+from data_discovery_ai.common.constants import RARE_LABEL_THRESHOLD
+
+# TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+# from data_discovery_ai import logger
+
+# TODO: remove this after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
+import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# hide warning information from transformers
+from transformers import logging as tf_logging
+
+tf_logging.set_verbosity_error()
 
 
 class Concept:
@@ -83,7 +93,146 @@ def load_from_file(full_path: str) -> Any:
         logger.error(e)
 
 
-def identify_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
+# data preprocessor for data delivery mode filter model
+def identify_ddm_sample(raw_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Identifies a sample set (labelled data) from raw data based on specified vocabulary terms. This function filters raw data (obtained from an Elasticsearch search result).
+    This function filters raw data (obtained from an Elasticsearch search result) to identify records with 'onGoing' status.
+    Input:
+        raw_data: pd.DataFrame. The search result DataFrame from Elasticsearch, expected to contain fields '_id', '_source.title', '_source.description', '_source.summaries.statement' and '_source.summaries.status'.
+    Output:
+        preprocessed_data: pd.DataFrame. The preprocessed DataFrame containing the necessary information for the data delivery mode filter model with one more column 'information'. The 'information' column is the combination of 'title', 'description' and 'lineage'.
+    """  # only keep selected columns
+    columns = [
+        "_id",
+        "_source.title",
+        "_source.description",
+        "_source.summaries.statement",
+        "_source.summaries.status",
+    ]
+    preprocessed_data = raw_data[columns].copy()
+
+    # change column names
+    preprocessed_data.columns = ["id", "title", "abstract", "lineage", "status"]
+
+    # fill na with empty string in lineage column
+    preprocessed_data["lineage"].fillna("", inplace=True)
+
+    # add information column, which is the text of title, description and lineage
+    preprocessed_data["information"] = (
+        preprocessed_data["title"]
+        + " [SEP] "
+        + preprocessed_data["abstract"]
+        + " [SEP] "
+        + preprocessed_data["lineage"]
+    )
+
+    # only focus on onGoing records
+    preprocessed_data = preprocessed_data[preprocessed_data["status"] == "onGoing"]
+
+    return preprocessed_data
+
+
+def label_ddm_sample(filtered_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    This function is used to label the "onGoing" records based on a decision-making tree.
+    If the title of a record contains "Real-Time" or its variants (ignore case), the records is labelled as "Real-Time" mode. Similarly, if the title of a record contains "Delayed" or its variants (ignore case), the records is labelled as "Delayed" mode.
+    Otherwise, the record remains unlabelled.
+    The mode is mapped with numbers: 0 for "Real-Time", 1 for "Delayed", and -1 for unlabelled records.
+    Input:
+        filtered_data: pd.DataFrame. The preprocessed DataFrame which is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding".
+    Output:
+        sampeSet: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is the same as the input with one more "mode" column.
+    """
+    # make a copy of the input data to ensure the original data is not modified
+    temp = filtered_data.copy()
+
+    # find rows with title contains 'real time' and its variants
+    # define real time string and variants and ignore case
+    real_time_variants = ["real time", "real-time", "realtime"]
+    real_time_data = temp[
+        temp["title"].str.contains("|".join(real_time_variants), case=False)
+    ]
+    real_time_data.loc[:, "mode"] = "Real-Time"
+    # and also for 'delayed' and its variants
+    delayed_variants = ["delayed", "delay", "delaying"]
+    delayed_data = temp[
+        temp["title"].str.contains("|".join(delayed_variants), case=False)
+    ]
+    delayed_data.loc[:, "mode"] = "Delayed"
+
+    real_time_delayed_data = pd.concat([real_time_data, delayed_data])
+    data_with_mode = filtered_data.join(real_time_delayed_data["mode"])
+
+    label_map = {"Real-Time": 0, "Delayed": 1, np.nan: -1}
+    data_with_mode["mode"] = data_with_mode["mode"].map(label_map)
+
+    return data_with_mode
+
+
+def prepare_train_test_ddm(
+    data_with_mode: pd.DataFrame, params: configparser.ConfigParser
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Prepares the training and testing datasets for the data delivery mode filter model.
+    Input:
+        data_with_mode: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
+    Output:
+        X_labelled_train: np.ndarray. The training feature set for labelled data.
+        y_labelled_train: np.ndarray. The training target set for labelled data.
+        X_combined_train: np.ndarray. The combined training feature set for both labelled and unlabelled data.
+        y_combined_train: np.ndarray. The combined training target set for both labelled and unlabelled data.
+        X_val: np.ndarray. The testing feature set.
+        y_val: np.ndarray. The testing target set.
+    """
+    # split the data into labelled and unlabelled sets
+    labelled_data = data_with_mode[data_with_mode["mode"] != -1]
+    logger.info(f"Size of labelled set: {len(labelled_data)}")
+
+    unlabelled_data = data_with_mode[data_with_mode["mode"] == -1]
+    logger.info(f"Size of unlabelled set: {len(unlabelled_data)}")
+
+    # only keep embedding column as feature X and mode column as target y for labelled data
+    X_labelled = labelled_data["embedding"].tolist()
+    y_labelled = labelled_data["mode"].tolist()
+
+    # split labelled data into training and testing sets for validation
+    test_size = params.getfloat("filterPreprocessor", "test_size")
+    X_labelled_train, X_val, y_train, y_val = train_test_split(
+        X_labelled, y_labelled, test_size=test_size, random_state=42
+    )
+    logger.info(
+        f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_val)}"
+    )
+
+    # only keep embedding column as feature X and mode column as target y for unlabelled data
+    X_unlabelled = unlabelled_data["embedding"].tolist()
+    y_unlabelled = unlabelled_data["mode"].tolist()
+
+    # combine unlabelled data with labelled training data for training
+    X_combined_train = np.vstack([X_labelled_train, X_unlabelled])
+    y_combined_train = np.hstack([y_train, y_unlabelled])
+    logger.info(f"size of final training set: {len(X_combined_train)}")
+
+    # just to make sure X and y are same size
+    if len(X_combined_train) != len(y_combined_train):
+        raise ValueError("X and y are not the same size")
+
+    # just to make sure train and test sets have same dimension
+    if len(X_combined_train[0]) != len(X_val[0]):
+        raise ValueError("Train and test sets have different dimensions")
+
+    return (
+        np.array(X_labelled_train),
+        np.array(y_train),
+        X_combined_train,
+        y_combined_train,
+        np.array(X_val),
+        np.array(y_val),
+    )
+
+
+def identify_km_sample(raw_data: pd.DataFrame, vocabs: List[str]) -> pd.DataFrame:
     """
     Identifies a sample set from raw data based on specified vocabulary terms. This function filters raw data (obtained from an Elasticsearch search result) to identify records containing specific vocabulary terms in the `keywords` field.
 
@@ -120,12 +269,13 @@ def sample_preprocessor(sampleSet: pd.DataFrame, vocabs: List[str]) -> pd.DataFr
     sampleSet["keywords"] = sampleSet["keywords"].apply(
         lambda x: keywords_formatter(x, vocabs)
     )
+    sampleSet["information"] = sampleSet["title"] + " [SEP] " + sampleSet["description"]
     return sampleSet
 
 
 def prepare_X_Y(
     sampleSet: pd.DataFrame,
-) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, List[str]]:
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict]:
     """
     Prepares the input feature matrix (X) and target matrix (Y) from the sample set data.
     Input:
@@ -171,20 +321,18 @@ def get_description_embedding(text: str) -> np.ndarray:
     Output:
         text_embedding: np.ndarray. A numpy array representing the text embedding as a feature vector.
     """
-    tokenizer = BertTokenizer.from_pretrained(
-        "bert-base-uncased", clean_up_tokenization_spaces=False
-    )
-    model = BertModel.from_pretrained("bert-base-uncased")
+    # https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/bert#transformers.TFBertModel
+    tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 
-    inputs = tokenizer(
-        text, return_tensors="pt", max_length=512, truncation=True, padding="max_length"
-    )
+    # use in Tensorflow https://huggingface.co/google-bert/bert-base-uncased
+    model = TFBertModel.from_pretrained("bert-base-uncased")
 
-    with torch.no_grad():
-        outputs = model(**inputs)
-    cls_embedding = outputs.last_hidden_state[:, 0, :]
-    text_embedding = cls_embedding.squeeze().numpy()
-    return text_embedding
+    # https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__.return_tensors, set as 'tf' to return tensorflow tensor
+    inputs = tokenizer(text, return_tensors="tf", max_length=512, truncation=True)
+    outputs = model(inputs)
+    text_embedding = outputs.last_hidden_state[:, 0, :].numpy()
+    # output as a 1D array, shape (768,)
+    return text_embedding.squeeze()
 
 
 def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
@@ -196,10 +344,13 @@ def calculate_embedding(ds: pd.DataFrame) -> pd.DataFrame:
         ds: pd.DataFrame, the dataset with one more embedding column
     """
     tqdm.pandas()
-    ds["information"] = ds["title"] + ": " + ds["description"]
-    ds["embedding"] = ds["information"].progress_apply(
-        lambda x: get_description_embedding(x)
-    )
+    # add try except
+    try:
+        ds["embedding"] = ds["information"].progress_apply(
+            lambda x: get_description_embedding(x)
+        )
+    except Exception as e:
+        logger.error(e)
     return ds
 
 
@@ -264,15 +415,22 @@ def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[
         keywords = ast.literal_eval(text)
     k_list = []
     for keyword in keywords:
-        if keyword.get("concepts") is not None:
-            for concept in keyword.get("concepts"):
-                if keyword.get("title") in vocabs and concept.get("id") != "":
-                    conceptObj = Concept(
-                        value=concept.get("id").lower(),
-                        url=concept.get("url"),
-                        vocab_type=keyword.get("title"),
-                    )
-                    k_list.append(conceptObj.to_json())
+        try:
+            if keyword.get("concepts") is not None:
+                for concept in keyword.get("concepts"):
+                    if keyword.get("title") in vocabs and concept.get("id") != "":
+                        # check if the url is valid: start with http and not None or empty
+                        if concept.get("url") is not None and concept.get("url") != "":
+                            concept_url = concept.get("url")
+                            if concept_url.startswith("http"):
+                                conceptObj = Concept(
+                                    value=concept.get("id").lower(),
+                                    url=concept_url,
+                                    vocab_type=keyword.get("title"),
+                                )
+                                k_list.append(conceptObj.to_json())
+        except Exception as e:
+            logger.error(e)
     return list(k_list)
 
 
@@ -299,9 +457,11 @@ def prepare_train_test(
     n_labels = Y.shape[1]
     dim = X.shape[1]
 
-    n_splits = params.getint("preprocessor", "n_splits")
-    test_size = params.getfloat("preprocessor", "test_size")
-    train_test_random_state = params.getint("preprocessor", "train_test_random_state")
+    n_splits = params.getint("keywordPreprocessor", "n_splits")
+    test_size = params.getfloat("keywordPreprocessor", "test_size")
+    train_test_random_state = params.getint(
+        "keywordPreprocessor", "train_test_random_state"
+    )
     msss = MultilabelStratifiedShuffleSplit(
         n_splits=n_splits, test_size=test_size, random_state=train_test_random_state
     )
@@ -335,7 +495,9 @@ def customized_resample(X_train, Y_train, rare_class):
     """
     X_augmented = X_train.copy()
     Y_augmented = Y_train.copy()
-    num_copies = 10
+
+    # set the number of copies as the same of the rare label threshold so that no need to manually adjust this value
+    num_copies = RARE_LABEL_THRESHOLD
     for label_idx in rare_class:
         sample_idx = np.where(Y_train[:, label_idx] == 1)[0]
 
@@ -351,7 +513,7 @@ def resampling(
     X_train: np.ndarray,
     Y_train: np.ndarray,
     strategy: str,
-    rare_keyword_index: List[int],
+    rare_keyword_index: Optional[List[int]],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Resamples the training data using the specified strategy to address class imbalance.
@@ -366,7 +528,7 @@ def resampling(
         X_train: np.ndarray. The training feature X matrix.
         Y_train: np.ndarray. The training traget Y matrix.
         strategy: str. Resampling strategy to apply ("custom", "ROS", "RUS", or "SMOTE").
-        rare_keyword_index: List[int]. A list of indices representing rare class labels for custom resampling.
+        rare_keyword_index: List[int] or None. List[int] as a list of indices representing rare class labels for custom resampling or None for ROS, RUS, and SMOTE.
     Output:
         X_train_resampled, Y_train_resampled: Tuple[np.ndarray, np.ndarray]. The resampled training feature matrix X_train_resampled and target matrix Y_train_resampled.
     """
@@ -390,10 +552,10 @@ def resampling(
             [list(map(int, list(row))) for row in Y_combined_resampled]
         )
 
-    print(" ======== After Resampling ========")
-    print(f"Total samples: {len(X_train_resampled)}")
-    print(f"Dimension: {X_train_resampled.shape[1]}")
-    print(f"No. of labels: {Y_train_resampled.shape[1]}")
-    print(f"X resampled set size: {X_train_resampled.shape[0]}")
-    print(f"Y resampled set size: {Y_train_resampled.shape[0]}")
+    logger.info(" ======== After Resampling ========")
+    logger.info(f"Total samples: {len(X_train_resampled)}")
+    logger.info(f"Dimension: {X_train_resampled.shape[1]}")
+    logger.info(f"No. of labels: {Y_train_resampled.shape[1]}")
+    logger.info(f"X resampled set size: {X_train_resampled.shape[0]}")
+    logger.info(f"Y resampled set size: {Y_train_resampled.shape[0]}")
     return X_train_resampled, Y_train_resampled

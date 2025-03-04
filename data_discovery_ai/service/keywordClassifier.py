@@ -1,11 +1,10 @@
 import data_discovery_ai.utils.preprocessor as preprocessor
 import data_discovery_ai.model.keywordModel as model
 from data_discovery_ai.utils.config_utils import ConfigUtil
-from data_discovery_ai.common.constants import KEYWORD_LABEL_FILE
 from typing import List, Any, Dict
 
 
-def keywordClassifier(trained_model: str, description: str, labels: Dict) -> List[Any]:
+def classify_keyword(trained_model: str, description: str, labels: Dict) -> List[Any]:
     """
     The keyword classifier service for API use.
     Input:
@@ -15,7 +14,7 @@ def keywordClassifier(trained_model: str, description: str, labels: Dict) -> Lis
         predicted_keyword: List of Concept objects, as json format.
     """
     config = ConfigUtil()
-    params = config.load_keyword_config()
+    params = config.load_model_config()
 
     selected_model = model.load_saved_model(trained_model)
     description_embedding = preprocessor.get_description_embedding(description)
@@ -27,5 +26,4 @@ def keywordClassifier(trained_model: str, description: str, labels: Dict) -> Lis
         params.getfloat("keywordModel", "confidence"),
         params.getint("keywordModel", "top_N"),
     )
-    prediction = model.get_predicted_keywords(target_predicted_labels, labels)
-    return prediction
+    return model.get_predicted_keywords(target_predicted_labels, labels)

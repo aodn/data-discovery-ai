@@ -1,22 +1,24 @@
 FROM python:3.10-slim
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the pyproject.toml and poetry.lock files into the container
+RUN useradd -l -m -s /bin/bash appuser
+
 COPY pyproject.toml poetry.lock ./
 
-# Install system dependencies
 RUN apt update && \
-    apt -y upgrade && \
+    apt -y install --no-install-recommends curl build-essential && \
     pip3 install --upgrade pip && \
     pip3 install poetry && \
     poetry config virtualenvs.create false && \
-    poetry lock --no-update && \
-    poetry install
+    poetry lock && \
+    poetry install --no-root
 
-# Expose the port the app runs on
-EXPOSE 8000
-
-# Copy the rest of the application code into the container
 COPY . /app
+
+RUN chown -R appuser:appuser /app
+USER appuser
+
+COPY log_config.yaml /app/log_config.yaml
+
+EXPOSE 8000

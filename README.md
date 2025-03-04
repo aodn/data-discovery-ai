@@ -86,19 +86,6 @@ The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`
 pre-commit run --all-files
 ```
 
-### Versioning
-
-This project uses **semantic versioning** with automated releases managed by `semantic-release`.
-
-Every code change with commits following [Conventional Commits](https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional) will trigger a version update and create a GitHub release.
-
-**Commit Guidelines**
-
-- `feat:` For new features
-- `fix:` For bug fixes
-- `BREAKING CHANGE:` For any breaking changes
-
-
 # Edge/syste/prod
 
 models name stricly controller:
@@ -118,6 +105,19 @@ syntax is :/....
 
 
 # File Structure
+```
+data_discovery_ai/
+├── common/         # Common utilities, including shared configurations and constants, used across modules
+├── model/          # Core ML logic, including model training, evaluation, and inference implementations
+├── pipeline/       # Data pipelines for using ML models
+├── resources/      # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
+├── services/       # Service modules for providing service functions for API use
+├── utils/          # Utility functions and helper scripts for various tasks
+├── extras/         # Supplementary files
+├── notebooks/      # Jupyter notebooks documenting the design, experiments, and practical usage of AI features
+├── tests/          # Unit test for critical functions
+```
+
 ## Required Configuration Files
 1. Elasticsearch configuration file
 File name `esManager.ini` saved under folder `data_discovery_ai/common`. Specific fileds & values required:
@@ -129,7 +129,7 @@ File name `keyword_classification_parameters.ini` saved under folder `data_disco
 
    | Parameter | Definition | Default Value used |
    | ---- | ---- | ---- |
-   | vocabs | Titles of vocabularies used to identify samples from raw data; multiple values can be separated by ', '. | AODN Instrument Vocabulary, AODN Discovery Parameter Vocabulary, AODN Platform Vocabulary |
+   | vocabs | Titles of vocabularies used to identify samples from raw data; multiple values can be separated by ', '. | AODN Discovery Parameter Vocabulary, AODN Platform Vocabulary |
    | rare_label_threshold | The threshold for identifying a rare label, defined as the number of occurrences of the label across all sample records, should be an integer. | 10 |
    | test_size | A floating-point number in the range [0, 1], indicating the percentage of the test set size relative to all samples. | 0.2 |
    | n_splits | Number of re-shuffling & splitting iterations for cross validation, used as the value of parameter `n_splits` when initialise an object of `MultilabelStratifiedShuffleSplit`. | 5 |
@@ -140,11 +140,14 @@ File name `keyword_classification_parameters.ini` saved under folder `data_disco
    | Parameter | Definition | Defalt Value used |
    | ---- | ---- | ---- |
    | dropout | The probability of a neuron being dropped. A strategy used for avoiding overfitting. | 0.3 |
-   | learning_rate | A hyperparameter determines how much the model's parameters are adjusted with respect to the gradient of the loss function. | 0.001 |
+   | learning_rate | A hyperparameter determines how much the model's parameters are adjusted with respect to the gradient of the loss function. | 0.0005 |
    | fl_gamma | The $\gamma$ parameter of the focal loss function, which adjusts the focus of the loss function on hard-to-classify samples. It should be an integer. | 2 |
-   | fl_alpha | The $\alpha$ parameter of the focal loss function, which balances the importance of positive and negative samples. It should be a floating-point number between 0 and 1. | 0.7 |
-   | epoch | The number of times the train set is passed through the model for training. It should be an integer. | 100 |
+   | fl_alpha | The $\alpha$ parameter of the focal loss function, which balances the importance of positive and negative samples. It should be a floating-point number between 0 and 1. | 0.8 |
+   | epoch | The number of times the train set is passed through the model for training. It should be an integer. | 35 |
    | batch | The batch size which defines the number of samples in each batch. | 32 |
    | validation_split | The percentage of the training set to be used as the validation set. | 0.2 |
    | confidence | The probability threshold for identifying a label as positive (value 1). | 0.5 |
-   | top_N | The number of labels to select using argmax(probability) if no labels reach the confidence threshold. | 2 |
+   | top_N | The number of labels to select using argmax(probability) if no labels reach the confidence threshold. | 3 |
+
+3. Global constants file
+File name `constants.py` saved under folder `data_discovery_ai/common`.

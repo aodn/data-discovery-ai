@@ -6,4 +6,4 @@ services:
       - .env
     ports:
       - "8000:8000"
-    command: poetry run uvicorn --host 0.0.0.0 data_discovery_ai.server:app
+    command: poetry run uvicorn --host=0.0.0.0 --reload --log-config=log_config.yaml data_discovery_ai.server:app
