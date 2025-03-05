@@ -50,7 +50,7 @@ GROUPING_RULES = {
             "format",
         ],
         # Rule 5: if the title contains data access keywords, then it is a data access link
-        "title": ["access", "download"],
+        "title": ["data access", "download data", "access data", "data download"],
         # Rule 6: if the content contains data access keywords, then it is a data access link, use a combination of keywords as we don't know the exact content
         "content": [["data", "dataset"], ["access", "download"]],
     },
