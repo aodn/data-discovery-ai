@@ -25,7 +25,7 @@ GROUPING_RULES = {
     "Document": {
         "href": ["pdf", "doc"],
         # Rule 3: if the title contains document keywords, then it is a document
-        "title": ["document", "documentation", "manual", "support", "guide", "help"],
+        "title": ["document", "documentation", "manual", "support", "guide", "help", "report"],
     },
     "Data Access": {
         # Rule 4: if the href contains data access keywords, then it is a data access link. Data access keywords includes:
