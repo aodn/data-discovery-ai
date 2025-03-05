@@ -7,6 +7,7 @@ from data_discovery_ai.common.constants import GROUPING_RULES
 
 from data_discovery_ai import logger
 
+
 def link_grouping_model(links: List[Dict[str, str]]) -> List[Dict[str, str]]:
     # catch empty links
     if not links or len(links) == 0:
@@ -23,6 +24,7 @@ def link_grouping_model(links: List[Dict[str, str]]) -> List[Dict[str, str]]:
                 link["group"] = link_group
     return links
 
+
 def content_keyword():
     keyword_groups = GROUPING_RULES["Data Access"]["content"]
     combinations = [" ".join(combo) for combo in product(*keyword_groups)]
@@ -35,20 +37,27 @@ def content_keyword():
     final_combinations = list(final_combinations)
     return final_combinations
 
+
 def make_decision(link: Dict[str, str], page_content_keywords: List) -> Dict[str, str]:
     href = link["href"].lower()
     title = link["title"].lower()
 
     for group, conditions in GROUPING_RULES.items():
-        if "href" in conditions and any(keyword in href.lower() for keyword in conditions["href"]):
+        if "href" in conditions and any(
+            keyword in href.lower() for keyword in conditions["href"]
+        ):
             return group
 
-        if "title" in conditions and any(keyword in title.lower() for keyword in conditions["title"]):
+        if "title" in conditions and any(
+            keyword in title.lower() for keyword in conditions["title"]
+        ):
             return group
 
-        if "rel" in conditions and any(keyword in title.lower() for keyword in conditions["rel"]):
+        if "rel" in conditions and any(
+            keyword in title.lower() for keyword in conditions["rel"]
+        ):
             return group
-        
+
     # if no condition met, crawl the content to check if keywords are present
     try:
         resp = requests.get(link["href"], timeout=(3, 10))
@@ -60,5 +69,5 @@ def make_decision(link: Dict[str, str], page_content_keywords: List) -> Dict[str
     except:
         logger.info(f"Failed to crawl the link: {link['href']}")
         return "Other"
-    
+
     return "Other"

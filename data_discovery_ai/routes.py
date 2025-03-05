@@ -26,6 +26,7 @@ class PredictDataDeliveryModeRequest(BaseModel):
     abstract: str
     lineage: str
 
+
 class LinkGroupingRequest(BaseModel):
     links: List[Dict[str, str]]
 
