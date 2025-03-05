@@ -6,6 +6,8 @@ from data_discovery_ai.pipeline.pipeline import (
     KeywordClassifierPipeline,
     DataDeliveryModeFilterPipeline,
 )
+from data_discovery_ai.model.linkGroupingModel import link_grouping_model
+from typing import List, Dict
 from data_discovery_ai import logger
 
 
@@ -23,6 +25,9 @@ class PredictDataDeliveryModeRequest(BaseModel):
     title: str
     abstract: str
     lineage: str
+
+class LinkGroupingRequest(BaseModel):
+    links: List[Dict[str, str]]
 
 
 class HealthCheckResponse(BaseModel):
@@ -64,4 +69,12 @@ async def predict_data_delivery_mode(payload: PredictDataDeliveryModeRequest):
         title=payload.title, abstract=payload.abstract, lineage=payload.lineage
     )
     response = {"predicted_mode": ddm_classifier_pipeline.predicted_class}
+    return response
+
+
+@router.post("/groupedlinks", dependencies=[Depends(api_key_auth)])
+async def group_links(payload: LinkGroupingRequest):
+    links = payload.links
+    grouped_links = link_grouping_model(links)
+    response = {"grouped_links": grouped_links}
     return response
