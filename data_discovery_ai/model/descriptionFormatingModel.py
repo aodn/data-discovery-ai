@@ -36,19 +36,11 @@ class DescriptionFormatingAgent:
                             Task 1: Convert Text to Markdown
                             Reformat the text while preserving its orginal text content. Apply markdown identifiers if necessary:(1) if it is a list, each item should be on a new line, starting with a hyphen. (2) Heading 1 starts with \#, Heading 2 starts with \#\# Heading 3 starts with \#\#\#, Heading 4 starts with \#\#\#\#. (3) Bold text is enclosed in double asterisks. (4) Italics text is enclosed in single asterisks. (5) If the text is a link (starting with www or https or http), it should be enclosed in square brackets followed by parentheses with the URL in parentheses.
 
-                            Task 2: Classify Data Delivery Mode
-                            Identify the data delivery mode of the data described by the record. Choose from the options [Completed/Real-Time/Delayed/Other] based on the following criteria:
-                            - Completed: The data is fully delivered.
-                            - Real-Time: The data is not fully delivered, and updated in real time.
-                            - Delayed: The data is not fully delivered, and updated delayed.
-                            - Other: If it describes a tool, document, or model.
-
-                            Task 3: Return JSON Output
+                            Task 2: Return JSON Output
                             Format the response as:
 
                             {
-                            "formatted_abstract": "[Markdown-formatted text]",
-                            "data_delivery_mode": "[Completed/Real-Time/Delayed/Other]"
+                            "formatted_abstract": "[Markdown-formatted text]"
                             }
                             """
         response = None
