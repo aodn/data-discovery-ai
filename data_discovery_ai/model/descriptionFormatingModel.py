@@ -11,6 +11,7 @@ import json
 
 from data_discovery_ai import logger
 
+
 class DescriptionFormatingAgent:
     def __init__(self, llm_tool):
         if self.is_valid_llm_tool(llm_tool):
@@ -24,12 +25,9 @@ class DescriptionFormatingAgent:
                 self.llm_model = None
         else:
             self.llm_model = None
-        
-        if not self.llm_model:
-            raise ValueError(
-                'Available model name: ["openai", "llama"]'
-            )
 
+        if not self.llm_model:
+            raise ValueError('Available model name: ["openai", "llama"]')
 
     def description_reformatting(self, title, abstract):
         input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
@@ -60,24 +58,25 @@ class DescriptionFormatingAgent:
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": input_text}
-                    ],
+                    {"role": "user", "content": input_text},
+                ],
                 temperature=0.1,
-                max_tokens=10000)
+                max_tokens=10000,
+            )
             response = completion.choices[0].message.content
         elif self.llm_model == "llama3":
-            response: ChatResponse = chat(model='llama3', messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": input_text}
-                    ],
-                    options={"temperature": 0.0,
-                            "max_tokens": 4000}
-                )
+            response: ChatResponse = chat(
+                model="llama3",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": input_text},
+                ],
+                options={"temperature": 0.0, "max_tokens": 4000},
+            )
             response = response.message.content
-        
+
         if response:
             return self.retrieve_json(response)
-
 
     def retrieve_json(self, output):
         # find json like text in the output
@@ -90,13 +89,12 @@ class DescriptionFormatingAgent:
             except json.JSONDecodeError:
                 logger.info("Error: JSONDecodeError, try to fix the JSON string")
                 # replace three single quotes with double quotes
-                json_str = json_str.replace('"""', "\"")
+                json_str = json_str.replace('"""', '"')
                 # replace new line with \n
-                json_str = json_str.replace('\n', '\\n')
+                json_str = json_str.replace("\n", "\\n")
                 return json.loads(json_str)
         else:
             return None
-    
 
     def is_valid_llm_tool(self, llm_tool: str) -> bool:
         """

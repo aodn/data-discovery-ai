@@ -6,7 +6,7 @@ from data_discovery_ai.pipeline.pipeline import (
     KeywordClassifierPipeline,
     DataDeliveryModeFilterPipeline,
 )
-from data_discovery_ai.model.linkGroupingModel import link_grouping_model
+from data_discovery_ai.model.linkGroupingModel import LinkGroupingAgent
 from data_discovery_ai.model.descriptionFormatingModel import DescriptionFormatingAgent
 from typing import List, Dict
 from data_discovery_ai import logger
@@ -80,10 +80,11 @@ async def predict_data_delivery_mode(payload: PredictDataDeliveryModeRequest):
     return response
 
 
-@router.post("/groupedlinks", dependencies=[Depends(api_key_auth)])
+@router.post("/grouplinks", dependencies=[Depends(api_key_auth)])
 async def group_links(payload: LinkGroupingRequest):
     links = payload.links
-    grouped_links = link_grouping_model(links)
+    link_grouping_agent = LinkGroupingAgent()
+    grouped_links = link_grouping_agent.group_links(links)
     response = {"grouped_links": grouped_links}
     return response
 
