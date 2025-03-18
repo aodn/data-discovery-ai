@@ -7,6 +7,7 @@ from data_discovery_ai.pipeline.pipeline import (
     DataDeliveryModeFilterPipeline,
 )
 from data_discovery_ai.model.linkGroupingModel import link_grouping_model
+from data_discovery_ai.model.descriptionFormatingModel import DescriptionFormatingAgent
 from typing import List, Dict
 from data_discovery_ai import logger
 
@@ -29,6 +30,12 @@ class PredictDataDeliveryModeRequest(BaseModel):
 
 class LinkGroupingRequest(BaseModel):
     links: List[Dict[str, str]]
+
+
+class DescriptionFormatterRequest(BaseModel):
+    selected_model: str
+    title: str
+    abstract: str
 
 
 class HealthCheckResponse(BaseModel):
@@ -78,4 +85,16 @@ async def group_links(payload: LinkGroupingRequest):
     links = payload.links
     grouped_links = link_grouping_model(links)
     response = {"grouped_links": grouped_links}
+    return response
+
+
+@router.post("/descriptionformatter", dependencies=[Depends(api_key_auth)])
+async def format_description(payload: DescriptionFormatterRequest):
+    description_formatter_agent = DescriptionFormatingAgent(
+        llm_tool=payload.selected_model
+    )
+    formatted_description = description_formatter_agent.description_reformatting(
+        title=payload.title, abstract=payload.abstract
+    )
+    response = {"formatted_description": formatted_description}
     return response
