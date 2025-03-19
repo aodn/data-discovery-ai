@@ -40,7 +40,7 @@ def link_grouping_model(links: List[Dict[str, str]]) -> List[Dict[str, str]]:
         keys = set(link.keys())
         if "href" not in keys or "title" not in keys:
             logger.info(f"Invalid link with no href or title: {link}")
-        elif link["rel"] == "related" and link["type"] == "text/html":
+        elif link["rel"] == "related":
             link_group = make_decision(link, page_content_keywords)
             if link_group:
                 link["group"] = link_group
