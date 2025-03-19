@@ -67,6 +67,8 @@ class SupervisorAgent(BaseAgent):
 
         # predict keyword
         # TODO: change keyword model to agent based model
+        title = resp["_source"]["title"]
+        abstract = resp["_source"]["description"]
         keyword_classifier_pipeline = KeywordClassifierPipeline(
             is_data_changed=False,
             use_pretrained_model=True,
@@ -100,8 +102,6 @@ class SupervisorAgent(BaseAgent):
         
         
         # update description
-        title = resp["_source"]["title"]
-        abstract = resp["_source"]["description"]
         description_formatter_agent = DescriptionFormatingAgent(
             llm_tool="openai"
         )
