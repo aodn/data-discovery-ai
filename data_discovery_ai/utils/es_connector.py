@@ -35,14 +35,10 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
         logger.error(f"Elasticsearch connection failed: {e}")
 
 
-def fetch_record_by_documentId(client: Elasticsearch, index: str = "es-indexer-staging", document_id: str = None) -> Dict:
-    query = {
-                "query": {
-                    "term": {
-                        "_id": document_id
-                    }
-                }
-            }
+def fetch_record_by_documentId(
+    client: Elasticsearch, index: str = "es-indexer-staging", document_id: str = None
+) -> Dict:
+    query = {"query": {"term": {"_id": document_id}}}
     try:
         query_resp = client.search(index=index, body=query)
         try:
@@ -53,7 +49,6 @@ def fetch_record_by_documentId(client: Elasticsearch, index: str = "es-indexer-s
             logger.error(f"No hits fetched: {e}")
     except Exception as e:
         logger.error(f"Failed to fetch record by document ID: {e}")
-
 
 
 """

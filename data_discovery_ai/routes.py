@@ -38,9 +38,11 @@ class DescriptionFormatterRequest(BaseModel):
     title: str
     abstract: str
 
+
 class ProcessRecordRequest(BaseModel):
     selected_model: str
     document_id: str
+
 
 class HealthCheckResponse(BaseModel):
     status: str
@@ -103,6 +105,7 @@ async def format_description(payload: DescriptionFormatterRequest):
     )
     response = {"formatted_description": formatted_description}
     return response
+
 
 @router.post("/processrecord", dependencies=[Depends(api_key_auth)])
 async def process_record(payload: ProcessRecordRequest):

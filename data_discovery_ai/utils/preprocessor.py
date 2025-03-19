@@ -150,16 +150,20 @@ def label_ddm_sample(filtered_data: pd.DataFrame) -> pd.DataFrame:
     # find rows with title contains 'real time' and its variants
     # define real time string and variants and ignore case
     real_time_variants = ["real time", "real-time", "realtime", "RT"]
-    real_time_variants = [r'\b' + variant + r'\b' for variant in real_time_variants]
-    real_time_data = temp[temp['title'].str.contains('|'.join(real_time_variants), case=False, regex=True)]
+    real_time_variants = [r"\b" + variant + r"\b" for variant in real_time_variants]
+    real_time_data = temp[
+        temp["title"].str.contains("|".join(real_time_variants), case=False, regex=True)
+    ]
     real_time_data = temp[
         temp["title"].str.contains("|".join(real_time_variants), case=False)
     ]
     real_time_data.loc[:, "mode"] = "Real-Time"
     # and also for 'delayed' and its variants
     delayed_variants = ["delayed", "delay"]
-    delayed_variants = [r'\b' + variant + r'\b' for variant in delayed_variants]
-    delayed_data = temp[temp['title'].str.contains('|'.join(delayed_variants), case=False, regex=True)]
+    delayed_variants = [r"\b" + variant + r"\b" for variant in delayed_variants]
+    delayed_data = temp[
+        temp["title"].str.contains("|".join(delayed_variants), case=False, regex=True)
+    ]
     delayed_data.loc[:, "mode"] = "Delayed"
 
     real_time_delayed_data = pd.concat([real_time_data, delayed_data])

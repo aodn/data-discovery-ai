@@ -29,9 +29,9 @@ class DescriptionFormatingAgent:
 
         if not self.llm_model:
             raise ValueError('Available model name: ["openai", "llama"]')
-        
+
         self.status = "active"
-        
+
     def make_decision(self, abstract) -> bool:
         # only execute the action when the passing description is too long (over than 200 words and more than one paragraph)
         if len(abstract.split()) > 200 and len(abstract.split("\n")) > 1:
@@ -40,53 +40,53 @@ class DescriptionFormatingAgent:
             self.status = "inactive"
             return False
 
-
     def take_action(self, title, abstract):
+        response = None
         if self.make_decision(abstract):
             logger.info("Descrition is being reformatted by DescriptionFormatingAgent")
 
             input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
-        system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
 
-                            Task 1: Convert Text to Markdown
-                            Reformat the text while preserving its orginal text content. Apply markdown identifiers if necessary:(1) if it is a list, each item should be on a new line, starting with a hyphen. (2) Heading 1 starts with \#, Heading 2 starts with \#\# Heading 3 starts with \#\#\#, Heading 4 starts with \#\#\#\#. (3) Bold text is enclosed in double asterisks. (4) Italics text is enclosed in single asterisks. (5) If the text is a link (starting with www or https or http), it should be enclosed in square brackets followed by parentheses with the URL in parentheses.
+            system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
 
-                            Task 2: Return JSON Output
-                            Format the response as:
+                                Task 1: Convert Text to Markdown
+                                Reformat the text while preserving its orginal text content. Apply markdown identifiers if necessary:(1) if it is a list, each item should be on a new line, starting with a hyphen. (2) Heading 1 starts with \#, Heading 2 starts with \#\# Heading 3 starts with \#\#\#, Heading 4 starts with \#\#\#\#. (3) Bold text is enclosed in double asterisks. (4) Italics text is enclosed in single asterisks. (5) If the text is a link (starting with www or https or http), it should be enclosed in square brackets followed by parentheses with the URL in parentheses.
 
-                            {
-                            "formatted_abstract": "[Markdown-formatted text]"
-                            }
-                            """
-        response = None
-        if self.llm_model == "gpt-4o-mini":
-            client = OpenAI(api_key=self.openai_api_key)
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": input_text},
-                ],
-                temperature=0.1,
-                max_tokens=10000,
-            )
-            response = completion.choices[0].message.content
-        elif self.llm_model == "llama3":
-            response: ChatResponse = chat(
-                model="llama3",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": input_text},
-                ],
-                options={"temperature": 0.0, "max_tokens": 4000},
-            )
-            response = response.message.content
+                                Task 2: Return JSON Output
+                                Format the response as:
+
+                                {
+                                "formatted_abstract": "[Markdown-formatted text]"
+                                }
+                                """
+
+            if self.llm_model == "gpt-4o-mini":
+                client = OpenAI(api_key=self.openai_api_key)
+                completion = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": input_text},
+                    ],
+                    temperature=0.1,
+                    max_tokens=10000,
+                )
+                response = completion.choices[0].message.content
+            elif self.llm_model == "llama3":
+                response: ChatResponse = chat(
+                    model="llama3",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": input_text},
+                    ],
+                    options={"temperature": 0.0, "max_tokens": 4000},
+                )
+                response = response.message.content
 
         if response:
             return self.retrieve_json(response)
         else:
             return abstract
-        
 
     def retrieve_json(self, output):
         # find json like text in the output
