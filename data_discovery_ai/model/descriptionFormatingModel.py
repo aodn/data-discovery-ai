@@ -17,6 +17,7 @@ class DescriptionFormatingAgent:
         if self.is_valid_llm_tool(llm_tool):
             self.llm_tool = llm_tool
             if llm_tool == "openai":
+                load_dotenv()
                 self.openai_api_key = os.getenv("OPENAI_API_KEY")
                 self.llm_model = "gpt-4o-mini"
             elif llm_tool == "llama":
@@ -28,9 +29,23 @@ class DescriptionFormatingAgent:
 
         if not self.llm_model:
             raise ValueError('Available model name: ["openai", "llama"]')
+        
+        self.status = "active"
+        
+    def make_decision(self, abstract) -> bool:
+        # only execute the action when the passing description is too long (over than 200 words and more than one paragraph)
+        if len(abstract.split()) > 200 and len(abstract.split("\n")) > 1:
+            return True
+        else:
+            self.status = "inactive"
+            return False
 
-    def description_reformatting(self, title, abstract):
-        input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
+
+    def take_action(self, title, abstract):
+        if self.make_decision(abstract):
+            logger.info("Descrition is being reformatted by DescriptionFormatingAgent")
+
+            input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
         system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
 
                             Task 1: Convert Text to Markdown
@@ -69,6 +84,9 @@ class DescriptionFormatingAgent:
 
         if response:
             return self.retrieve_json(response)
+        else:
+            return abstract
+        
 
     def retrieve_json(self, output):
         # find json like text in the output
@@ -77,14 +95,14 @@ class DescriptionFormatingAgent:
             json_str = match.group()
             try:
                 parsed_json = json.loads(json_str)
-                return parsed_json
+                return parsed_json["formatted_abstract"]
             except json.JSONDecodeError:
                 logger.info("Error: JSONDecodeError, try to fix the JSON string")
                 # replace three single quotes with double quotes
                 json_str = json_str.replace('"""', '"')
                 # replace new line with \n
                 json_str = json_str.replace("\n", "\\n")
-                return json.loads(json_str)
+                return json.loads(json_str)["formatted_abstract"]
         else:
             return None
 

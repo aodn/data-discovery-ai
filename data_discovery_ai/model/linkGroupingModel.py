@@ -12,6 +12,7 @@ class LinkGroupingAgent:
     def __init__(self):
         self.grouping_rules = GROUPING_RULES
         self.page_content_keywords = self.content_keyword()
+        self.status = "active"
 
     def content_keyword(self) -> List[str]:
         """

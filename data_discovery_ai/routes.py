@@ -8,6 +8,7 @@ from data_discovery_ai.pipeline.pipeline import (
 )
 from data_discovery_ai.model.linkGroupingModel import LinkGroupingAgent
 from data_discovery_ai.model.descriptionFormatingModel import DescriptionFormatingAgent
+from data_discovery_ai.model.supervisorAgent import SupervisorAgent
 from typing import List, Dict
 from data_discovery_ai import logger
 
@@ -37,6 +38,9 @@ class DescriptionFormatterRequest(BaseModel):
     title: str
     abstract: str
 
+class ProcessRecordRequest(BaseModel):
+    selected_model: str
+    document_id: str
 
 class HealthCheckResponse(BaseModel):
     status: str
@@ -98,4 +102,13 @@ async def format_description(payload: DescriptionFormatterRequest):
         title=payload.title, abstract=payload.abstract
     )
     response = {"formatted_description": formatted_description}
+    return response
+
+@router.post("/processrecord", dependencies=[Depends(api_key_auth)])
+async def process_record(payload: ProcessRecordRequest):
+    selected_model = payload.selected_model
+    document_id = payload.document_id
+    supervisor = SupervisorAgent(selected_model)
+    supervisor.take_action(document_id=document_id)
+    response = supervisor.response
     return response
