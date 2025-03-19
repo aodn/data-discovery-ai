@@ -98,7 +98,7 @@ async def format_description(payload: DescriptionFormatterRequest):
     description_formatter_agent = DescriptionFormatingAgent(
         llm_tool=payload.selected_model
     )
-    formatted_description = description_formatter_agent.description_reformatting(
+    formatted_description = description_formatter_agent.take_action(
         title=payload.title, abstract=payload.abstract
     )
     response = {"formatted_description": formatted_description}
