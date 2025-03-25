@@ -167,6 +167,39 @@ def label_ddm_sample(filtered_data: pd.DataFrame) -> pd.DataFrame:
     label_map = {"Real-Time": 0, "Delayed": 1, np.nan: -1}
     data_with_mode["mode"] = data_with_mode["mode"].map(label_map)
 
+    # add manually labelled data
+    id_label_map = {
+    "0024b456-4636-42cd-b097-388f6d39a835": 1,
+    "0094682a-e438-41e8-a39b-19cf2093025d": 2,
+    "00d34cd4-24fe-4361-b667-1782c919e870": 1,
+    "0155375c-8070-4662-9c93-b593ee4891b0": 1,
+    "01cc04eb-5bb9-4e61-bb3c-b890a33237ae": 1,
+    "02202d5e-8b6d-400a-81bc-8b088eafe034": 2,
+    "023ae12a-8c0c-4abc-997a-7884f9fec9cd": 1,
+    "02bae081-efbb-4162-9661-a23e945c5c8f": 2,
+    "03671CBF-803B-158D-E064-6805CAA9DBF0": 2,
+    "03C77636-6BFD-152F-E064-6805CAA9DBF0": 1,
+    "03c59e36-bee4-4186-8bd4-f1c5dd69c396": 1,
+    "041f55ba-092f-4875-8aaa-10b658f0a8ad": 2,
+    "0420dd84-084f-4d07-be71-b27658614a18": 2,
+    "0443254b-fd39-468f-923f-1469f8caa9aa": 1,
+    "0478852b-27ad-48dc-833f-ae93920ce73e": 1,
+    "04b17433-3d50-4eaa-bce4-4982b8f9f64f": 1,
+    "04b4ac46-68b6-40f3-9528-2aa9f425d78e": 1,
+    "04c7257a-9941-4378-8fca-2d8dc05e6c67": 1
+    }
+
+    # remove the completed records
+    completed_records = ["033a1ddd-b206-09d0-e053-08114f8c3b40", "03938050-7874-11dc-96be-00188b4c0af8"]
+
+    data_with_mode = data_with_mode[~data_with_mode["id"].isin(completed_records)]
+    # update the label with id if it existed in the data dataframe
+    for id, label in id_label_map.items():
+        if id in data_with_mode["id"].values:
+            data_with_mode.loc[data_with_mode["id"] == id, "mode"] = label
+        else:
+            continue
+
     return data_with_mode
 
 

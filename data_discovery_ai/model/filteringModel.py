@@ -137,10 +137,10 @@ def get_predicted_class_name(predicted_class: int) -> str:
     """
     Conver the numeric class to the textual class name
     Input:
-        predicted_class: int. The predicted class of the metadata record. It can be 0 or 1.
+        predicted_class: int. The predicted class of the metadata record. It can be 0 or 1 or 2.
     Output:
-        str. The textual class name of the predicted class. It can be "Real-Time" or "Delayed".
+        str. The textual class name of the predicted class. It can be "Real-Time" or "Delayed" or "Both".
     """
-    class_map = {0: "Real-Time", 1: "Delayed", 2: "Other"}
+    class_map = {0: "Real-Time", 1: "Delayed", 2: "Both"}
     pred_class = class_map.get(predicted_class)
     return pred_class
