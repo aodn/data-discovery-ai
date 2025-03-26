@@ -184,10 +184,9 @@ class DataDeliveryModeFilterPipeline(BasePipeline):
             # save preprocessed data to resources as calculating embeddings is time-consuming
             preprocessor.save_to_file(preprocessed_data_embedding, full_path)
 
-        else:
-            # load preprocessed data from resource
-            preprocessed_data = preprocessor.load_from_file(full_path)
-            train_test_data = self.prepare_train_test_sets(preprocessed_data)
+        # load preprocessed data from resource
+        preprocessed_data = preprocessor.load_from_file(full_path)
+        train_test_data = self.prepare_train_test_sets(preprocessed_data)
 
         # decision-making: use pretrained model or not
         if self.use_pretrained_model:

@@ -111,6 +111,7 @@ def evaluate_model(model: Any, X_test: np.ndarray, y_test: np.ndarray, pca) -> N
     X_test_pca = pca.transform(X_test)
     y_pred = model.predict(X_test_pca)
     report = classification_report(y_test, y_pred)
+    print(f"Classification report: \n{report}")
     logger.info(f"Classification report: \n{report}")
 
 
