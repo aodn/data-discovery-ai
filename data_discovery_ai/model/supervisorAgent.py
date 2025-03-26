@@ -4,6 +4,8 @@ import os
 from data_discovery_ai.common.constants import *
 from data_discovery_ai.utils.config_utils import ConfigUtil
 import data_discovery_ai.utils.es_connector as connector
+
+from data_discovery_ai.model.baseAgent import BaseAgent
 from data_discovery_ai.model.descriptionFormatingModel import (
     DescriptionFormatingAgent as DescriptionFormatingAgent,
 )
@@ -16,53 +18,10 @@ from data_discovery_ai.pipeline.pipeline import (
 )
 
 
-class BaseAgent:
-    def __init__(self, environment_name: str):
-        self.type = "Base"
-        self.id = None
-        # 0 as inactivate, 1 as active, 2 as standby, 3 as finished
-        self.status = 1
-        self.model_name = environment_name
-        if not self.is_valid_environment():
-            raise ValueError(
-                'Available environment name: ["development", "staging", "production", "experimental", "benchmark"]'
-            )
-        self.config = ConfigUtil()
-        self.response = None
-
-    """
-        Validate model name within fixed selections
-        Input:
-            model_name: str. The file name of the saved model.
-    """
-
-    def is_valid_model(self) -> bool:
-        valid_model_name = AVAILABLE_MODELS
-        self.model_name = self.model_name.lower()
-        if self.model_name in valid_model_name:
-            return True
-        else:
-            return False
-
-
 class SupervisorAgent(BaseAgent):
-    def __init__(self, environment_name):
+    def __init__(self, environment):
         super().__init__(environment_name=environment_name)
         self.type = "Supervisor"
-        if not self.is_valid_environment():
-            raise ValueError(
-                'Available environment_name name: ["development", "staging", "production", "experimental", "benchmark"]'
-            )
-
-    def perceive_environment(self):
-        # TODO: This is a placeholder for the integration of the es-indexer. This function should be able to compare whether the document is changed or not. A newly indexed record is treated as a changed document. It should be able to fetch all recent records and compare with the past stored in its memory, and update its memory accordingly.
-        # Or we don't need this function here, but do the search at the es-indexer side, so that we only call the take_action function when the document is changed.
-        pass
-
-    def make_decision(self):
-        # TODO: This is a placeholder for the integration of the es-indexer. This function should be able to make a decision based on the perceived environment. So that to decide whether the perceived records are significantly changed or not, if so, it should take action to update the record with distributed agents. It should return a list of ducument IDs pending for actions.
-        # Or we don't need this function here, but do the search at the es-indexer side, so that we only call the take_action function when the document is changed.
-        pass
 
     def take_action(self, document_id):
         response = {}
