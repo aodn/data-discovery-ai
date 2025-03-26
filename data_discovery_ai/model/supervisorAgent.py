@@ -17,13 +17,15 @@ from data_discovery_ai.pipeline.pipeline import (
 
 
 class BaseAgent:
-    def __init__(self, model_name: str):
+    def __init__(self, environment_name: str):
         self.type = "Base"
-        self.status = "active"
-        self.model_name = model_name
-        if not self.is_valid_model():
+        self.id = None
+        # 0 as inactivate, 1 as active, 2 as standby, 3 as finished
+        self.status = 1
+        self.model_name = environment_name
+        if not self.is_valid_environment():
             raise ValueError(
-                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
+                'Available environment name: ["development", "staging", "production", "experimental", "benchmark"]'
             )
         self.config = ConfigUtil()
         self.response = None
@@ -44,12 +46,12 @@ class BaseAgent:
 
 
 class SupervisorAgent(BaseAgent):
-    def __init__(self, model_name):
-        super().__init__(model_name=model_name)
+    def __init__(self, environment_name):
+        super().__init__(environment_name=environment_name)
         self.type = "Supervisor"
-        if not self.is_valid_model():
+        if not self.is_valid_environment():
             raise ValueError(
-                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
+                'Available environment_name name: ["development", "staging", "production", "experimental", "benchmark"]'
             )
 
     def perceive_environment(self):
