@@ -1,29 +1,31 @@
 from elasticsearch import (
     Elasticsearch,
-)  # TODO: please use poetry add command to install any new libraries
+)
 import configparser
 import logging
 import pandas as pd
 from tqdm import tqdm
 import time
 
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-"""
-    Function to connect the ElasticSearch
-    Input:
-        config_path: str. The config file path to store the end_point and api_key information. Formatted as:
-                    [elasticsearch]
-                        end_point="elasticsearch_end_point"
-                        api_key="elasticsearch_api_key"
-    Output:
-        client:Elasticsearch. An initialised Elasticsearch client instance.
-"""
+from data_discovery_ai.common.constants import (
+    BATCH_SIZE,
+    SLEEP_TIME,
+    ES_INDEX_NAME
+)
+from data_discovery_ai import logger
 
 
 def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
+    """
+        Function to connect the ElasticSearch
+        Input:
+            config_path: str. The config file path to store the end_point and api_key information. Formatted as:
+                        [elasticsearch]
+                            end_point="elasticsearch_end_point"
+                            api_key="elasticsearch_api_key"
+        Output:
+            client:Elasticsearch. An initialised Elasticsearch client instance.
+    """
     end_point = config["elasticsearch"]["end_point"]
     api_key = config["elasticsearch"]["api_key"]
     try:
@@ -34,24 +36,22 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
         logger.error(f"Elasticsearch connection failed: {e}")
 
 
-"""
-    Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
-    Input:
-        client: Elasticsearch. The initialised Elasticsearch client instance
-        index: str. The index name in Elasticsearch. Default as "es-indexer-staging"
-        batch_size: int. The number of documents searches at one query. Please not set a very large number in case to search too deep.
-        sleep_time: int. The number of seconds of sleep time between each query. This should be set with consideration of 'batch_size'. If 'batch_size' is large, set 'sleep_time' to a large number to ensure each query is finished and does not impact the next query.
-    Output:
-        raw_data: pd.DataFrame. The fetched raw data in a tabular format.
-"""
-
-
 def search_es(
     client: Elasticsearch,
-    index: str = "es-indexer-staging",
-    batch_size: int = 100,
-    sleep_time: int = 5,
+    index: str = ES_INDEX_NAME,
+    batch_size: int = BATCH_SIZE,
+    sleep_time: int = SLEEP_TIME,
 ):
+    """
+        Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
+        Input:
+            client: Elasticsearch. The initialised Elasticsearch client instance
+            index: str. The index name in Elasticsearch. Default as "es-indexer-staging"
+            batch_size: int. The number of documents searches at one query. Please not set a very large number in case to search too deep.
+            sleep_time: int. The number of seconds of sleep time between each query. This should be set with consideration of 'batch_size'. If 'batch_size' is large, set 'sleep_time' to a large number to ensure each query is finished and does not impact the next query.
+        Output:
+            raw_data: pd.DataFrame. The fetched raw data in a tabular format.
+    """
     dataframes = []
 
     # get document count

@@ -151,3 +151,11 @@ File name `keyword_classification_parameters.ini` saved under folder `data_disco
 
 3. Global constants file
 File name `constants.py` saved under folder `data_discovery_ai/common`.
+
+
+## Test
+All test files are located in the `tests` folder at the root of the project. To run them, use the following command:
+
+```bash
+poetry run python -m unittest discover -s tests -p "test_*.py"
+```
