@@ -78,13 +78,15 @@ class BasePipeline:
         Output:
             raw_data: pd.DataFrame. A DataFrame containing the raw data retrieved from Elasticsearch.
         """
-        es_config = self.config.load_es_config()
 
-        client = connector.connect_es(es_config)
-        # get ES_INDEX_NAME from environment
-        index = os.getenv("ES_INDEX_NAME", default=ES_INDEX_NAME)
+        client = connector.connect_es()
+        # get es configuration
+        es_config = self.config.load_es_config()
+        index = es_config.get("elasticsearch", "es_index_name")
+        batch_size = es_config.getint("elasticsearch", "batch_size")
+        sleep_time = es_config.getint("elasticsearch", "sleep_time")
         raw_data = connector.search_es(
-            client=client, index=index, batch_size=BATCH_SIZE, sleep_time=SLEEP_TIME
+            client=client, index=index, batch_size=batch_size, sleep_time=sleep_time
         )
         return raw_data
 

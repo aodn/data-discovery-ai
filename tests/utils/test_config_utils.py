@@ -7,6 +7,7 @@ from data_discovery_ai.common.constants import MODEL_CONFIG, ELASTICSEARCH_CONFI
 import configparser
 from pathlib import Path
 
+
 class TestConfigUtil(unittest.TestCase):
     def setUp(self):
         self.config = ConfigUtil()
@@ -33,6 +34,7 @@ class TestConfigUtil(unittest.TestCase):
 
         expected_path = self.config.base_dif / "common" / ELASTICSEARCH_CONFIG
         self.assertIn(str(expected_path), str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
