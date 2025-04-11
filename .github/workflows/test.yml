@@ -23,11 +23,11 @@ jobs:
       - name: Set up Poetry
         uses: snok/install-poetry@v1
         with:
-          version: "latest"
+          version: "1.8.5"
       - name: Install dependencies
         run: |
           poetry lock
-          poetry install --no-root
+          poetry install
       - name: Run pre-commit checks
         run: |
           poetry run pre-commit run --all-files
