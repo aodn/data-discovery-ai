@@ -2,13 +2,13 @@ API_PREFIX = "/api/v1/ml"
 API_KEY_NAME = "X-API-Key"
 # remove the following line as we get the value from the environment.
 AVAILABLE_MODELS = ["development", "staging", "production", "experimental", "benchmark"]
-API_VALID_FIELD = ["title", "abstract", "lineage", "links"]
 AVAILABLE_AI_MODELS = [
-    "keyword classification",
-    "data delivery mode classification",
-    "description formatting",
-    "link grouping",
+    {"model":"keyword classification", "required fields": ["title", "abstract"]},
+    {"model":"data delivery mode classification", "required fields": ["title", "abstract", "lineage"]},
+    {"model":"description formatting", "required fields": ["title", "abstract"]},
+    {"model":"link grouping", "required fields": ["links"]}
 ]
+MAX_PROCESS = 4
 
 MODEL_CONFIG = "model_parameters.ini"
 ELASTICSEARCH_CONFIG = "es_parameters.ini"

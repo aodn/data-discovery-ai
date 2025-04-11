@@ -8,7 +8,7 @@ import re
 import json
 
 from data_discovery_ai import logger
-from data_discovery_ai.model.agent import BaseAgent
+from data_discovery_ai.model.baseAgent import BaseAgent
 
 
 class DescriptionFormattingAgent(BaseAgent):
