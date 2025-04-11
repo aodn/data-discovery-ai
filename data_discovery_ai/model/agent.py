@@ -14,6 +14,7 @@ class BaseAgent:
         self.id = None
         # 0 as inactivate, 1 as active, 2 as finished
         self.status = 0
+        self.response = {}
 
     def set_status(self, status: int):
         self.status = status
@@ -55,9 +56,3 @@ def is_valid_request(request: Dict[str, Union[str, List]]) -> List[str]:
                     f"Invalid model name: {selected_model}. Please choose from {AVAILABLE_AI_MODELS}"
                 )
                 return []
-
-        matched_fields = []
-        for field in request.keys():
-            if field in API_VALID_FIELD:
-                matched_fields.append(field)
-        return matched_fields

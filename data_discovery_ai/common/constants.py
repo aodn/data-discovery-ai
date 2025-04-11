@@ -6,7 +6,7 @@ API_VALID_FIELD = ["title", "abstract", "lineage", "links"]
 AVAILABLE_AI_MODELS = [
     "keyword classification",
     "data delivery mode classification",
-    "description formating",
+    "description formatting",
     "link grouping",
 ]
 
