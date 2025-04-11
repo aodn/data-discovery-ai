@@ -3,11 +3,9 @@ from typing import Dict, List, Union, Any
 from data_discovery_ai import logger
 import dotenv
 
-from data_discovery_ai.common.constants import (
-    API_VALID_FIELD,
-    AVAILABLE_AI_MODELS
-)
+from data_discovery_ai.common.constants import API_VALID_FIELD, AVAILABLE_AI_MODELS
 from data_discovery_ai import logger
+
 
 # TODO: consolidate the agent classes into one single environment
 class BaseAgent:
@@ -31,20 +29,18 @@ class SupervisorAgent(BaseAgent):
         # distribute tasks to other agents based on the perceived metadata
         # TODO
         # execute only if the metadata has at least one of the valid fields
-        if is_valid_request(request):
+        if len(is_valid_request(request)) > 0:
             self.set_status(1)
-            
-            
+
 
 def is_valid_request(request: Dict[str, Union[str, List]]) -> List[str]:
     """
-        Validate request format with supported fields.
-        Input:
-            request (Dict[str, Union[str, List]]): The request format.
-        Output:
-            List[str]: matched valid fields in the requet
+    Validate request format with supported fields.
+    Input:
+        request (Dict[str, Union[str, List]]): The request format.
+    Output:
+        List[str]: matched valid fields in the requet
     """
-    matched_fields = []
     if type(request) is not dict:
         logger.error("Invalid request")
         return []
@@ -55,8 +51,12 @@ def is_valid_request(request: Dict[str, Union[str, List]]) -> List[str]:
         else:
             selected_model = request["selected_model"]
             if selected_model not in AVAILABLE_AI_MODELS:
-                logger.error(f"Invalid model name: {selected_model}. Please choose from {AVAILABLE_AI_MODELS}")
+                logger.error(
+                    f"Invalid model name: {selected_model}. Please choose from {AVAILABLE_AI_MODELS}"
+                )
                 return []
+
+        matched_fields = []
         for field in request.keys():
             if field in API_VALID_FIELD:
                 matched_fields.append(field)

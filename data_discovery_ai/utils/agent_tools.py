@@ -5,6 +5,7 @@ from data_discovery_ai import logger
 from transformers import AutoTokenizer, TFBertModel
 import numpy as np
 
+
 def save_to_file(obj: Any, full_path: str) -> None:
     """
     Saves an object to a file using pickle serialization in the specific file path
@@ -50,9 +51,3 @@ def get_text_embedding(text: str) -> np.ndarray:
     text_embedding = outputs.last_hidden_state[:, 0, :].numpy()
     # output as a 1D array, shape (768,)
     return text_embedding.squeeze()
-
-if __name__ =="__main__":
-    text = "This is a sample text for embedding."
-    embedding = get_text_embedding(text)
-    print(embedding.shape)
-    print(embedding)
