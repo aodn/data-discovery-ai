@@ -1,17 +1,15 @@
-from elasticsearch import (
-    Elasticsearch,
-)
-import configparser
+from elasticsearch import Elasticsearch
 import logging
 import pandas as pd
 from tqdm import tqdm
 import time
+import os
+from dotenv import load_dotenv
 
-from data_discovery_ai.common.constants import BATCH_SIZE, SLEEP_TIME, ES_INDEX_NAME
 from data_discovery_ai import logger
 
 
-def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
+def connect_es() -> Elasticsearch:
     """
     Function to connect the ElasticSearch
     Input:
@@ -22,8 +20,10 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
     Output:
         client:Elasticsearch. An initialised Elasticsearch client instance.
     """
-    end_point = config["elasticsearch"]["end_point"]
-    api_key = config["elasticsearch"]["api_key"]
+    load_dotenv()
+
+    end_point = os.getenv("ES_ENDPOINT")
+    api_key = os.getenv("ES_API_KEY")
     try:
         client = Elasticsearch(end_point, api_key=api_key)
         logging.info("Connected to ElasticSearch")
@@ -34,9 +34,9 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
 
 def search_es(
     client: Elasticsearch,
-    index: str = ES_INDEX_NAME,
-    batch_size: int = BATCH_SIZE,
-    sleep_time: int = SLEEP_TIME,
+    index: str,
+    batch_size: int,
+    sleep_time: int,
 ):
     """
     Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file

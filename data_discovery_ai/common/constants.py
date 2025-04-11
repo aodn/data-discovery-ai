@@ -3,19 +3,20 @@ API_KEY_NAME = "X-API-Key"
 # remove the following line as we get the value from the environment.
 AVAILABLE_MODELS = ["development", "staging", "production", "experimental", "benchmark"]
 API_VALID_FIELD = ["title", "abstract", "lineage", "links"]
-AVAILABLE_AI_MODELS = ["keyword classification", "data delivery mode classification", "description formating", "link grouping"]
+AVAILABLE_AI_MODELS = [
+    "keyword classification",
+    "data delivery mode classification",
+    "description formating",
+    "link grouping",
+]
 
-MODEL_CONFIG = "classification_parameters.ini"
-ELASTICSEARCH_CONFIG = "esManager.ini"
+MODEL_CONFIG = "model_parameters.ini"
+ELASTICSEARCH_CONFIG = "es_parameters.ini"
 KEYWORD_FOLDER = "KeywordClassifier"
 KEYWORD_SAMPLE_FILE = "keyword_sample.pkl"
 KEYWORD_LABEL_FILE = "keyword_label.pkl"
 FILTER_PREPROCESSED_FILE = "filter_preprocessed.pkl"
 FILTER_FOLDER = "DataDeliveryModeFilter"
-
-# TODO: move to es config file
-#  global constants for es_connector
-
 
 # global constants for preprocessor
 RARE_LABEL_THRESHOLD = 3
