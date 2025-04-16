@@ -1,39 +1,38 @@
 # unit test for config_utils.py
 import unittest
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import patch, mock_open
 from data_discovery_ai.utils.config_utils import ConfigUtil
-from data_discovery_ai.common.constants import MODEL_CONFIG, ELASTICSEARCH_CONFIG
-import configparser
-from pathlib import Path
+
+
+MOCK_YAML_CONTENT = """
+elasticsearch:
+  batch_size: 100
+  sleep_time: 5
+  es_index_name: test_index
+
+model:
+  keyword_classification:
+    confidence: 0.5
+    top_N: 2
+    separator: " [SEP] "
+    model: development
+"""
 
 
 class TestConfigUtil(unittest.TestCase):
-    def setUp(self):
-        self.config = ConfigUtil()
-
-    # test if configuration files exits -> return True
     @patch("data_discovery_ai.utils.config_utils.Path.exists", return_value=True)
-    @patch("data_discovery_ai.utils.config_utils.configparser.ConfigParser")
-    def test_load_model_config_success(self, mock_parser_class, mock_exists):
-        mock_parser = MagicMock()
-        mock_parser_class.return_value = mock_parser
+    @patch("builtins.open", new_callable=mock_open, read_data=MOCK_YAML_CONTENT)
+    def setUp(self, mock_file, mock_exists):
+        self.config_util = ConfigUtil()
 
-        result = self.config.load_model_config()
-        config_path = self.config.base_dif / "common" / MODEL_CONFIG
+    def test_get_es_config(self):
+        es_config = self.config_util.get_es_config()
+        self.assertEqual(es_config["batch_size"], 100)
+        self.assertEqual(es_config["es_index_name"], "test_index")
 
-        mock_exists.assert_called_once()
-        mock_parser.read.assert_called_once_with(config_path)
-        self.assertEqual(result, mock_parser)
-
-    # test if configuration files does not exits -> raise FileNotFoundError
-    @patch("data_discovery_ai.utils.config_utils.Path.exists", return_value=False)
-    def test_load_config_file_not_found(self, mock_exists):
-        with self.assertRaises(FileNotFoundError) as context:
-            self.config.load_es_config()
-
-        expected_path = self.config.base_dif / "common" / ELASTICSEARCH_CONFIG
-        self.assertIn(str(expected_path), str(context.exception))
+    def test_get_keyword_classification_config(self):
+        model_config = self.config_util.get_keyword_classification_config()
+        self.assertEqual(model_config["top_N"], 2)
 
 
 if __name__ == "__main__":

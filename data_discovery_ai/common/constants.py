@@ -13,14 +13,14 @@ AVAILABLE_AI_MODELS = [
 ]
 MAX_PROCESS = 4
 
-MODEL_CONFIG = "model_parameters.ini"
-ELASTICSEARCH_CONFIG = "es_parameters.ini"
+PARAMETER_FILE = "parameters.yaml"
 KEYWORD_FOLDER = "KeywordClassifier"
 KEYWORD_SAMPLE_FILE = "keyword_sample.pkl"
 KEYWORD_LABEL_FILE = "keyword_label.pkl"
 FILTER_PREPROCESSED_FILE = "filter_preprocessed.pkl"
 FILTER_FOLDER = "DataDeliveryModeFilter"
 
+# TODO: move to keyword trainer model parameter config file
 # global constants for preprocessor
 RARE_LABEL_THRESHOLD = 3
 

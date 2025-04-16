@@ -9,6 +9,7 @@ import json
 
 from data_discovery_ai import logger
 from data_discovery_ai.model.baseAgent import BaseAgent
+from data_discovery_ai.utils.config_utils import ConfigUtil
 
 
 class DescriptionFormattingAgent(BaseAgent):
@@ -19,6 +20,7 @@ class DescriptionFormattingAgent(BaseAgent):
         # load api key from .env file
         load_dotenv()
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.model_config = ConfigUtil().get_description_formatting_config()
 
     def set_required_fields(self, required_fields: list) -> None:
         super().set_required_fields(required_fields)
@@ -59,7 +61,7 @@ class DescriptionFormattingAgent(BaseAgent):
                 title (str): The title of the metadata.
                 abstract (str): The abstract of the metadata to be reformatted.
         Output:
-            Boolean: True if the agent takes action, False otherwise.
+            bool: True if the agent takes action, False otherwise.
         """
         return self.is_valid_request(request) and self.needs_formatting(
             request["abstract"]
@@ -94,13 +96,13 @@ class DescriptionFormattingAgent(BaseAgent):
         try:
             client = OpenAI(api_key=self.openai_api_key)
             completion = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.model_config["model"],
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": input_text},
                 ],
-                temperature=0.1,
-                max_tokens=10000,
+                temperature=self.model_config["temperature"],
+                max_tokens=self.model_config["max_tokens"],
             )
             response = completion.choices[0].message.content
             return self.retrieve_json(response)

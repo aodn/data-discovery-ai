@@ -12,6 +12,7 @@ from data_discovery_ai.model.keywordClassificationAgent import (
 )
 
 # TODO: import the rest of models
+
 from data_discovery_ai.common.constants import MAX_PROCESS
 
 
@@ -24,8 +25,8 @@ class SupervisorAgent(BaseAgent):
         self.task_agents = []
 
         self.model_name_class_map = {
-            "description_formatting": DescriptionFormattingAgent
-            # TODO: add other agent classes
+            "description_formatting": DescriptionFormattingAgent,
+            "keyword_classification": KeywordClassificationAgent,
         }
 
     def make_decision(self, request: Dict):
