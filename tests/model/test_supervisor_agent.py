@@ -3,27 +3,25 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from data_discovery_ai.model.supervisorAgent import SupervisorAgent
-from data_discovery_ai.model.descriptionFormattingAgent import DescriptionFormattingAgent
+from data_discovery_ai.model.descriptionFormattingAgent import (
+    DescriptionFormattingAgent,
+)
+
 
 class TestSupervisorAgent(unittest.TestCase):
     def setUp(self):
         self.agent = SupervisorAgent()
         self.valid_request = {
-            "selected_model": ["description formatting"],
+            "selected_model": ["description_formatting"],
             "title": "Example title",
-            "abstract": "Example abstract"
-        }
-
-        self.missing_field_request = {
-            "selected_model": ["description formatting"],
-            "title": "Example title"
+            "abstract": "Example abstract",
         }
 
         self.invalid_model_request = {
-            "selected_model": ["description formatting", "unknown model"],
+            "selected_model": ["description_formatting", "unknown model"],
             "title": "Example title",
             "abstract": "Example abstract",
-            "links": ["https://example.com"]
+            "links": ["https://example.com"],
         }
 
         self.non_dict_request = "this is a non dict request"
@@ -34,18 +32,16 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertTrue(self.agent.is_valid_request(self.valid_request))
         mock_logger.error.assert_not_called()
 
-        # Test missing required field
-        self.assertFalse(self.agent.is_valid_request(self.missing_field_request))
-        mock_logger.error.assert_called_once_with("Model 'description formatting' is missing required field: 'abstract'")
-
         # Test invalid model name
         self.assertFalse(self.agent.is_valid_request(self.invalid_model_request))
-        mock_logger.error.assert_called_with("Invalid model name: unknown model. Choose from ['keyword classification', 'data delivery mode classification', 'description formatting', 'link grouping']")
+        mock_logger.error.assert_called_with(
+            "Invalid model name: unknown model. Choose from ['keyword_classification', 'delivery_classification', 'description_formatting', 'link_grouping']"
+        )
 
         # Test non-dict request
         self.assertFalse(self.agent.is_valid_request(self.non_dict_request))
 
-    def test_make_decision_creates_agents(self):
+    def test_create_task_agents(self):
         self.agent.make_decision(self.valid_request)
         self.assertEqual(len(self.agent.task_agents), 1)
         self.assertIsInstance(self.agent.task_agents[0], DescriptionFormattingAgent)
@@ -66,8 +62,9 @@ class TestSupervisorAgent(unittest.TestCase):
 
         mock_pool.map.assert_called_once()
         self.assertEqual(self.agent.status, 2)
-        self.assertEqual(self.agent.repsonse, ["#descrption agent response: **mock_response**"])
-
+        self.assertEqual(
+            self.agent.repsonse, ["#descrption agent response: **mock_response**"]
+        )
 
 
 if __name__ == "__main__":

@@ -3,10 +3,13 @@ API_KEY_NAME = "X-API-Key"
 # remove the following line as we get the value from the environment.
 AVAILABLE_MODELS = ["development", "staging", "production", "experimental", "benchmark"]
 AVAILABLE_AI_MODELS = [
-    {"model":"keyword classification", "required fields": ["title", "abstract"]},
-    {"model":"data delivery mode classification", "required fields": ["title", "abstract", "lineage"]},
-    {"model":"description formatting", "required fields": ["title", "abstract"]},
-    {"model":"link grouping", "required fields": ["links"]}
+    {"model": "keyword_classification", "required fields": ["title", "abstract"]},
+    {
+        "model": "delivery_classification",
+        "required fields": ["title", "abstract", "lineage"],
+    },
+    {"model": "description_formatting", "required fields": ["title", "abstract"]},
+    {"model": "link_grouping", "required fields": ["links"]},
 ]
 MAX_PROCESS = 4
 

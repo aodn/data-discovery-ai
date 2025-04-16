@@ -1,4 +1,4 @@
-#  common tools shared by agents
+#  toolbox contains common tools shared by agents
 from typing import Any
 import pickle
 from data_discovery_ai import logger

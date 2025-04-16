@@ -37,7 +37,7 @@ def search_es(
     index: str,
     batch_size: int,
     sleep_time: int,
-):
+) -> pd.DataFrame:
     """
     Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
     Input:

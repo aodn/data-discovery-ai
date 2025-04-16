@@ -1,4 +1,4 @@
-# The agent-based model for description formatting task
+# The agent model for description formatting task
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
@@ -14,15 +14,17 @@ from data_discovery_ai.model.baseAgent import BaseAgent
 class DescriptionFormattingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
-        self.type = "DescriptionFormatting"
-        # set status to 1 as active
-        self.set_status(1)
+        self.type = "description_formatting"
 
         # load api key from .env file
         load_dotenv()
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
 
-        self.response = {}
+    def set_required_fields(self, required_fields: list) -> None:
+        super().set_required_fields(required_fields)
+
+    def is_valid_request(self, request: Dict[str, str]) -> bool:
+        return super().is_valid_request(request, self.required_fields)
 
     def execute(self, request: Dict[str, str]) -> None:
         """
@@ -40,13 +42,8 @@ class DescriptionFormattingAgent(BaseAgent):
             abstract = request["abstract"]
             self.response = {"formatted_abstract": self.take_action(title, abstract)}
         # set status to 2 as finished
-        logger.info(
-            "DescriptionFormattingAgent finished, it responses: \n %s", self.response
-        )
+        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)
-
-    def is_valid_request(self, request: Dict[str, str]) -> bool:
-        return all(k in request for k in ["title", "abstract"])
 
     def needs_formatting(self, abstract: str) -> bool:
         word_count = len(re.findall(r"\w+", abstract))
@@ -70,7 +67,7 @@ class DescriptionFormattingAgent(BaseAgent):
 
     def take_action(self, title: str, abstract: str) -> str:
         """
-        Action module of the Description Formatting Agent. The action is to reformat the abstract text into markdown format.
+        Action module of the Description Formatting Agent. The task is to reformat the abstract text into markdown format.
         Input:
             title (str): The title of the metadata.
             abstract (str): The abstract of the metadata to be reformatted.
@@ -78,7 +75,7 @@ class DescriptionFormattingAgent(BaseAgent):
             Str: the markdown formatted abstract text.
             If the agent does not take action, the output is the original abstract text.
         """
-        logger.info("Description is being reformatted by DescriptionFormattingAgent")
+        logger.info(f"Description is being reformatted by {self.type} agent")
 
         input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
         system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
