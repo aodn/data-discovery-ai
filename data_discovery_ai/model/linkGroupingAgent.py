@@ -7,6 +7,7 @@ from data_discovery_ai import logger
 from data_discovery_ai.model.baseAgent import BaseAgent
 from data_discovery_ai.utils.config_utils import ConfigUtil
 
+
 class LinkGroupingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
@@ -19,7 +20,7 @@ class LinkGroupingAgent(BaseAgent):
 
     def is_valid_request(self, request: Dict[str, str]) -> bool:
         return super().is_valid_request(request, self.required_fields)
-    
+
     def make_decision(self, request: Dict[str, Any]) -> List[Dict[str, str]]:
         """
         The agent makes decision based on the request. The link grouping task only executes if the request is valid and the links are related (rel == "related").
@@ -41,7 +42,11 @@ class LinkGroupingAgent(BaseAgent):
             # check if the links are related
             links = request.get("links", [])
             for link in links:
-                if link.get("rel") == "related" and link.get("href") and link.get("title"):
+                if (
+                    link.get("rel") == "related"
+                    and link.get("href")
+                    and link.get("title")
+                ):
                     valid_links.append(link)
             return valid_links
 
@@ -77,7 +82,7 @@ class LinkGroupingAgent(BaseAgent):
         # Convert set to list
         final_combinations = list(final_combinations)
         return final_combinations
-    
+
     def grouping(self, link: Dict[str, str], page_content_keywords: List) -> str:
         """
         Based on the decision-making rules defined in grouping rules, determine the group of the link.
@@ -128,6 +133,6 @@ class LinkGroupingAgent(BaseAgent):
             links = request["links"]
             grouped_links = self.take_action(links)
             self.response = {"grouped_links": grouped_links}
-        
+
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)

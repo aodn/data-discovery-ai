@@ -1,7 +1,7 @@
 from multiprocessing import Pool
 from typing import Dict, Union
 
-from data_discovery_ai.common.constants import AVAILABLE_AI_MODELS
+from data_discovery_ai.common.constants import AVAILABLE_AI_AGENT
 from data_discovery_ai import logger
 from data_discovery_ai.model.baseAgent import BaseAgent
 from data_discovery_ai.model.descriptionFormattingAgent import (
@@ -10,6 +10,7 @@ from data_discovery_ai.model.descriptionFormattingAgent import (
 from data_discovery_ai.model.keywordClassificationAgent import (
     KeywordClassificationAgent,
 )
+from data_discovery_ai.model.linkGroupingAgent import LinkGroupingAgent
 
 # TODO: import the rest of models
 
@@ -27,6 +28,7 @@ class SupervisorAgent(BaseAgent):
         self.model_name_class_map = {
             "description_formatting": DescriptionFormattingAgent,
             "keyword_classification": KeywordClassificationAgent,
+            "link_grouping": LinkGroupingAgent,
         }
 
     def make_decision(self, request: Dict):
@@ -42,11 +44,7 @@ class SupervisorAgent(BaseAgent):
                 if AgentClass:
                     task_agent = AgentClass()
                     task_agent_config = next(
-                        (
-                            m
-                            for m in AVAILABLE_AI_MODELS
-                            if m["model"] == selected_model
-                        ),
+                        (m for m in AVAILABLE_AI_AGENT if m["model"] == selected_model),
                         None,
                     )
                     if task_agent_config:
@@ -97,11 +95,11 @@ class SupervisorAgent(BaseAgent):
 
         for model_name in selected_models:
             model_config = next(
-                (m for m in AVAILABLE_AI_MODELS if m["model"] == model_name), None
+                (m for m in AVAILABLE_AI_AGENT if m["model"] == model_name), None
             )
             if not model_config:
                 logger.error(
-                    f"Invalid model name: {model_name}. Choose from {[m['model'] for m in AVAILABLE_AI_MODELS]}"
+                    f"Invalid model name: {model_name}. Choose from {[m['model'] for m in AVAILABLE_AI_AGENT]}"
                 )
                 return False
         return True
