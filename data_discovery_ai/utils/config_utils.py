@@ -84,6 +84,9 @@ class ConfigUtil:
     def get_description_formatting_config(self) -> DescriptionFormattingConfig:
         return self._config_data["model"]["description_formatting"]
 
+    def get_link_grouping_config(self) -> Dict[str, Any]:
+        return self._config_data["model"]["link_grouping"]
+
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
         return self._config_data["model"]["trainer"]["keyword_classification"]
 

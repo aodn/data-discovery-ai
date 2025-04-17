@@ -12,6 +12,46 @@ model:
     model: gpt-4o-mini
     temperature: 0.1
     max_tokens: 10000
+  link_grouping:
+    grouping_rules:
+      Python Notebook:
+        href:
+          - ipynb
+      Document:
+        href:
+          - pdf
+          - doc
+        title:
+          - document
+          - documentation
+          - manual
+          - guide
+          - help
+          - report
+      Data Access:
+        href:
+          - access
+          - download
+          - csv
+          - xlsx
+          - json
+          - nc
+          - zip
+          - wfs
+          - wms
+          - ows
+          - thredds
+          - trawler
+          - data_type
+          - format
+        title:
+          - data access
+          - data download
+          - download data
+          - access data
+        content:
+          - [data, dataset]
+          - [download]
   #  for training the pre-trained classification models
   trainer:
     keyword_classification:
