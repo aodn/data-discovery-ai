@@ -37,6 +37,12 @@ class TestAgentTools(unittest.TestCase):
         mock_logger.info.assert_called_once_with("Load from test_path.pkl")
         self.assertEqual(result, self.test_obj)
 
+        # test for file not exist
+        not_existed_result = load_from_file("not_exist_path.pkl")
+        mock_open.assert_called_once_with("not_exist_path.pkl", "rb")
+        mock_logger.error.assert_called_once()
+        self.assertIsNone(not_existed_result)
+
     @patch("data_discovery_ai.utils.agent_tools.AutoTokenizer.from_pretrained")
     @patch("data_discovery_ai.utils.agent_tools.TFBertModel.from_pretrained")
     def test_get_text_embedding(self, mock_embedding_model, mock_tokenizer_model):
@@ -45,11 +51,11 @@ class TestAgentTools(unittest.TestCase):
         mock_tokenizer_model.return_value = mock_tokenizer
 
         # the expected shape should be (768,), assume they all value 1
-        fake_output = np.ones((1, 768))
+        mock_output = np.ones((1, 768))
         mock_model_output = MagicMock()
         mock_model_output.last_hidden_state = MagicMock()
         mock_model_output.last_hidden_state.__getitem__.return_value.numpy.return_value = (
-            fake_output
+            mock_output
         )
 
         mock_model = MagicMock(return_value=mock_model_output)

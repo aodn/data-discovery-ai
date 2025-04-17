@@ -7,14 +7,9 @@ from tensorflow.keras.models import load_model
 from data_discovery_ai import logger
 from data_discovery_ai.model.baseAgent import BaseAgent
 from data_discovery_ai.utils.config_utils import ConfigUtil
-from data_discovery_ai.utils.agent_tools import (
-    get_text_embedding,
-    load_from_file
-)
-from data_discovery_ai.common.constants import (
-    KEYWORD_FOLDER,
-    KEYWORD_LABEL_FILE
-)
+from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
+from data_discovery_ai.common.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
+
 
 class KeywordClassificationAgent(BaseAgent):
     def __init__(self):
@@ -27,13 +22,16 @@ class KeywordClassificationAgent(BaseAgent):
 
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
-    
+
     def is_valid_request(self, request) -> bool:
         return super().is_valid_request(request, self.required_fields)
-    
+
     def make_decision(self, request):
-        # the agent will always take action if it was called as the decision is made from es-indexer
-        return super().make_decision(request)
+        # the agent will always take action if the request is valid, as the decision is made from es-indexer
+        if self.is_valid_request(request):
+            return True
+        else:
+            return False
 
     def execute(self, request: dict) -> None:
         """
@@ -52,13 +50,11 @@ class KeywordClassificationAgent(BaseAgent):
             prediction = self.take_action(title, abstract)
             self.response = {"classified_keywords": prediction}
 
-        logger.info(
-            f"{self.type} agent finished, it responses: \n {self.response}"
-        )
+        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)
 
     def take_action(self, title, abstract) -> List[Any]:
-        """ 
+        """
         The action module of the Keyword Classification Agent. Its task is to classify the keywords based on the provided title and abstract.
         """
         # calculate the embedding of the title and abstract
@@ -71,7 +67,8 @@ class KeywordClassificationAgent(BaseAgent):
 
         # load the pretrained model
         pretrained_model = self.load_saved_model()
-        if pretrained_model:
+        selective_labels = self.load_keyword_labels()
+        if pretrained_model and selective_labels:
             dimension = text_embedding.shape[0]
             target_X = text_embedding.reshape(1, dimension)
             predictions = pretrained_model.predict(target_X)
@@ -82,15 +79,15 @@ class KeywordClassificationAgent(BaseAgent):
                     top_indices = np.argsort(predictions[i])[-top_N:]
                     predicted_labels[i][top_indices] = 1
 
-            labels = self.load_keyword_labels()
-            predicted_keywords = self.get_predicted_keywords(predicted_labels, labels)
+            predicted_keywords = self.get_predicted_keywords(
+                predicted_labels, selective_labels
+            )
 
             logger.info(f"Keyword is being predicted by {self.type} agent")
             return predicted_keywords
         else:
             return []
-    
-    
+
     def replace_with_column_names(
         self, row: pd.SparseDtype, column_names: List[int]
     ) -> List[str]:
@@ -103,7 +100,6 @@ class KeywordClassificationAgent(BaseAgent):
             str: The predicted keywords
         """
         return [column_names[i] for i, value in enumerate(row) if value == 1]
-    
 
     def get_predicted_keywords(self, prediction: np.ndarray, labels: Dict):
         """
@@ -122,14 +118,10 @@ class KeywordClassificationAgent(BaseAgent):
             predicted_keywords = [item.to_json() for item in predicted_keywords[0]]
         return predicted_keywords
 
-    
     def load_saved_model(self) -> Optional[load_model]:
         pretrained_model_name = self.model_config["pretrained_model"]
         model_file_path = (
-            self.config.base_dir
-            / "resources"
-            / KEYWORD_FOLDER
-            / pretrained_model_name
+            self.config.base_dir / "resources" / KEYWORD_FOLDER / pretrained_model_name
         ).with_suffix(".keras")
         try:
             saved_model = load_model(model_file_path, compile=False)
@@ -139,7 +131,7 @@ class KeywordClassificationAgent(BaseAgent):
                 f"Failed to load selected model {pretrained_model_name} from folder data_discovery_ai/resources"
             )
             return None
-        
+
     def load_keyword_labels(self) -> Dict[str, Any]:
         """
         Load the keyword labels from the file.

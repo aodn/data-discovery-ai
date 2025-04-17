@@ -29,6 +29,7 @@ def load_from_file(full_path: str) -> Any:
         return obj
     except Exception as e:
         logger.error(e)
+        return None
 
 
 def get_text_embedding(text: str) -> np.ndarray:
