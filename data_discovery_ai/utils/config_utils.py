@@ -57,6 +57,10 @@ class ModelConfig(TypedDict):
     trainer: TrainerConfig
 
 
+class DeliveryClassificationConfig(TypedDict):
+    pretrained_model: str
+
+
 class FullConfig(TypedDict):
     elasticsearch: ElasticsearchConfig
     model: ModelConfig
@@ -86,6 +90,9 @@ class ConfigUtil:
 
     def get_link_grouping_config(self) -> Dict[str, Any]:
         return self._config_data["model"]["link_grouping"]
+
+    def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
+        return self._config_data["model"]["delivery_classification"]
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
         return self._config_data["model"]["trainer"]["keyword_classification"]

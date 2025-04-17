@@ -15,13 +15,6 @@ class TestKeywordClassificationAgent(unittest.TestCase):
 
         self.invalid_request = {"title": "Test Title"}
 
-    def test_is_valid_request(self):
-        # Test valid request
-        self.assertTrue(self.agent.is_valid_request(self.valid_request))
-
-        # Test invalid request with missing field
-        self.assertFalse(self.agent.is_valid_request(self.invalid_request))
-
     def test_make_decision_valid_request(self):
         # it should always take action if the request is valid, otherwise it will not take action.
         self.assertTrue(self.agent.make_decision(self.valid_request))

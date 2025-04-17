@@ -12,6 +12,9 @@ model:
     model: gpt-4o-mini
     temperature: 0.1
     max_tokens: 10000
+  delivery_classification:
+    pretrained_model: development
+    separator: " [SEP] "
   link_grouping:
     grouping_rules:
       Python Notebook:
