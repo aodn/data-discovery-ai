@@ -37,11 +37,17 @@ class TestAgentTools(unittest.TestCase):
         mock_logger.info.assert_called_once_with("Load from test_path.pkl")
         self.assertEqual(result, self.test_obj)
 
-        # test for file not exist
-        not_existed_result = load_from_file("not_exist_path.pkl")
+    @patch("data_discovery_ai.utils.agent_tools.logger")
+    @patch("builtins.open", side_effect=FileNotFoundError("File not found"))
+    def test_load_from_file_not_exist(self, mock_open, mock_logger):
+        result = load_from_file("not_exist_path.pkl")
+
         mock_open.assert_called_once_with("not_exist_path.pkl", "rb")
         mock_logger.error.assert_called_once()
-        self.assertIsNone(not_existed_result)
+        args, _ = mock_logger.error.call_args
+        self.assertIsInstance(args[0], FileNotFoundError)
+        self.assertEqual(str(args[0]), "File not found")
+        self.assertIsNone(result)
 
     @patch("data_discovery_ai.utils.agent_tools.AutoTokenizer.from_pretrained")
     @patch("data_discovery_ai.utils.agent_tools.TFBertModel.from_pretrained")
