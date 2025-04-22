@@ -43,12 +43,12 @@ class KeywordClassificationAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag:
-            self.response = {"classified_keywords": []}
+            self.response = {self.model_config["response_key"]: []}
         else:
             title = request["title"]
             abstract = request["abstract"]
             prediction = self.take_action(title, abstract)
-            self.response = {"classified_keywords": prediction}
+            self.response = {self.model_config["response_key"]: prediction}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)

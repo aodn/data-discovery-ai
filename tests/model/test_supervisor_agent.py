@@ -54,7 +54,9 @@ class TestSupervisorAgent(unittest.TestCase):
 
         mock_agent = MagicMock()
         mock_agent.execute = MagicMock()
-        mock_agent.response = "#descrption agent response: **mock_response**"
+        mock_agent.response = {
+            "formatted_abstract": "#descrption agent response: **mock_response**"
+        }
 
         self.agent.task_agents = [mock_agent]
 
@@ -63,7 +65,12 @@ class TestSupervisorAgent(unittest.TestCase):
         mock_pool.map.assert_called_once()
         self.assertEqual(self.agent.status, 2)
         self.assertEqual(
-            self.agent.repsonse, ["#descrption agent response: **mock_response**"]
+            self.agent.repsonse,
+            {
+                "result": {
+                    "formatted_abstract": "#descrption agent response: **mock_response**"
+                }
+            },
         )
 
 

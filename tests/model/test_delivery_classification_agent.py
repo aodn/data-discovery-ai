@@ -1,8 +1,11 @@
 # The unit test for the delivery mode classification agent in model/deliveryClassificationAgent.py
 import unittest
 from unittest.mock import patch, MagicMock
-from data_discovery_ai.model.deliveryClassificationAgent import DeliveryClassificationAgent
+from data_discovery_ai.model.deliveryClassificationAgent import (
+    DeliveryClassificationAgent,
+)
 from data_discovery_ai.utils.config_utils import ConfigUtil
+
 
 class TestDeliveryClassificationAgent(unittest.TestCase):
     def setUp(self):
@@ -11,13 +14,10 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         self.valid_request = {
             "title": "Test Title",
             "abstract": "Test abstract.",
-            "lineage": "Test lineage."
+            "lineage": "Test lineage.",
         }
 
-        self.invalid_request = {
-            "title": "Test Title",
-            "abstract": "Test abstract."
-        }
+        self.invalid_request = {"title": "Test Title", "abstract": "Test abstract."}
 
     def test_make_decision(self):
         # Test valid request
@@ -34,7 +34,7 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         request = {
             "title": "Test title",
             "abstract": "Test abstract",
-            "lineage": "test lineage"
+            "lineage": "test lineage",
         }
 
         self.agent.execute(request)

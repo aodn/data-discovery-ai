@@ -128,11 +128,11 @@ class LinkGroupingAgent(BaseAgent):
     def execute(self, request: Dict[str, Any]) -> None:
         flag = self.make_decision(request)
         if not flag:
-            self.response = {"grouped_links": []}
+            self.response = {self.model_config["response_key"]: []}
         else:
             links = request["links"]
             grouped_links = self.take_action(links)
-            self.response = {"grouped_links": grouped_links}
+            self.response = {self.model_config["response_key"]: grouped_links}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)

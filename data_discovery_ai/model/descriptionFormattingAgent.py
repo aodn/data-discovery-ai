@@ -38,11 +38,13 @@ class DescriptionFormattingAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag:
-            self.response = {"formatted_abstract": request["abstract"]}
+            self.response = {self.model_config["response_key"]: request["abstract"]}
         else:
             title = request["title"]
             abstract = request["abstract"]
-            self.response = {"formatted_abstract": self.take_action(title, abstract)}
+            self.response = {
+                self.model_config["response_key"]: self.take_action(title, abstract)
+            }
         # set status to 2 as finished
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)

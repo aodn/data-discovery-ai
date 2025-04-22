@@ -3,19 +3,42 @@ elasticsearch:
   sleep_time: 5
   es_index_name: es-indexer-staging
 model:
+  supervisor:
+    response_key: result
+    task_agents:
+      keyword_classification:
+        required_fields:
+          - title
+          - abstract
+      delivery_classification:
+        required_fields:
+          - title
+          - abstract
+          - lineage
+      description_formatting:
+        required_fields:
+          - title
+          - abstract
+      link_grouping:
+        required_fields:
+          - links
   keyword_classification:
     confidence: 0.5
     top_N: 2
     separator: " [SEP] "
     pretrained_model: development
+    response_key: "classified_keywords"
   description_formatting:
     model: gpt-4o-mini
     temperature: 0.1
     max_tokens: 10000
+    response_key: "formatted_abstract"
   delivery_classification:
     pretrained_model: development
     separator: " [SEP] "
+    response_key: "classified_delivery_mode"
   link_grouping:
+    response_key: "grouped_links"
     grouping_rules:
       Python Notebook:
         href:

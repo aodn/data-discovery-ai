@@ -1,7 +1,7 @@
 from multiprocessing import Pool
 from typing import Dict, Union
 
-from data_discovery_ai.common.constants import AVAILABLE_AI_AGENT
+from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai import logger
 from data_discovery_ai.model.baseAgent import BaseAgent
 from data_discovery_ai.model.descriptionFormattingAgent import (
@@ -11,8 +11,9 @@ from data_discovery_ai.model.keywordClassificationAgent import (
     KeywordClassificationAgent,
 )
 from data_discovery_ai.model.linkGroupingAgent import LinkGroupingAgent
-
-# TODO: import the rest of models
+from data_discovery_ai.model.deliveryClassificationAgent import (
+    DeliveryClassificationAgent,
+)
 
 from data_discovery_ai.common.constants import MAX_PROCESS
 
@@ -21,15 +22,19 @@ class SupervisorAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.type = "supervisor"
-        # set status to 1 as active
-        self.set_status(1)
         self.task_agents = []
+        self.model_config = ConfigUtil().get_supervisor_config()
 
+        # add name-task agent map here if more models added in
         self.model_name_class_map = {
             "description_formatting": DescriptionFormattingAgent,
             "keyword_classification": KeywordClassificationAgent,
             "link_grouping": LinkGroupingAgent,
+            "delivery_classification": DeliveryClassificationAgent,
         }
+
+        # set status to 1 as active
+        self.set_status(1)
 
     def make_decision(self, request: Dict):
         """
@@ -43,20 +48,20 @@ class SupervisorAgent(BaseAgent):
                 AgentClass = self.model_name_class_map.get(selected_model)
                 if AgentClass:
                     task_agent = AgentClass()
-                    task_agent_config = next(
-                        (m for m in AVAILABLE_AI_AGENT if m["model"] == selected_model),
-                        None,
+                    task_agent_config = self.model_config["task_agents"].get(
+                        selected_model, None
                     )
                     if task_agent_config:
                         task_agent.set_required_fields(
-                            task_agent_config["required fields"]
+                            task_agent_config["required_fields"]
                         )
-
-                        logger.debug(task_agent.required_fields)
                     else:
                         logger.error(f"Agent class not found for {selected_model}.")
 
                     self.task_agents.append(task_agent)
+            return True
+        else:
+            return False
 
     @staticmethod
     def run_agent(agent_request_tuple):
@@ -73,8 +78,27 @@ class SupervisorAgent(BaseAgent):
             results = pool.map(
                 self.run_agent, [(agent, request) for agent in self.task_agents]
             )
-        self.repsonse = results
-        # set as finished status
+        # combine the response from all task agents
+        combined_response = {}
+        for response in results:
+            combined_response.update(response)
+        return combined_response
+
+    def execute(self, request: Dict) -> None:
+        """
+        Execute the action module of the Supervisor Agent. The action is to classify the delivery mode based on the provided request.
+        The agent perceives the request, and make decision based on the received request. If it decides to take action, it will call the LLM module to classify the delivery mode and set self response as the classified delivery mode.
+        Otherwise, it will set self.response as an empty string.
+        Input:
+            request (dict): The request format.
+        """
+        flag = self.make_decision(request)
+        if flag:
+            response = self.take_action(request)
+            self.response = {"result": response}
+        else:
+            self.response = {}
+        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)
 
     def is_valid_request(self, request: Dict[str, Union[str, list]]) -> bool:
@@ -94,12 +118,24 @@ class SupervisorAgent(BaseAgent):
             return False
 
         for model_name in selected_models:
-            model_config = next(
-                (m for m in AVAILABLE_AI_AGENT if m["model"] == model_name), None
-            )
+            model_config = self.model_config["task_agents"].get(model_name, None)
             if not model_config:
+                available_models = self.model_config["task_agents"]
                 logger.error(
-                    f"Invalid model name: {model_name}. Choose from {[m['model'] for m in AVAILABLE_AI_AGENT]}"
+                    f"Invalid model name: {model_name}. Choose from {[m for m in available_models]}"
                 )
+                print(repr(available_models))
                 return False
         return True
+
+
+if __name__ == "__main__":
+    supervisor = SupervisorAgent()
+    request = {
+        "selected_model": ["keyword_classification", "delivery_classification"],
+        "title": "test title",
+        "abstract": "test abstract",
+        "lineage": "test lineage",
+    }
+    supervisor.execute(request)
+    print(supervisor.response)

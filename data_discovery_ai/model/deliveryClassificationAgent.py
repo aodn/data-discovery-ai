@@ -23,17 +23,17 @@ class DeliveryClassificationAgent(BaseAgent):
 
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
-    
+
     def is_valid_request(self, request, required_fields):
         return super().is_valid_request(request, required_fields)
-    
+
     def make_decision(self, request):
         # the complex decision making is done by the es-indexer end, here we simply check if the request is valid
         if self.is_valid_request(request, self.required_fields):
             return True
         else:
             return False
-        
+
     def take_action(self, title: str, abstract: str, lineage: str) -> str:
         """
         The action module of the Delivery Classification Agent. Its task is to classify the delivery mode based on the provided title, abstract, and lineage.
@@ -42,7 +42,13 @@ class DeliveryClassificationAgent(BaseAgent):
         pretrained_model, pca = self.load_saved_model()
         if pretrained_model and pca:
             # calculate the embedding of the title, abstract, and lineage
-            request_text = title + self.model_config["separator"] + abstract + self.model_config["separator"] + lineage
+            request_text = (
+                title
+                + self.model_config["separator"]
+                + abstract
+                + self.model_config["separator"]
+                + lineage
+            )
             text_embedding = get_text_embedding(request_text)
             dimension = text_embedding.shape[0]
             target_X = text_embedding.reshape(1, dimension)
@@ -54,7 +60,7 @@ class DeliveryClassificationAgent(BaseAgent):
             return pred_class
         else:
             return ""
-        
+
     def execute(self, request: dict) -> None:
         """
         Execute the action module of the Delivery Classification Agent. The action is to classify the delivery mode based on the provided request.
@@ -65,17 +71,17 @@ class DeliveryClassificationAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag:
-            self.response = {"classified_delivery_mode": ""}
+            self.response = {self.model_config["response_key"]: ""}
         else:
             title = request["title"]
             abstract = request["abstract"]
             lineage = request["lineage"]
             prediction = self.take_action(title, abstract, lineage)
-            self.response = {"classified_delivery_mode": prediction}
+            self.response = {self.model_config["response_key"]: prediction}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
         self.set_status(2)
-        
+
     def load_saved_model(self) -> Tuple[Any, Any]:
         pretrained_model_name = self.model_config["pretrained_model"]
         # load model pickle file

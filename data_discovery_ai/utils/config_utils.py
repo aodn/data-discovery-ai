@@ -43,12 +43,14 @@ class KeywordClassificationConfig(TypedDict):
     top_N: int
     separator: str
     pretrained_model: str
+    response_key: str
 
 
 class DescriptionFormattingConfig(TypedDict):
     model: str
     temperature: float
     max_tokens: int
+    response_key: str
 
 
 class ModelConfig(TypedDict):
@@ -59,6 +61,7 @@ class ModelConfig(TypedDict):
 
 class DeliveryClassificationConfig(TypedDict):
     pretrained_model: str
+    response_key: str
 
 
 class FullConfig(TypedDict):
@@ -78,6 +81,9 @@ class ConfigUtil:
 
         with open(self.config_file, "r") as f:
             return yaml.safe_load(f)
+
+    def get_supervisor_config(self) -> Dict[str, Any]:
+        return self._config_data["model"]["supervisor"]
 
     def get_es_config(self) -> ElasticsearchConfig:
         return self._config_data["elasticsearch"]

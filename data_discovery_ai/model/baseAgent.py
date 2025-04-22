@@ -4,9 +4,8 @@ from typing import Dict
 class BaseAgent:
     def __init__(self):
         self.type = "base"
-        self.id = None
         # 0 as inactivate, 1 as active, 2 as finished
-        self.status = 0
+        self.status = 1
         self.response = {}
         self.required_fields = []
 

@@ -1,5 +1,6 @@
 # The data delivery mode filter model to classify the metadata records based on their titles, abstracts, and lineages.
 # Possible classes are 'Real Time', 'Delayed', and 'Other'.
+#  TODO: Separate the model predicting and training
 import logging
 import os
 from data_discovery_ai.utils.preprocessor import get_description_embedding
