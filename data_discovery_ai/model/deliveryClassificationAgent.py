@@ -80,7 +80,6 @@ class DeliveryClassificationAgent(BaseAgent):
             self.response = {self.model_config["response_key"]: prediction}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
-        self.set_status(2)
 
     def load_saved_model(self) -> Tuple[Any, Any]:
         pretrained_model_name = self.model_config["pretrained_model"]

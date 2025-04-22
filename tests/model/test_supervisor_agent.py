@@ -47,9 +47,11 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertIsInstance(self.agent.task_agents[0], DescriptionFormattingAgent)
 
     @patch("data_discovery_ai.model.supervisorAgent.Pool")
-    def test_take_action_parallel_execution(self, mock_pool_class):
+    def test_execute(self, mock_pool_class):
         mock_pool = MagicMock()
-        mock_pool.map.return_value = ["#descrption agent response: **mock_response**"]
+        mock_pool.map.return_value = [
+            {"formatted_abstract": "#descrption agent response: **mock_response**"}
+        ]
         mock_pool_class.return_value.__enter__.return_value = mock_pool
 
         mock_agent = MagicMock()
@@ -60,12 +62,11 @@ class TestSupervisorAgent(unittest.TestCase):
 
         self.agent.task_agents = [mock_agent]
 
-        self.agent.take_action(self.valid_request)
+        self.agent.execute(self.valid_request)
 
         mock_pool.map.assert_called_once()
-        self.assertEqual(self.agent.status, 2)
         self.assertEqual(
-            self.agent.repsonse,
+            self.agent.response,
             {
                 "result": {
                     "formatted_abstract": "#descrption agent response: **mock_response**"

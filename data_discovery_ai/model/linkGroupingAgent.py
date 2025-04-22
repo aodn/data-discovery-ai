@@ -135,4 +135,3 @@ class LinkGroupingAgent(BaseAgent):
             self.response = {self.model_config["response_key"]: grouped_links}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
-        self.set_status(2)

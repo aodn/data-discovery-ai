@@ -4,8 +4,6 @@ from typing import Dict
 class BaseAgent:
     def __init__(self):
         self.type = "base"
-        # 0 as inactivate, 1 as active, 2 as finished
-        self.status = 1
         self.response = {}
         self.required_fields = []
 
@@ -16,9 +14,6 @@ class BaseAgent:
             required_fields (list): The list of required fields.
         """
         self.required_fields = required_fields
-
-    def set_status(self, status: int):
-        self.status = status
 
     def make_decision(self, request: Dict[str, str]) -> bool:
         """

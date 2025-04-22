@@ -33,9 +33,6 @@ class SupervisorAgent(BaseAgent):
             "delivery_classification": DeliveryClassificationAgent,
         }
 
-        # set status to 1 as active
-        self.set_status(1)
-
     def make_decision(self, request: Dict):
         """
         Assign the task agents based on the selected models in the request.
@@ -99,7 +96,6 @@ class SupervisorAgent(BaseAgent):
         else:
             self.response = {}
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
-        self.set_status(2)
 
     def is_valid_request(self, request: Dict[str, Union[str, list]]) -> bool:
         """
@@ -124,18 +120,5 @@ class SupervisorAgent(BaseAgent):
                 logger.error(
                     f"Invalid model name: {model_name}. Choose from {[m for m in available_models]}"
                 )
-                print(repr(available_models))
                 return False
         return True
-
-
-if __name__ == "__main__":
-    supervisor = SupervisorAgent()
-    request = {
-        "selected_model": ["keyword_classification", "delivery_classification"],
-        "title": "test title",
-        "abstract": "test abstract",
-        "lineage": "test lineage",
-    }
-    supervisor.execute(request)
-    print(supervisor.response)

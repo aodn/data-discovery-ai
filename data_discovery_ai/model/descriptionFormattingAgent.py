@@ -47,7 +47,6 @@ class DescriptionFormattingAgent(BaseAgent):
             }
         # set status to 2 as finished
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
-        self.set_status(2)
 
     def needs_formatting(self, abstract: str) -> bool:
         word_count = len(re.findall(r"\w+", abstract))

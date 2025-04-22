@@ -50,4 +50,3 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         log_msg = mock_logger.info.call_args[0][0]
         self.assertIn("delivery_classification agent finished", log_msg)
         self.assertIn("real-time", log_msg)
-        self.assertEqual(self.agent.status, 2)

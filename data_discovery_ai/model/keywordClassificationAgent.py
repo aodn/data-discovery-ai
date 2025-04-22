@@ -49,9 +49,7 @@ class KeywordClassificationAgent(BaseAgent):
             abstract = request["abstract"]
             prediction = self.take_action(title, abstract)
             self.response = {self.model_config["response_key"]: prediction}
-
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
-        self.set_status(2)
 
     def take_action(self, title, abstract) -> List[Any]:
         """

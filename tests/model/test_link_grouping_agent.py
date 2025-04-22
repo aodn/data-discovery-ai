@@ -72,4 +72,3 @@ class TestLinkGroupingAgent(unittest.TestCase):
         self.assertEqual(
             self.agent.response["grouped_links"][1]["group"], "Python Notebook"
         )
-        self.assertEqual(self.agent.status, 2)
