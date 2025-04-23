@@ -11,4 +11,5 @@ FILTER_PREPROCESSED_FILE = "filter_preprocessed.pkl"
 FILTER_FOLDER = "DataDeliveryModeFilter"
 
 # global constants for preprocessor
+# TODO: move to parameter file
 RARE_LABEL_THRESHOLD = 3
