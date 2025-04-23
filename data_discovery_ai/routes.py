@@ -57,8 +57,6 @@ async def process_record(request: Request) -> None:
             status_code=HTTPStatus.BAD_REQUEST,
         )
     else:
-        supervisor.make_decision(body)
-
         supervisor.execute(body)
         return JSONResponse(
             content=supervisor.response,

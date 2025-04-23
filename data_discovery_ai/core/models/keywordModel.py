@@ -1,6 +1,6 @@
 """
     The keyword classification model used to identify the potential keywords for non-categorised records.
-    # TODO: SEPERATE THE MODEL AS PREDICTING AND TRAINING LOGIC
+    # TODO: SEPARATE THE MODEL AS PREDICTING AND TRAINING LOGIC
 """
 
 from sklearn.metrics import (

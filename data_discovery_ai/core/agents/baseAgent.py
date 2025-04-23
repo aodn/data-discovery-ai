@@ -32,8 +32,8 @@ class BaseAgent:
         """
         return True
 
-    def response(self) -> Dict[str, str]:
+    def execute(self, request: Dict[str, str]) -> None:
         """
-        Agent makes response. This should be overridden by subclasses.
+        Execute the agent's task. This should be overridden by subclasses.
         """
-        return self.response
+        pass
