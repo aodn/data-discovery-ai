@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional
 from tensorflow.keras.models import load_model
 
 from data_discovery_ai import logger
-from data_discovery_ai.model.baseAgent import BaseAgent
+from data_discovery_ai.core.agents.baseAgent import BaseAgent
 from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.common.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE

@@ -9,7 +9,7 @@ from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai import logger
 from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai.common.constants import FILTER_FOLDER, KEYWORD_FOLDER
-from data_discovery_ai.model.supervisorAgent import SupervisorAgent
+from data_discovery_ai.core.agents.supervisorAgent import SupervisorAgent
 
 router = APIRouter(prefix=API_PREFIX)
 
@@ -57,6 +57,8 @@ async def process_record(request: Request) -> None:
             status_code=HTTPStatus.BAD_REQUEST,
         )
     else:
+        supervisor.make_decision(body)
+
         supervisor.execute(body)
         return JSONResponse(
             content=supervisor.response,

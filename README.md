@@ -5,12 +5,22 @@
 
 ## Environment variables
 
-In the root directory of the project, create a `.env` file.
+If you wish to run the application locally, navigate to the root directory of the project and create a `.env` file.
 
-Open the `.env` file and add the following line to include your API key:
+Open the `.env` file and add the following lines to for using this application:
 
 ```shell
-API_KEY=your_actual_api_key_here
+API_KEY="your_actual_api_key_here"
+OPENAI_API_KEY="your_actual_openai_api_key"
+```
+These variables are required for the application to function properly.
+
+**Note:** If you are running the application from a deployment environment, you do not need to set these variables manually as they are already configured in the cloud environment. You may not need an OPENAI_API_KEY if `description_formatting` model was not called.
+
+If you are going to train the model, make sure these variables have been set up for connecting Elasticsearch:
+```shell
+ES_ENDPOINT="your_actual_elasticsearch_endpoint"
+ES_API_KEY="your_actual_es_api_key"
 ```
 
 ## Run the API server with Docker
@@ -86,34 +96,17 @@ The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`
 pre-commit run --all-files
 ```
 
-# Edge/syste/prod
-
-models name stricly controller:
-
-available options : `development`,`experimental`, `staging`, `production`, `benchmark`
-| Option | Purpose | Typical Use |
-| ---- | ---- | ---- |
-| `development` | Dedicated to active model development, testing, and iteration. | Building and refining new model versions, features, or datasets. |
-| `experimental` | Supports exploratory work for new techniques or fine-tuning. | Experimenting with new architectures, features, or hyperparameter tuning. |
-| `staging` | Prepares the model for production with real-use evaluations. | Conducting final testing in a production-like environment to verify stability and performance. |
-| `production` | Deployment environment for live model usage in real-world scenarios. | Running and monitoring models in active use by API. |
-| `benchmark` | Baseline model used to assess improvements or changes. | Comparing performance metrics against new models. |
-
-# Devlopment
-
-syntax is :/....
-
-
 # File Structure
 ```
 data_discovery_ai/
 ├── common/         # Common utilities, including shared configurations and constants, used across modules
+   ├── parameters.yaml         # parameters for Agent models and ML models
+   ├── constants.py         # shared constants
 ├── model/          # Core ML logic, including model training, evaluation, and inference implementations
 ├── pipeline/       # Data pipelines for using ML models
 ├── resources/      # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
 ├── services/       # Service modules for providing service functions for API use
 ├── utils/          # Utility functions and helper scripts for various tasks
-├── extras/         # Supplementary files
 ├── notebooks/      # Jupyter notebooks documenting the design, experiments, and practical usage of AI features
 ├── tests/          # Unit test for critical functions
 ```

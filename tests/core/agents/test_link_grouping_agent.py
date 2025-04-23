@@ -1,7 +1,7 @@
 # unit test for the link grouping agent in model/linkGroupingAgent.py
 import unittest
 from unittest.mock import patch, MagicMock
-from data_discovery_ai.model.linkGroupingAgent import LinkGroupingAgent
+from data_discovery_ai.core.agents.linkGroupingAgent import LinkGroupingAgent
 from data_discovery_ai.utils.config_utils import ConfigUtil
 
 

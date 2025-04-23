@@ -8,7 +8,7 @@ import re
 import json
 
 from data_discovery_ai import logger
-from data_discovery_ai.model.baseAgent import BaseAgent
+from data_discovery_ai.core.agents.baseAgent import BaseAgent
 from data_discovery_ai.utils.config_utils import ConfigUtil
 
 
@@ -37,8 +37,10 @@ class DescriptionFormattingAgent(BaseAgent):
             request (Dict[str, str]): The request format.
         """
         flag = self.make_decision(request)
-        if not flag:
+        if not flag and "abstract" in request:
             self.response = {self.model_config["response_key"]: request["abstract"]}
+        elif not flag and "abstract" not in request:
+            self.response = {self.model_config["response_key"]: ""}
         else:
             title = request["title"]
             abstract = request["abstract"]

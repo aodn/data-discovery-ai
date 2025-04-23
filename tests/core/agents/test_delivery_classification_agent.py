@@ -1,7 +1,7 @@
 # The unit test for the delivery mode classification agent in model/deliveryClassificationAgent.py
 import unittest
 from unittest.mock import patch, MagicMock
-from data_discovery_ai.model.deliveryClassificationAgent import (
+from data_discovery_ai.core.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
 )
 from data_discovery_ai.utils.config_utils import ConfigUtil
@@ -26,7 +26,7 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         # Test invalid request with missing field
         self.assertFalse(self.agent.make_decision(self.invalid_request))
 
-    @patch("data_discovery_ai.model.deliveryClassificationAgent.logger")
+    @patch("data_discovery_ai.core.agents.deliveryClassificationAgent.logger")
     def test_execute(self, mock_logger):
         self.agent.make_decision = MagicMock(return_value=True)
         self.agent.take_action = MagicMock(return_value="real-time")

@@ -3,15 +3,15 @@ from typing import Dict, Union
 
 from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai import logger
-from data_discovery_ai.model.baseAgent import BaseAgent
-from data_discovery_ai.model.descriptionFormattingAgent import (
+from data_discovery_ai.core.agents.baseAgent import BaseAgent
+from data_discovery_ai.core.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
 )
-from data_discovery_ai.model.keywordClassificationAgent import (
+from data_discovery_ai.core.agents.keywordClassificationAgent import (
     KeywordClassificationAgent,
 )
-from data_discovery_ai.model.linkGroupingAgent import LinkGroupingAgent
-from data_discovery_ai.model.deliveryClassificationAgent import (
+from data_discovery_ai.core.agents.linkGroupingAgent import LinkGroupingAgent
+from data_discovery_ai.core.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
 )
 

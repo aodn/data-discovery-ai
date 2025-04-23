@@ -1,6 +1,6 @@
 # The agent-based model for data delivery mode classification task
 from data_discovery_ai import logger
-from data_discovery_ai.model.baseAgent import BaseAgent
+from data_discovery_ai.core.agents.baseAgent import BaseAgent
 from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.common.constants import FILTER_FOLDER
