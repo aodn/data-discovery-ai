@@ -96,6 +96,27 @@ The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`
 pre-commit run --all-files
 ```
 
+# Usage
+When the server is running, there are two available routers:
+- Health check through `/api/v1/ml/health`. Get method, no request parameter required.
+- One single point for calling AI models to process metadata record through `/api/v1/ml/process_record`. Post method. JSON format request required. For example:
+```JSON
+{
+    "selected_model":["description_formatting"],
+    "title": "test title",
+    "abstract": "test abstract"
+}
+```
+
+**Required Fields**
+
+- `selected_model`: the AI models provided by `data-discovery-ai`. It should be a list of strings, which are the name of the AI task agents. Currently, four AI task agents available for distinctive tasks:
+    - `keyword_classification`: predict keywords from AODN vocabularies based on metadata `title` and `abstract` with pretrained ML model.
+    - `delivery_classification`: predict data delivery mode based on metadata `title`, `abstract`, and `lineage` with pretrained ML model.
+    - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-4o-mini".
+    - `link_grouping`: categorising links into four groups: ["Python Notebook", "Document", "Data Access", "Other"] based on metadata `links`.
+- For selected models, their required fields are needed to be passed. 
+
 # File Structure
 ```
 data_discovery_ai/
