@@ -106,7 +106,7 @@ class KeywordClassificationAgent(BaseAgent):
             prediction: np.ndarray. The predicted binary matrix.
             labels: Dict. The predefiend keywords.
         Output:
-            predicted_keywords: pd.Series. The predicted ketwords for the given targets.
+            predicted_keywords: pd.Series. The predicted keywords for the given targets.
         """
         target_predicted = pd.DataFrame(prediction, columns=labels)
         predicted_keywords = target_predicted.apply(

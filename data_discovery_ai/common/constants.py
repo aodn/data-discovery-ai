@@ -1,15 +1,6 @@
 API_PREFIX = "/api/v1/ml"
 API_KEY_NAME = "X-API-Key"
 AVAILABLE_MODELS = ["development", "staging", "production", "experimental", "benchmark"]
-AVAILABLE_AI_AGENT = [
-    {"model": "keyword_classification", "required fields": ["title", "abstract"]},
-    {
-        "model": "delivery_classification",
-        "required fields": ["title", "abstract", "lineage"],
-    },
-    {"model": "description_formatting", "required fields": ["title", "abstract"]},
-    {"model": "link_grouping", "required fields": ["links"]},
-]
 MAX_PROCESS = 4
 
 PARAMETER_FILE = "parameters.yaml"

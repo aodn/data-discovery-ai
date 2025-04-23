@@ -15,12 +15,6 @@ class BaseAgent:
         """
         self.required_fields = required_fields
 
-    def make_decision(self, request: Dict[str, str]) -> bool:
-        """
-        Make decision based on the request. This should be overridden by subclasses.
-        """
-        return True
-
     def is_valid_request(self, request: Dict[str, str], required_fields) -> bool:
         """
         Check if the request is valid, i.e., if it contains all required fields. The required fileds are defiend in 'common/constants.py' file.
