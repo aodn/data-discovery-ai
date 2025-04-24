@@ -125,7 +125,6 @@ class KeywordClassificationAgent(BaseAgent):
             saved_model = load_model(model_file_path, compile=False)
             return saved_model
         except Exception as e:
-            logger.error(f"Error loading model: {e}")
             logger.error(
                 f"Failed to load selected model {pretrained_model_name} from folder {model_file_path}"
             )
