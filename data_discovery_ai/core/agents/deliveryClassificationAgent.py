@@ -85,10 +85,7 @@ class DeliveryClassificationAgent(BaseAgent):
         pretrained_model_name = self.model_config["pretrained_model"]
         # load model pickle file
         model_file_path = (
-            Path(__file__).resolve().parent.parent
-            / "resources"
-            / FILTER_FOLDER
-            / pretrained_model_name
+            self.config.base_dir / "resources" / FILTER_FOLDER / pretrained_model_name
         )
         trained_model = load_from_file(model_file_path.with_suffix(".pkl"))
 
