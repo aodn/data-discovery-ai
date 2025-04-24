@@ -57,7 +57,7 @@ async def health_check() -> HealthCheckResponse:
 
 
 @router.post("/process_record", dependencies=[Depends(api_key_auth)])
-async def process_record(request: Request) -> None:
+async def process_record(request: Request) -> JSONResponse:
     body = await request.json()
     logger.info("Request details: %s", body)
     supervisor = SupervisorAgent()

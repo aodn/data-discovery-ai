@@ -26,7 +26,7 @@ class DescriptionFormattingAgent(BaseAgent):
         super().set_required_fields(required_fields)
 
     def is_valid_request(self, request: Dict[str, str]) -> bool:
-        return super().is_valid_request(request, self.required_fields)
+        return super().is_valid_request(request)
 
     def execute(self, request: Dict[str, str]) -> None:
         """

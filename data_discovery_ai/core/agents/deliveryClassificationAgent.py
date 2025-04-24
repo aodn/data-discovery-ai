@@ -5,8 +5,7 @@ from data_discovery_ai.utils.config_utils import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.common.constants import FILTER_FOLDER
 
-from typing import Any, Tuple
-from pathlib import Path
+from typing import Any, Tuple, Dict
 
 
 class DeliveryClassificationAgent(BaseAgent):
@@ -24,15 +23,12 @@ class DeliveryClassificationAgent(BaseAgent):
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
 
-    def is_valid_request(self, request, required_fields):
-        return super().is_valid_request(request, required_fields)
+    def is_valid_request(self, request: Dict[str, str]) -> bool:
+        return super().is_valid_request(request)
 
-    def make_decision(self, request):
+    def make_decision(self, request) -> bool:
         # the complex decision making is done by the es-indexer end, here we simply check if the request is valid
-        if self.is_valid_request(request, self.required_fields):
-            return True
-        else:
-            return False
+        return self.is_valid_request(request)
 
     def take_action(self, title: str, abstract: str, lineage: str) -> str:
         """

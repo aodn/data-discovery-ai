@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Optional
-from tensorflow.keras.models import load_model
+from keras.api.models import load_model
 
 from data_discovery_ai import logger
 from data_discovery_ai.core.agents.baseAgent import BaseAgent
@@ -23,15 +23,12 @@ class KeywordClassificationAgent(BaseAgent):
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
 
-    def is_valid_request(self, request) -> bool:
-        return super().is_valid_request(request, self.required_fields)
+    def is_valid_request(self, request: Dict[str, str]) -> bool:
+        return super().is_valid_request(request)
 
-    def make_decision(self, request):
+    def make_decision(self, request) -> bool:
         # the agent will always take action if the request is valid, as the decision is made from es-indexer
-        if self.is_valid_request(request):
-            return True
-        else:
-            return False
+        return self.is_valid_request(request)
 
     def execute(self, request: dict) -> None:
         """

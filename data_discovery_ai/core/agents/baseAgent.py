@@ -15,24 +15,23 @@ class BaseAgent:
         """
         self.required_fields = required_fields
 
-    def is_valid_request(self, request: Dict[str, str], required_fields) -> bool:
+    def is_valid_request(self, request: Dict[str, str]) -> bool:
         """
         Check if the request is valid, i.e., if it contains all required fields. The required fileds are defiend in 'common/constants.py' file.
         Input:
             request (Dict[str, str]): The request format.
-            required_fields (list): The list of required fields.
         Output:
             bool: True if the request is valid, False otherwise.
         """
-        return all(field in request.keys() for field in required_fields)
+        return all(field in request.keys() for field in self.required_fields)
 
-    def make_decision(self, request: Dict[str, str]) -> bool:
+    def make_decision(self, request: Dict[str, str]):
         """
         Make decision based on the request. This should be overridden by subclasses.
         """
-        return True
+        pass
 
-    def execute(self, request: Dict[str, str]) -> None:
+    def execute(self, request: Dict[str, str]):
         """
         Execute the agent's task. This should be overridden by subclasses.
         """

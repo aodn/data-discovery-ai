@@ -33,10 +33,11 @@ class SupervisorAgent(BaseAgent):
             "delivery_classification": DeliveryClassificationAgent,
         }
 
-    def make_decision(self, request: Dict):
+    def make_decision(self, request: Dict) -> bool:
         """
         Assign the task agents based on the selected models in the request.
         Input: request: Dict. The request from API call
+        Output: bool. True if the request is valid and task agents are assigned, False otherwise.
         """
         is_valid = self.is_valid_request(request)
         if is_valid:
@@ -66,10 +67,11 @@ class SupervisorAgent(BaseAgent):
         agent.execute(request)
         return agent.response
 
-    def take_action(self, request: Dict):
+    def take_action(self, request: Dict) -> Dict:
         """
         Run the task agents in parallel using multiprocessing.
         Input: request: Dict. The request from API call
+        Output: Dict. The combined response from all task agents.
         """
         with Pool(processes=MAX_PROCESS) as pool:
             results = pool.map(

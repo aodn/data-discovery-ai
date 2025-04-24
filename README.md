@@ -15,7 +15,7 @@ OPENAI_API_KEY="your_actual_openai_api_key"
 ```
 These variables are required for the application to function properly.
 
-**Note:** If you are running the application from a deployment environment, you do not need to set these variables manually as they are already configured in the cloud environment. You may not need an OPENAI_API_KEY if `description_formatting` model was not called.
+**Note:** If you are running the application from a deployment environment, you do not need to set `API_KEY` manually as it has been already configured in the cloud environment. You may not need an OPENAI_API_KEY if `description_formatting` model was not called.
 
 If you are going to train the model, make sure these variables have been set up for connecting Elasticsearch:
 ```shell
