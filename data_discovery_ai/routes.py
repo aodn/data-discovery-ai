@@ -50,7 +50,7 @@ async def health_check() -> HealthCheckResponse:
     ):
         return HealthCheckResponse(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-            status="Service Unavailable: Pretrained models not found",
+            status="Service Unavailable: Pretrained models or OpenAI API Key not found",
         )
     else:
         return HealthCheckResponse(status_code=HTTPStatus.OK, status="healthy")
