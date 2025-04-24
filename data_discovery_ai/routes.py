@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from http import HTTPStatus
-import json
+from dotenv import load_dotenv
+import os
 
 from data_discovery_ai.common.constants import API_PREFIX
 from data_discovery_ai.utils.api_utils import api_key_auth
@@ -37,7 +38,16 @@ async def health_check() -> HealthCheckResponse:
     delivery_model_path = (
         base_path / FILTER_FOLDER / delivery_default_model
     ).with_suffix(".pkl")
-    if not keyword_model_path.exists() or not delivery_model_path.exists():
+
+    # if the OPENAI API key is not set, the service should be unavailable
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+
+    if (
+        not keyword_model_path.exists()
+        or not delivery_model_path.exists()
+        or not not openai_api_key
+    ):
         return HealthCheckResponse(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
             status="Service Unavailable: Pretrained models not found",
