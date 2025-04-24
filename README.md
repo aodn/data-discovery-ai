@@ -115,7 +115,7 @@ When the server is running, there are two available routers:
     - `delivery_classification`: predict data delivery mode based on metadata `title`, `abstract`, and `lineage` with pretrained ML model.
     - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-4o-mini".
     - `link_grouping`: categorising links into four groups: ["Python Notebook", "Document", "Data Access", "Other"] based on metadata `links`.
-- For selected models, their required fields are needed to be passed. 
+- For selected models, their required fields are needed to be passed.
 
 # File Structure
 ```
@@ -146,3 +146,36 @@ All test files are located in the `tests` folder at the root of the project. To 
 ```bash
 poetry run python -m unittest discover -s tests
 ```
+
+
+## Commit
+
+We are using [gitmoji](https://gitmoji.dev/)(OPTIONAL) with husky and commitlint. Here you have an example of the most used ones:
+
+- :art: - Improving structure/format of the code.
+- :zap: - Improving performance.
+- :fire: - Removing code or files.
+- :bug: - Fixing a bug.
+- :ambulance: - Critical hotfix.
+- :sparkles: - Introducing new features.
+- :memo: - Adding or updating documentation.
+- :rocket: - Deploying stuff.
+- :lipstick: - Updating the UI and style files.
+- :tada: - Beginning a project.
+
+Example of use:
+`:wrench: add husky and commitlint config`
+
+## Branching name
+
+- `hotfix/`: for quickly fixing critical issues,
+- `usually/`: with a temporary solution
+- `bugfix/`: for fixing a bug
+- `feature/`: for adding, removing or modifying a feature
+- `test/`: for experimenting something which is not an issue
+- `wip/`: for a work in progress
+
+And add the issue id after an `/` followed with an explanation of the task.
+
+Example of use:
+`feature/5348-create-react-app`
