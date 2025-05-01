@@ -5,11 +5,10 @@ from http import HTTPStatus
 from dotenv import load_dotenv
 import os
 
-from data_discovery_ai.common.constants import API_PREFIX
+from data_discovery_ai.config.constants import API_PREFIX, FILTER_FOLDER, KEYWORD_FOLDER
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai import logger
-from data_discovery_ai.utils.config_utils import ConfigUtil
-from data_discovery_ai.common.constants import FILTER_FOLDER, KEYWORD_FOLDER
+from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 router = APIRouter(prefix=API_PREFIX)

@@ -1,7 +1,7 @@
 # unit test for config_utils.py
 import unittest
 from unittest.mock import patch, mock_open
-from data_discovery_ai.utils.config_utils import ConfigUtil
+from data_discovery_ai.config.config import ConfigUtil
 
 
 MOCK_YAML_CONTENT = """
@@ -20,7 +20,7 @@ model:
 
 
 class TestConfigUtil(unittest.TestCase):
-    @patch("data_discovery_ai.utils.config_utils.Path.exists", return_value=True)
+    @patch("data_discovery_ai.config.config.Path.exists", return_value=True)
     @patch("builtins.open", new_callable=mock_open, read_data=MOCK_YAML_CONTENT)
     def setUp(self, mock_file, mock_exists):
         self.config_util = ConfigUtil()

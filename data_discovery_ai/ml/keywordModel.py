@@ -22,7 +22,6 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import Dense, Input, Dropout
 from tensorflow.keras import Sequential
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from sklearn.utils.class_weight import compute_class_weight
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 
@@ -37,7 +36,7 @@ os.environ["TF_USE_LEGACY_KERAS"] = "1"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-from data_discovery_ai.common.constants import KEYWORD_FOLDER
+from data_discovery_ai.config.constants import KEYWORD_FOLDER
 
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:

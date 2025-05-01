@@ -1,10 +1,8 @@
 #  unit test for model/keywordClassificationAgent.py
 import unittest
-from unittest.mock import patch, MagicMock
-from data_discovery_ai.core.agents.keywordClassificationAgent import (
+from data_discovery_ai.agents.keywordClassificationAgent import (
     KeywordClassificationAgent,
 )
-from data_discovery_ai.utils.config_utils import ConfigUtil
 
 
 class TestKeywordClassificationAgent(unittest.TestCase):

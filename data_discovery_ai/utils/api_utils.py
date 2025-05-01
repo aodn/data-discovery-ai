@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from fastapi import Security, HTTPException, status
 from fastapi.security import APIKeyHeader
 
-from data_discovery_ai.common.constants import API_KEY_NAME, AVAILABLE_MODELS
+from data_discovery_ai.config.constants import API_KEY_NAME, AVAILABLE_MODELS
 
 # Load environment variables from .env file
 load_dotenv()

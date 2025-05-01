@@ -1,7 +1,7 @@
 # unit test for model/descriptionFormattingAgent.py
 import unittest
 from unittest.mock import patch, MagicMock, call
-from data_discovery_ai.core.agents.descriptionFormattingAgent import (
+from data_discovery_ai.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
 )
 
@@ -43,15 +43,15 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
         result = self.agent.retrieve_json(output)
         self.assertEqual(result, "#title **Formatted abstract**")
 
-    @patch("data_discovery_ai.core.agents.descriptionFormattingAgent.logger")
+    @patch("data_discovery_ai.agents.descriptionFormattingAgent.logger")
     def test_retrieve_json_invalid(self, mock_logger):
         test_no_json_output = "A test string with no JSON output"
         result = self.agent.retrieve_json(test_no_json_output)
         self.assertEqual(result, "A test string with no JSON output")
         mock_logger.error.assert_called_once_with("No JSON found in LLM response.")
 
-    @patch("data_discovery_ai.core.agents.descriptionFormattingAgent.logger")
-    @patch("data_discovery_ai.core.agents.descriptionFormattingAgent.OpenAI")
+    @patch("data_discovery_ai.agents.descriptionFormattingAgent.logger")
+    @patch("data_discovery_ai.agents.descriptionFormattingAgent.OpenAI")
     def test_execute_agent(self, mock_openai, mock_logger):
         mock_completion = MagicMock()
         mock_completion.choices[

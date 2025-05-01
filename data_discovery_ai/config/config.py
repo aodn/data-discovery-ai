@@ -1,5 +1,5 @@
 from pathlib import Path
-from data_discovery_ai.common.constants import PARAMETER_FILE
+from data_discovery_ai.config.constants import PARAMETER_FILE
 from typing import Dict, Any, TypedDict
 import yaml
 
@@ -72,7 +72,7 @@ class FullConfig(TypedDict):
 class ConfigUtil:
     def __init__(self, config_file: str = PARAMETER_FILE) -> None:
         self.base_dir = Path(__file__).resolve().parent.parent
-        self.config_file = self.base_dir / "common" / config_file
+        self.config_file = self.base_dir / "config" / config_file
         self._config_data: FullConfig = self._load_yaml()
 
     def _load_yaml(self) -> FullConfig:

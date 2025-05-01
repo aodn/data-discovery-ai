@@ -2,8 +2,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from data_discovery_ai.core.agents.supervisorAgent import SupervisorAgent
-from data_discovery_ai.core.agents.descriptionFormattingAgent import (
+from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
+from data_discovery_ai.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
 )
 
@@ -26,7 +26,7 @@ class TestSupervisorAgent(unittest.TestCase):
 
         self.non_dict_request = "this is a non dict request"
 
-    @patch("data_discovery_ai.core.agents.supervisorAgent.logger")
+    @patch("data_discovery_ai.agents.supervisorAgent.logger")
     def test_is_valid_request(self, mock_logger):
         # Test valid request
         self.assertTrue(self.agent.is_valid_request(self.valid_request))
@@ -46,7 +46,7 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertEqual(len(self.agent.task_agents), 1)
         self.assertIsInstance(self.agent.task_agents[0], DescriptionFormattingAgent)
 
-    @patch("data_discovery_ai.core.agents.supervisorAgent.Pool")
+    @patch("data_discovery_ai.agents.supervisorAgent.Pool")
     def test_execute(self, mock_pool_class):
         mock_pool = MagicMock()
         mock_pool.map.return_value = [

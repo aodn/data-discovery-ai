@@ -8,8 +8,8 @@ import re
 import json
 
 from data_discovery_ai import logger
-from data_discovery_ai.core.agents.baseAgent import BaseAgent
-from data_discovery_ai.utils.config_utils import ConfigUtil
+from data_discovery_ai.agents.baseAgent import BaseAgent
+from data_discovery_ai.config.config import ConfigUtil
 
 
 class DescriptionFormattingAgent(BaseAgent):

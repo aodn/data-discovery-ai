@@ -1,21 +1,21 @@
 from multiprocessing import Pool
 from typing import Dict, Union
 
-from data_discovery_ai.utils.config_utils import ConfigUtil
+from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai import logger
-from data_discovery_ai.core.agents.baseAgent import BaseAgent
-from data_discovery_ai.core.agents.descriptionFormattingAgent import (
+from data_discovery_ai.agents.baseAgent import BaseAgent
+from data_discovery_ai.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
 )
-from data_discovery_ai.core.agents.keywordClassificationAgent import (
+from data_discovery_ai.agents.keywordClassificationAgent import (
     KeywordClassificationAgent,
 )
-from data_discovery_ai.core.agents.linkGroupingAgent import LinkGroupingAgent
-from data_discovery_ai.core.agents.deliveryClassificationAgent import (
+from data_discovery_ai.agents.linkGroupingAgent import LinkGroupingAgent
+from data_discovery_ai.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
 )
 
-from data_discovery_ai.common.constants import MAX_PROCESS
+from data_discovery_ai.config.constants import MAX_PROCESS
 
 
 class SupervisorAgent(BaseAgent):
