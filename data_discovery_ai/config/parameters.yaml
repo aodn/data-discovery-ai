@@ -1,0 +1,103 @@
+elasticsearch:
+  batch_size: 100
+  sleep_time: 5
+  es_index_name: es-indexer-staging
+model:
+  supervisor:
+    response_key: result
+    task_agents:
+      keyword_classification:
+        required_fields:
+          - title
+          - abstract
+      delivery_classification:
+        required_fields:
+          - title
+          - abstract
+          - lineage
+      description_formatting:
+        required_fields:
+          - title
+          - abstract
+      link_grouping:
+        required_fields:
+          - links
+  keyword_classification:
+    confidence: 0.5
+    top_N: 2
+    separator: " [SEP] "
+    pretrained_model: development
+    response_key: "classified_keywords"
+  description_formatting:
+    model: gpt-4o-mini
+    temperature: 0.1
+    max_tokens: 10000
+    response_key: "formatted_abstract"
+  delivery_classification:
+    pretrained_model: development
+    separator: " [SEP] "
+    response_key: "classified_delivery_mode"
+  link_grouping:
+    response_key: "grouped_links"
+    grouping_rules:
+      Python Notebook:
+        href:
+          - ipynb
+      Document:
+        href:
+          - pdf
+          - doc
+        title:
+          - document
+          - documentation
+          - manual
+          - guide
+          - help
+          - report
+      Data Access:
+        href:
+          - access
+          - download
+          - csv
+          - xlsx
+          - json
+          - nc
+          - zip
+          - wfs
+          - wms
+          - ows
+          - thredds
+          - trawler
+          - data_type
+          - format
+        title:
+          - data access
+          - data download
+          - download data
+          - access data
+        content:
+          - [data, dataset]
+          - [download]
+  #  for training the pre-trained classification models
+
+  trainer:
+    keyword_classification:
+      vocabs:
+        - AODN Discovery Parameter Vocabulary
+        - AODN Platform Vocabulary
+      test_size: 0.2
+      n_splits: 5
+      dropout: 0.3
+      learning_rate: 0.0005
+      fl_gamma: 2
+      fl_alpha: 0.8
+      epoch: 100
+      batch_size: 32
+      early_stopping_patience: 5
+      reduce_lr_patience: 5
+      validation_split: 0.2
+    delivery_classification:
+      test_size: 0.3
+      n_estimators: 10
+      threshold: 0.9
+      n_components: 0.9

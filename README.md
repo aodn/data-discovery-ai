@@ -121,16 +121,17 @@ When the server is running, there are two available routers:
 # File Structure
 ```
 data_discovery_ai/
-├── common/         # Common utilities, including shared configurations and constants, used across modules
-   ├── parameters.yaml         # parameters for Agent models and ML models
-   ├── constants.py         # shared constants
-├── core/         # core function, including agent models and ML models
-   ├── agents/         # Agents for using AI/ML models
-   ├── models/         # Core ML logic, including model training, evaluation, and inference implementations
-├── resources/      # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
-├── utils/          # Utility functions and helper scripts for various tasks
-├── notebooks/      # Jupyter notebooks documenting the design, experiments, and practical usage of AI features
-├── tests/          # Unit test for critical functions
+├── config/             # Common utilities and shared configurations/constants used across modules│
+├── core/               # Core logic of the application such as API routes
+├── agents/             # Task-specific agent modules using ML/AI/rule-based tools
+├── ml/                 # Machine learning models: training, inference, evaluation logic
+├── utils/              # Utility functions and helper scripts for various tasks
+├── resources/          # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
+├── notebooks/          # Jupyter notebooks
+├── tests/              # Unit tests for validating core components
+│   ├── agents
+│   └── utils
+├── server.py             # FastAPI application entry point
 ```
 
 ## Required Configuration Files
