@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Tuple
 from configparser import ConfigParser
 
-from data_discovery_ai.common.constants import FILTER_FOLDER
+from data_discovery_ai.config.constants import FILTER_FOLDER
 from data_discovery_ai.utils.preprocessor import (
     save_to_file,
     load_from_file,

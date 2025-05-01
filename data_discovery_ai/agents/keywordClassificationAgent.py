@@ -85,14 +85,14 @@ class KeywordClassificationAgent(BaseAgent):
 
     def replace_with_column_names(
         self, row: pd.SparseDtype, column_names: List[int]
-    ) -> List[str]:
+    ) -> List[Any]:
         """
         Transform a row of binary values and returns a list of column names for which the value in the row is 1.
         Input:
             row: pd.Series. A row of binary values indicating presence (1) or absence (0) of each label.
             column_names: List[int]. The anonymous predefiend label set.
         Output:
-            str: The predicted keywords
+            List[Any]: The predicted keywords as a list of concepts.
         """
         return [column_names[i] for i, value in enumerate(row) if value == 1]
 
@@ -138,3 +138,14 @@ class KeywordClassificationAgent(BaseAgent):
         )
         labels = load_from_file(labels_file_path)
         return labels
+
+
+if __name__ == "__main__":
+    agent = KeywordClassificationAgent()
+    agent.execute(
+        {
+            "title": "Sample Title",
+            "abstract": "Sample Abstract",
+        }
+    )
+    print(agent.response)

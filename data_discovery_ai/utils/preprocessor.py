@@ -21,7 +21,7 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from tqdm import tqdm
 from typing import Dict
 
-from data_discovery_ai.common.constants import RARE_LABEL_THRESHOLD
+from data_discovery_ai.config.constants import RARE_LABEL_THRESHOLD
 
 # TODO: use the below line after fix 'dada_discovery_ai' module not exist issue in notebook: ModuleNotFoundError: No module named 'data_discovery_ai'
 # from data_discovery_ai import logger

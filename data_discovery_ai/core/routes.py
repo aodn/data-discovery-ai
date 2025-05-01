@@ -5,7 +5,12 @@ from http import HTTPStatus
 from dotenv import load_dotenv
 import os
 
-from data_discovery_ai.config.constants import API_PREFIX, FILTER_FOLDER, KEYWORD_FOLDER
+from data_discovery_ai.config.constants import (
+    API_PREFIX,
+    FILTER_FOLDER,
+    KEYWORD_FOLDER,
+    KEYWORD_LABEL_FILE,
+)
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai import logger
 from data_discovery_ai.config.config import ConfigUtil
@@ -34,22 +39,28 @@ async def health_check() -> HealthCheckResponse:
     keyword_model_path = (
         base_path / KEYWORD_FOLDER / keyword_default_model
     ).with_suffix(".keras")
+    keyword_label_path = base_path / KEYWORD_FOLDER / KEYWORD_LABEL_FILE
     delivery_model_path = (
         base_path / FILTER_FOLDER / delivery_default_model
     ).with_suffix(".pkl")
 
     # if the OPENAI API key is not set, the service should be unavailable
     load_dotenv()
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if os.getenv("ENVIRONMENT") != "development":
+        openai_api_key = os.getenv("OPENAI_API_KEY")
 
     if (
-        not keyword_model_path.exists()
+        not (keyword_model_path.exists() or not keyword_label_path.exists())
         or not delivery_model_path.exists()
-        or not not openai_api_key
     ):
         return HealthCheckResponse(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-            status="Service Unavailable: Pretrained models or OpenAI API Key not found",
+            status="Service Unavailable: Pretrained models or related resource not found.",
+        )
+    elif os.getenv("ENVIRONMENT") != "development" and not openai_api_key:
+        return HealthCheckResponse(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            status="Service Unavailable: OpenAI API key not set.",
         )
     else:
         return HealthCheckResponse(status_code=HTTPStatus.OK, status="healthy")
