@@ -178,7 +178,7 @@ class ConfigUtil:
             defaults = {
                 "model": "llama3",
                 "temperature": 0.0,
-                "max_tokens": 4056,
+                "max_tokens": 4000,
                 "response_key": "formatted_abstract",
             }
         else:
