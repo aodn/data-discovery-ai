@@ -1,6 +1,5 @@
 # unit test for model/descriptionFormattingAgent.py
 import unittest
-import os
 from unittest.mock import patch, MagicMock, call
 from data_discovery_ai.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
@@ -55,7 +54,9 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
     @patch("data_discovery_ai.agents.descriptionFormattingAgent.chat")
     def test_execute_agent(self, mock_chat, mock_logger):
         fake_resp = MagicMock()
-        fake_resp.message.content = '{"formatted_abstract": "#title **Formatted abstract**"}'
+        fake_resp.message.content = (
+            '{"formatted_abstract": "#title **Formatted abstract**"}'
+        )
         mock_chat.return_value = fake_resp
 
         self.agent.execute(self.valid_request)
@@ -72,6 +73,7 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
         ]
         mock_logger.info.assert_has_calls(expected_calls)
         self.assertEqual(mock_logger.info.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
