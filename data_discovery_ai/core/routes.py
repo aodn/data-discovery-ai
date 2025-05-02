@@ -20,12 +20,6 @@ from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 load_dotenv()
 router = APIRouter(prefix=API_PREFIX)
 
-supervisor_agent = SupervisorAgent()
-
-
-def get_supervisor() -> SupervisorAgent:
-    return supervisor_agent
-
 
 async def ensure_ready():
     """
@@ -106,15 +100,15 @@ async def health_check() -> HealthCheckResponse:
 @router.post(
     "/process_record", dependencies=[Depends(api_key_auth), Depends(ensure_ready)]
 )
-async def process_record(
-    request: Request, supervisor: SupervisorAgent = Depends(get_supervisor)
-) -> JSONResponse:
+async def process_record(request: Request) -> JSONResponse:
     """
     Process a record through the SupervisorAgent.
     Requires a valid API key and that the service is ready.
     """
     body = await request.json()
     logger.info("Request details: %s", body)
+
+    supervisor = SupervisorAgent()
 
     if not supervisor.is_valid_request(body):
         raise HTTPException(

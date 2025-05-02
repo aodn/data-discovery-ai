@@ -153,7 +153,7 @@ class DescriptionFormattingAgent(BaseAgent):
         # try directly parsing the JSON-like block first, it should be applied for all GPT-4o-mini model outputs
         match = re.search(r"\{.*?\}", output, re.DOTALL)
         if not match:
-            logger.error("No JSON-like block found.")
+            logger.error("No JSON found in LLM response.")
             return output.strip()
 
         json_str = match.group()
@@ -161,14 +161,14 @@ class DescriptionFormattingAgent(BaseAgent):
             parsed = json.loads(json_str)
             return parsed["formatted_abstract"]
         except json.JSONDecodeError:
-            logger.warning("Standard JSON parse failed, trying triple-quote fallback.")
+            logger.warning("No JSON found in LLM response.")
 
         # if the first attempt fails, try to find a triple-quote JSON block, the llama often outputs in this way
         triple = re.search(
             r'\{\s*"formatted_abstract"\s*:\s*""".*?"""\s*\}', output, re.DOTALL
         )
         if not triple:
-            logger.error("No triple-quote JSON block found either.")
+            logger.error("No JSON found in LLM response.")
             return output.strip()
 
         block = triple.group()
@@ -183,5 +183,5 @@ class DescriptionFormattingAgent(BaseAgent):
             parsed = json.loads(fixed)
             return parsed["formatted_abstract"]
         except Exception as e:
-            logger.error(f"Fallback JSON parse still failed: {e}")
+            logger.error(f"No JSON found in LLM response.")
             return output.strip()
