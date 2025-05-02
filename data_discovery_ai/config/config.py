@@ -183,7 +183,7 @@ class ConfigUtil:
             }
         else:
             defaults = {
-                "model": "openai",
+                "model": "gpt-4o-mini",
                 "temperature": 0.1,
                 "max_tokens": 10000,
                 "response_key": "formatted_abstract",
