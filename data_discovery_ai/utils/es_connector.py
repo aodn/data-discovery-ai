@@ -1,17 +1,16 @@
-from elasticsearch import (
-    Elasticsearch,
-)  # TODO: please use poetry add command to install any new libraries
-import configparser
+from elasticsearch import Elasticsearch
 import logging
 import pandas as pd
 from tqdm import tqdm
 import time
+import os
+from dotenv import load_dotenv
+
+from data_discovery_ai import logger
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-"""
+def connect_es() -> Elasticsearch:
+    """
     Function to connect the ElasticSearch
     Input:
         config_path: str. The config file path to store the end_point and api_key information. Formatted as:
@@ -20,12 +19,11 @@ logger.setLevel(logging.INFO)
                         api_key="elasticsearch_api_key"
     Output:
         client:Elasticsearch. An initialised Elasticsearch client instance.
-"""
+    """
+    load_dotenv()
 
-
-def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
-    end_point = config["elasticsearch"]["end_point"]
-    api_key = config["elasticsearch"]["api_key"]
+    end_point = os.getenv("ES_ENDPOINT")
+    api_key = os.getenv("ES_API_KEY")
     try:
         client = Elasticsearch(end_point, api_key=api_key)
         logging.info("Connected to ElasticSearch")
@@ -34,7 +32,13 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
         logger.error(f"Elasticsearch connection failed: {e}")
 
 
-"""
+def search_es(
+    client: Elasticsearch,
+    index: str,
+    batch_size: int,
+    sleep_time: int,
+) -> pd.DataFrame:
+    """
     Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
     Input:
         client: Elasticsearch. The initialised Elasticsearch client instance
@@ -43,15 +47,7 @@ def connect_es(config: configparser.ConfigParser) -> Elasticsearch:
         sleep_time: int. The number of seconds of sleep time between each query. This should be set with consideration of 'batch_size'. If 'batch_size' is large, set 'sleep_time' to a large number to ensure each query is finished and does not impact the next query.
     Output:
         raw_data: pd.DataFrame. The fetched raw data in a tabular format.
-"""
-
-
-def search_es(
-    client: Elasticsearch,
-    index: str = "es-indexer-staging",
-    batch_size: int = 100,
-    sleep_time: int = 5,
-):
+    """
     dataframes = []
 
     # get document count

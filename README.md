@@ -5,12 +5,22 @@
 
 ## Environment variables
 
-In the root directory of the project, create a `.env` file.
+If you wish to run the application locally, navigate to the root directory of the project and create a `.env` file.
 
-Open the `.env` file and add the following line to include your API key:
+Open the `.env` file and add the following lines to for using this application:
 
 ```shell
-API_KEY=your_actual_api_key_here
+API_KEY="your_actual_api_key_here"
+OPENAI_API_KEY="your_actual_openai_api_key"
+```
+These variables are required for the application to function properly.
+
+**Note:** If you are running the application from a deployment environment, you do not need to set `API_KEY` manually as it has been already configured in the cloud environment. You may not need an OPENAI_API_KEY if `description_formatting` model was not called.
+
+If you are going to train the model, make sure these variables have been set up for connecting Elasticsearch:
+```shell
+ES_ENDPOINT="your_actual_elasticsearch_endpoint"
+ES_API_KEY="your_actual_es_api_key"
 ```
 
 ## Run the API server with Docker
@@ -86,68 +96,88 @@ The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`
 pre-commit run --all-files
 ```
 
-# Edge/syste/prod
+# Usage
+When the server is running, there are two available routers:
+- Health check through `/api/v1/ml/health`. Get method, no request parameter required.
+- One single point for calling AI models to process metadata record through `/api/v1/ml/process_record`. Post method. JSON format request required. For example:
+```JSON
+{
+    "selected_model":["description_formatting"],
+    "title": "test title",
+    "abstract": "test abstract"
+}
+```
 
-models name stricly controller:
+**Required Fields**
 
-available options : `development`,`experimental`, `staging`, `production`, `benchmark`
-| Option | Purpose | Typical Use |
-| ---- | ---- | ---- |
-| `development` | Dedicated to active model development, testing, and iteration. | Building and refining new model versions, features, or datasets. |
-| `experimental` | Supports exploratory work for new techniques or fine-tuning. | Experimenting with new architectures, features, or hyperparameter tuning. |
-| `staging` | Prepares the model for production with real-use evaluations. | Conducting final testing in a production-like environment to verify stability and performance. |
-| `production` | Deployment environment for live model usage in real-world scenarios. | Running and monitoring models in active use by API. |
-| `benchmark` | Baseline model used to assess improvements or changes. | Comparing performance metrics against new models. |
-
-# Devlopment
-
-syntax is :/....
-
+- `selected_model`: the AI models provided by `data-discovery-ai`. It should be a list of strings, which are the name of the AI task agents. Currently, four AI task agents available for distinctive tasks:
+    - `keyword_classification`: predict keywords from AODN vocabularies based on metadata `title` and `abstract` with pretrained ML model.
+    - `delivery_classification`: predict data delivery mode based on metadata `title`, `abstract`, and `lineage` with pretrained ML model.
+    - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-4o-mini".
+    - `link_grouping`: categorising links into four groups: ["Python Notebook", "Document", "Data Access", "Other"] based on metadata `links`.
+- For selected models, their required fields are needed to be passed.
+- Routes are protected with authorisation checks. This means that the **request header** must include the key `X-API-Key`, and its value must match the `API_KEY` specified in the environment variables.
 
 # File Structure
 ```
 data_discovery_ai/
-├── common/         # Common utilities, including shared configurations and constants, used across modules
-├── model/          # Core ML logic, including model training, evaluation, and inference implementations
-├── pipeline/       # Data pipelines for using ML models
-├── resources/      # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
-├── services/       # Service modules for providing service functions for API use
-├── utils/          # Utility functions and helper scripts for various tasks
-├── extras/         # Supplementary files
-├── notebooks/      # Jupyter notebooks documenting the design, experiments, and practical usage of AI features
-├── tests/          # Unit test for critical functions
+├── config/             # Common utilities and shared configurations/constants used across modules│
+├── core/               # Core logic of the application such as API routes
+├── agents/             # Task-specific agent modules using ML/AI/rule-based tools
+├── ml/                 # Machine learning models: training, inference, evaluation logic
+├── utils/              # Utility functions and helper scripts for various tasks
+├── resources/          # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
+├── notebooks/          # Jupyter notebooks
+├── tests/              # Unit tests for validating core components
+│   ├── agents
+│   └── utils
+├── server.py             # FastAPI application entry point
 ```
 
 ## Required Configuration Files
-1. Elasticsearch configuration file
-File name `esManager.ini` saved under folder `data_discovery_ai/common`. Specific fileds & values required:
-   1. `end_point`: the Elasticsearch endpoint of a deployment
-   2. `api_key`: the API key used for access Elasticsearch
-2. Keyword classification parameter configuration file
-File name `keyword_classification_parameters.ini` saved under folder `data_discovery_ai/common`. Required two sections: `preprocessor` to set up parameters used for data preprocessing module, and `keywordModel` to set up parameters used for training and evaluation of the keyword model. Here are the definitions of fields:
-   1. `preprocessor`
-
-   | Parameter | Definition | Default Value used |
-   | ---- | ---- | ---- |
-   | vocabs | Titles of vocabularies used to identify samples from raw data; multiple values can be separated by ', '. | AODN Discovery Parameter Vocabulary, AODN Platform Vocabulary |
-   | rare_label_threshold | The threshold for identifying a rare label, defined as the number of occurrences of the label across all sample records, should be an integer. | 10 |
-   | test_size | A floating-point number in the range [0, 1], indicating the percentage of the test set size relative to all samples. | 0.2 |
-   | n_splits | Number of re-shuffling & splitting iterations for cross validation, used as the value of parameter `n_splits` when initialise an object of `MultilabelStratifiedShuffleSplit`. | 5 |
-   | train_test_random_state | The seed for splitting the train and test sets, used as the value of the `random_state` parameter when initialising an instance of `MultilabelStratifiedShuffleSplit`. | 42 |
-
-   2. `keywordModel`
-
-   | Parameter | Definition | Defalt Value used |
-   | ---- | ---- | ---- |
-   | dropout | The probability of a neuron being dropped. A strategy used for avoiding overfitting. | 0.3 |
-   | learning_rate | A hyperparameter determines how much the model's parameters are adjusted with respect to the gradient of the loss function. | 0.0005 |
-   | fl_gamma | The $\gamma$ parameter of the focal loss function, which adjusts the focus of the loss function on hard-to-classify samples. It should be an integer. | 2 |
-   | fl_alpha | The $\alpha$ parameter of the focal loss function, which balances the importance of positive and negative samples. It should be a floating-point number between 0 and 1. | 0.8 |
-   | epoch | The number of times the train set is passed through the model for training. It should be an integer. | 35 |
-   | batch | The batch size which defines the number of samples in each batch. | 32 |
-   | validation_split | The percentage of the training set to be used as the validation set. | 0.2 |
-   | confidence | The probability threshold for identifying a label as positive (value 1). | 0.5 |
-   | top_N | The number of labels to select using argmax(probability) if no labels reach the confidence threshold. | 3 |
-
-3. Global constants file
+1. Global constants file
 File name `constants.py` saved under folder `data_discovery_ai/common`.
+
+2. Parameter configuration file
+File name `parameters.yaml` saved under folder `data_discovery_ai/commom`. Store parameter settings for ML models and AI agents.
+
+
+## Test
+All test files are located in the `tests` folder at the root of the project. To run them, use the following command:
+
+```bash
+poetry run python -m unittest discover -s tests
+```
+
+
+## Commit
+
+We are using [gitmoji](https://gitmoji.dev/)(OPTIONAL) with husky and commitlint. Here you have an example of the most used ones:
+
+- :art: - Improving structure/format of the code.
+- :zap: - Improving performance.
+- :fire: - Removing code or files.
+- :bug: - Fixing a bug.
+- :ambulance: - Critical hotfix.
+- :sparkles: - Introducing new features.
+- :memo: - Adding or updating documentation.
+- :rocket: - Deploying stuff.
+- :lipstick: - Updating the UI and style files.
+- :tada: - Beginning a project.
+
+Example of use:
+`:wrench: add husky and commitlint config`
+
+## Branching name
+
+- `hotfix/`: for quickly fixing critical issues,
+- `usually/`: with a temporary solution
+- `bugfix/`: for fixing a bug
+- `feature/`: for adding, removing or modifying a feature
+- `test/`: for experimenting something which is not an issue
+- `wip/`: for a work in progress
+
+And add the issue id after an `/` followed with an explanation of the task.
+
+Example of use:
+`feature/5348-create-react-app`

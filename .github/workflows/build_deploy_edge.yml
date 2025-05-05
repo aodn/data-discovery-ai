@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - '**/*.md'
       - "notebooks/**"
-      - "extras/**"
       - '.github/environment/**'
 permissions:
   id-token: write
