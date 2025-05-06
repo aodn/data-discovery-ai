@@ -1,7 +1,7 @@
 # The agent model for executing the keyword classification task
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Iterable
 from keras.api.models import load_model
 
 from data_discovery_ai import logger
@@ -9,6 +9,38 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
+
+
+def replace_with_column_names(
+    row: Iterable[Any], column_names: Dict[int, Any]
+) -> List[Any]:
+    """
+    Transform a row of binary values and returns a list of column names for which the value in the row is 1.
+    Input:
+        row: Iterable[Any]. A row of binary values indicating presence (1) or absence (0) of each label.
+        column_names: Dict[int, Any]. The anonymous predefined label set.
+    Output:
+        List[Any]: The predicted keywords as a list of concepts.
+    """
+    return [column_names[i] for i, value in enumerate(row) if value == 1]
+
+
+def get_predicted_keywords(prediction: np.ndarray, labels: Dict):
+    """
+    Convert binary predictions to textual keywords.
+    Input:
+        prediction: np.ndarray. The predicted binary matrix.
+        labels: Dict. The predefined keywords.
+    Output:
+        predicted_keywords: pd.Series. The predicted keywords for the given targets.
+    """
+    target_predicted = pd.DataFrame(prediction, columns=list(labels.keys()))
+    predicted_keywords = target_predicted.apply(
+        lambda row: replace_with_column_names(row, labels), axis=1
+    )
+    if len(predicted_keywords) == 1:
+        predicted_keywords = [item.to_json() for item in predicted_keywords[0]]
+    return predicted_keywords
 
 
 class KeywordClassificationAgent(BaseAgent):
@@ -74,7 +106,7 @@ class KeywordClassificationAgent(BaseAgent):
                     top_indices = np.argsort(predictions[i])[-top_N:]
                     predicted_labels[i][top_indices] = 1
 
-            predicted_keywords = self.get_predicted_keywords(
+            predicted_keywords = get_predicted_keywords(
                 predicted_labels, selective_labels
             )
 
@@ -82,36 +114,6 @@ class KeywordClassificationAgent(BaseAgent):
             return predicted_keywords
         else:
             return []
-
-    def replace_with_column_names(
-        self, row: pd.SparseDtype, column_names: List[int]
-    ) -> List[Any]:
-        """
-        Transform a row of binary values and returns a list of column names for which the value in the row is 1.
-        Input:
-            row: pd.Series. A row of binary values indicating presence (1) or absence (0) of each label.
-            column_names: List[int]. The anonymous predefiend label set.
-        Output:
-            List[Any]: The predicted keywords as a list of concepts.
-        """
-        return [column_names[i] for i, value in enumerate(row) if value == 1]
-
-    def get_predicted_keywords(self, prediction: np.ndarray, labels: Dict):
-        """
-        Convert binary predictions to textual keywords.
-        Input:
-            prediction: np.ndarray. The predicted binary matrix.
-            labels: Dict. The predefiend keywords.
-        Output:
-            predicted_keywords: pd.Series. The predicted keywords for the given targets.
-        """
-        target_predicted = pd.DataFrame(prediction, columns=labels)
-        predicted_keywords = target_predicted.apply(
-            lambda row: self.replace_with_column_names(row, labels), axis=1
-        )
-        if len(predicted_keywords) == 1:
-            predicted_keywords = [item.to_json() for item in predicted_keywords[0]]
-        return predicted_keywords
 
     def load_saved_model(self) -> Optional[load_model]:
         pretrained_model_name = self.model_config["pretrained_model"]
@@ -121,7 +123,7 @@ class KeywordClassificationAgent(BaseAgent):
         try:
             saved_model = load_model(model_file_path, compile=False)
             return saved_model
-        except Exception as e:
+        except OSError:
             logger.error(
                 f"Failed to load selected model {pretrained_model_name} from folder {model_file_path}"
             )
@@ -138,14 +140,3 @@ class KeywordClassificationAgent(BaseAgent):
         )
         labels = load_from_file(labels_file_path)
         return labels
-
-
-if __name__ == "__main__":
-    agent = KeywordClassificationAgent()
-    agent.execute(
-        {
-            "title": "Sample Title",
-            "abstract": "Sample Abstract",
-        }
-    )
-    print(agent.response)
