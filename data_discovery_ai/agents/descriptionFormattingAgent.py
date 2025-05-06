@@ -113,8 +113,8 @@ class DescriptionFormattingAgent(BaseAgent):
                 response = completion.choices[0].message.content
             elif self.model_config["model"] == "llama3":
                 # in dev use free llama 3 model
-                system_prompt = """You are a marine science officer processing metadata records. Given a title and abstract of a metadata record, perform the following task:
-             1. Reformat the text while preserving its orginal text content. Apply markdown identifiers if necessary:(1) if it is a list, each item should be on a new line, starting with a hyphen. (2) Heading 1 starts with \#, Heading 2 starts with \#\# Heading 3 starts with \#\#\#, Heading 4 starts with \#\#\#\#. (3) Bold text is enclosed in double asterisks. (4) Italics text is enclosed in single asterisks. (5) If the text is a link (starting with www or https or http), it should be enclosed in square brackets followed by parentheses with the URL in parentheses.
+                system_prompt = """
+            Process a metadata record's title and abstract. Reformat the abstract, keeping original text, using Markdown: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https).
             Your response should in the following JSON format:
             {
             "formatted_abstract": "[Markdown-formatted text]"
