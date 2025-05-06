@@ -1,5 +1,6 @@
 # The agent model for description formatting task
 from openai import OpenAI
+from ollama import chat, ChatResponse
 import os
 from dotenv import load_dotenv
 
@@ -97,20 +98,43 @@ class DescriptionFormattingAgent(BaseAgent):
                             """
         response = None
         try:
-            client = OpenAI(api_key=self.openai_api_key)
-            completion = client.chat.completions.create(
-                model=self.model_config["model"],
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": input_text},
-                ],
-                temperature=self.model_config["temperature"],
-                max_tokens=self.model_config["max_tokens"],
-            )
-            response = completion.choices[0].message.content
+            # if use OpenAI model in production or staging
+            if self.model_config["model"] == "gpt-4o-mini":
+                client = OpenAI(api_key=self.openai_api_key)
+                completion = client.chat.completions.create(
+                    model=self.model_config["model"],
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": input_text},
+                    ],
+                    temperature=self.model_config["temperature"],
+                    max_tokens=self.model_config["max_tokens"],
+                )
+                response = completion.choices[0].message.content
+            elif self.model_config["model"] == "llama3":
+                # in dev use free llama 3 model
+                system_prompt = """
+            Process a metadata record's title and abstract. Reformat the abstract, keeping original text, using Markdown: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https).
+            Your response should in the following JSON format:
+            {
+            "formatted_abstract": "[Markdown-formatted text]"
+            }
+            """
+                response: ChatResponse = chat(
+                    model=self.model_config["model"],
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": input_text},
+                    ],
+                    options={
+                        "temperature": self.model_config["temperature"],
+                        "max_tokens": self.model_config["max_tokens"],
+                    },
+                )
+            response = response.message.content
             return self.retrieve_json(response)
         except Exception as e:
-            logger.error(f"Error in calling OpenAI API: {e}")
+            logger.error(f"Error in calling LLM: {e}")
             return abstract
 
     def retrieve_json(self, output: str) -> str:
@@ -124,9 +148,10 @@ class DescriptionFormattingAgent(BaseAgent):
         Output:
             parsed_json_str: str. The parsed json string from the output text, which is the value of "formatted_abstract" key. If parsed json string is not found or failed, return None.
         """
-        logger.debug(f"LLM raw output: {output}")
-        # find json like text in the output
-        match = re.search(r"\{.*\}", output, re.DOTALL)
+        logger.debug(f"LLM raw output:\n{output}")
+
+        # try directly parsing the JSON-like block first, it should be applied for all GPT-4o-mini model outputs
+        match = re.search(r"\{.*?\}", output, re.DOTALL)
         if not match:
             logger.error("No JSON found in LLM response.")
             return output.strip()
@@ -135,6 +160,28 @@ class DescriptionFormattingAgent(BaseAgent):
         try:
             parsed = json.loads(json_str)
             return parsed["formatted_abstract"]
+        except json.JSONDecodeError:
+            logger.warning("No JSON found in LLM response.")
+
+        # if the first attempt fails, try to find a triple-quote JSON block, the llama often outputs in this way
+        triple = re.search(
+            r'\{\s*"formatted_abstract"\s*:\s*""".*?"""\s*\}', output, re.DOTALL
+        )
+        if not triple:
+            logger.error("No JSON found in LLM response.")
+            return output.strip()
+
+        block = triple.group()
+
+        def esc(m):
+            inner = m.group(1)
+            return json.dumps(inner)
+
+        fixed = re.sub(r'"""\s*(.*?)\s*"""', esc, block, flags=re.DOTALL)
+
+        try:
+            parsed = json.loads(fixed)
+            return parsed["formatted_abstract"]
         except Exception as e:
-            logger.error(f"Failed to parse JSON: {e}")
+            logger.error(f"No JSON found in LLM response.")
             return output.strip()

@@ -178,12 +178,12 @@ class ConfigUtil:
             defaults = {
                 "model": "llama3",
                 "temperature": 0.0,
-                "max_tokens": 4056,
+                "max_tokens": 4000,
                 "response_key": "formatted_abstract",
             }
         else:
             defaults = {
-                "model": "openai",
+                "model": "gpt-4o-mini",
                 "temperature": 0.1,
                 "max_tokens": 10000,
                 "response_key": "formatted_abstract",

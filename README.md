@@ -85,6 +85,26 @@ You might want to update the `poetry.lock` file after manually modifying `pyproj
    ```shell
    poetry run pytest
    ```
+5. To use free LLM (Llama3) in the local development environment, please go to [Ollama download page](https://ollama.com/download) and download the version that matches your operating system (Windows, Linux, or macOS). After installation, start Ollama either by launching the app or running the following command:
+```shell
+ollama serve
+```
+
+And pull the "llama3" model used for local development.
+```shell
+ollama pull llama3
+```
+
+Consider install open-webui to run the lama3 for dev
+```shell
+docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui ghcr.io/open-webui/open-webui:main
+```
+
+6. FastAPI performs readiness checks before making `\process_record` API calls. These checks include:
+    1. Ensuring that all required resources for the pre-trained model exist.
+    2. Confirming that the OpenAI API key is set, if the environment is not set to "development".
+    3. Verifying that Ollama is running at `http://localhost:11434` if the environment is set to "development".
+
 
 ### Code formatting
 

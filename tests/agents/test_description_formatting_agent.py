@@ -51,19 +51,13 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
         mock_logger.error.assert_called_once_with("No JSON found in LLM response.")
 
     @patch("data_discovery_ai.agents.descriptionFormattingAgent.logger")
-    @patch("data_discovery_ai.agents.descriptionFormattingAgent.OpenAI")
-    def test_execute_agent(self, mock_openai, mock_logger):
-        mock_completion = MagicMock()
-        mock_completion.choices[
-            0
-        ].message.content = """
-        {
-            "formatted_abstract": "#title **Formatted abstract**"
-        }
-        """
-        mock_chat = MagicMock()
-        mock_chat.completions.create.return_value = mock_completion
-        mock_openai.return_value.chat = mock_chat
+    @patch("data_discovery_ai.agents.descriptionFormattingAgent.chat")
+    def test_execute_agent(self, mock_chat, mock_logger):
+        fake_resp = MagicMock()
+        fake_resp.message.content = (
+            '{"formatted_abstract": "#title **Formatted abstract**"}'
+        )
+        mock_chat.return_value = fake_resp
 
         self.agent.execute(self.valid_request)
 
@@ -79,7 +73,6 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
         ]
         mock_logger.info.assert_has_calls(expected_calls)
         self.assertEqual(mock_logger.info.call_count, 2)
-        mock_openai.assert_called_once_with(api_key=self.agent.openai_api_key)
 
 
 if __name__ == "__main__":
