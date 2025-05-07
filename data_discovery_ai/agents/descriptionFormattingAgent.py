@@ -131,24 +131,23 @@ class DescriptionFormattingAgent(BaseAgent):
             If the agent does not take action, the output is the original abstract text.
         """
         logger.info(f"Description is being reformatted by {self.type} agent")
-
         input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
-        system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
-
-                            Task 1: Convert Text to Markdown
-                            Reformat the text while preserving its original text content. Apply markdown identifiers if necessary:(1) if it is a list, each item should be on a new line, starting with a hyphen. (2) Heading 1 starts with \#, Heading 2 starts with \#\# Heading 3 starts with \#\#\#, Heading 4 starts with \#\#\#\#. (3) Bold text is enclosed in double asterisks. (4) Italics text is enclosed in single asterisks. (5) If the text is a link (starting with www or https or http), it should be enclosed in square brackets followed by parentheses with the URL in parentheses.
-
-                            Task 2: Return JSON Output
-                            Format the response as:
-
-                            {
-                            "formatted_abstract": "[Markdown-formatted text]"
-                            }
-                            """
         response = None
         try:
             # if you use OpenAI model in production or staging
             if self.model_config["model"] == "gpt-4o-mini":
+                system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
+
+                                            Task 1: Convert Text to Markdown
+                                            Reformat the text while preserving its original text content. Apply markdown identifiers if necessary:(1) if it is a list, each item should be on a new line, starting with a hyphen. (2) Heading 1 starts with #, Heading 2 starts with ## Heading 3 starts with ###, Heading 4 starts with ####. (3) Bold text is enclosed in double asterisks. (4) Italics text is enclosed in single asterisks. (5) If the text is a link (starting with www or https or http), it should be enclosed in square brackets followed by parentheses with the URL in parentheses.
+
+                                            Task 2: Return JSON Output
+                                            Format the response as:
+
+                                            {
+                                            "formatted_abstract": "[Markdown-formatted text]"
+                                            }
+                                            """
                 client = OpenAI(api_key=self.openai_api_key)
                 # noinspection PyTypeChecker
                 completion = client.chat.completions.create(
