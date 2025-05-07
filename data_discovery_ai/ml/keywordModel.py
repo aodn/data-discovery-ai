@@ -18,12 +18,15 @@ from sklearn.multioutput import MultiOutputClassifier
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import Dense, Input, Dropout
-from tensorflow.keras import Sequential
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras import backend as K
-from tensorflow.keras.models import load_model
+
+# this is an IDE issue reported 6 years ago and has not been fixed (https://youtrack.jetbrains.com/issue/PY-34174) and
+# (https://youtrack.jetbrains.com/issue/PY-53599/tensorflow.keras-subpackages-are-unresolved-in-Tensorflow-2.6.0), so here I simply silence it locally with type:ignore
+from tensorflow.keras.optimizers import Adam  # type: ignore
+from tensorflow.keras.layers import Dense, Input, Dropout  # type: ignore
+from tensorflow.keras import Sequential  # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau  # type: ignore
+from tensorflow.keras import backend as K  # type: ignore
+from tensorflow.keras.models import load_model  # type: ignore
 
 import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
@@ -68,7 +71,7 @@ def focal_loss(
     """
 
     def focal_loss_fixed(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
-        epsilon = tf.keras.backend.epsilon()
+        epsilon = K.epsilon()
         y_pred = tf.clip_by_value(y_pred, epsilon, 1.0 - epsilon)
         y_true = tf.cast(y_true, tf.float32)
         alpha_t = y_true * alpha + (tf.ones_like(y_true) - y_true) * (1 - alpha)
@@ -200,25 +203,25 @@ def evaluation(Y_test: np.ndarray, predictions: np.ndarray) -> Dict[str, float]:
     }
 
 
-def prediction(X: np.ndarray, model: Any, confidence: float, top_N: int) -> np.ndarray:
-    """
-    Apply the trained model to generate predictions for the input data X. It uses a confidence threshold to determine predicted labels, marking as 1 for labels with probabilities above the confidence level. If no labels are above the threshold for a sample, the function selects the top N highest probabilities, marking them as positive labels (value 1).
-    Input:
-        X: np.ndarray. The input feature X matrix used for making predictions.
-        model: Any. The trained model (baseline model or Sequential model).
-        confidence: float. In the range of [0,1]. The confidence threshold for assigning labels. Predictions above this value are marked as 1.
-        top_N: The number of top predictions to select if no predictions meet the confidence threshold.
-    Output:
-        predicted_labels: np.ndarray. A binary matrix of predicted labels, where each row corresponds to a sample and each column to a label.
-    """
-    predictions = model.predict(X)
-    predicted_labels = (predictions > confidence).astype(int)
-
-    for i in range(predicted_labels.shape[0]):
-        if predicted_labels[i].sum() == 0:
-            top_indices = np.argsort(predictions[i])[-top_N:]
-            predicted_labels[i][top_indices] = 1
-    return predicted_labels
+# def prediction(X: np.ndarray, model: Any, confidence: float, top_N: int) -> np.ndarray:
+#     """
+#     Apply the trained model to generate predictions for the input data X. It uses a confidence threshold to determine predicted labels, marking as 1 for labels with probabilities above the confidence level. If no labels are above the threshold for a sample, the function selects the top N highest probabilities, marking them as positive labels (value 1).
+#     Input:
+#         X: np.ndarray. The input feature X matrix used for making predictions.
+#         model: Any. The trained model (baseline model or Sequential model).
+#         confidence: float. In the range of [0,1]. The confidence threshold for assigning labels. Predictions above this value are marked as 1.
+#         top_N: The number of top predictions to select if no predictions meet the confidence threshold.
+#     Output:
+#         predicted_labels: np.ndarray. A binary matrix of predicted labels, where each row corresponds to a sample and each column to a label.
+#     """
+#     predictions = model.predict(X)
+#     predicted_labels = (predictions > confidence).astype(int)
+#
+#     for i in range(predicted_labels.shape[0]):
+#         if predicted_labels[i].sum() == 0:
+#             top_indices = np.argsort(predictions[i])[-top_N:]
+#             predicted_labels[i][top_indices] = 1
+#     return predicted_labels
 
 
 def replace_with_column_names(

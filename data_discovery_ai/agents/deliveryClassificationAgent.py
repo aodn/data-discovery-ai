@@ -27,7 +27,7 @@ class DeliveryClassificationAgent(BaseAgent):
         return super().is_valid_request(request)
 
     def make_decision(self, request) -> bool:
-        # the complex decision making is done by the es-indexer end, here we simply check if the request is valid
+        # the complex decision-making is done by the es-indexer end, here we simply check if the request is valid
         return self.is_valid_request(request)
 
     def take_action(self, title: str, abstract: str, lineage: str) -> str:

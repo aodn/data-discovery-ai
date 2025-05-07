@@ -2,19 +2,17 @@
     The module to preprocess the data and prepare datasets for training and evaluating a ML model
 """
 
-import logging
 import pickle
 import pandas as pd
 import ast
-import os
 import numpy as np
 import configparser
-from typing import Any, List, Tuple, Union, Dict, Optional
+from typing import Any, List, Tuple, Union, Optional
+from pathlib import Path
 
 from sklearn.preprocessing import MultiLabelBinarizer
 from transformers import AutoTokenizer, TFBertModel
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
@@ -66,31 +64,6 @@ class Concept:
 
     def __str__(self):
         return f"Concept(value={self.value}, url='{self.url}', vocab_type='{self.vocab_type}')"
-
-
-def save_to_file(obj: Any, full_path: str) -> None:
-    """
-    Saves an object to a file using pickle serialization in the specific file path
-    """
-    try:
-        with open(full_path, "wb") as file:
-            pickle.dump(obj, file)
-            logger.info(f"Saved to {full_path}")
-    except Exception as e:
-        logger.error(e)
-
-
-def load_from_file(full_path: str) -> Any:
-    """
-    Loads an object from a file in the input folder using pickle deserialization.
-    """
-    try:
-        with open(full_path, "rb") as file:
-            obj = pickle.load(file)
-            logger.info(f"Load from {full_path}")
-        return obj
-    except Exception as e:
-        logger.error(e)
 
 
 # data preprocessor for data delivery mode filter model

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Any
 
 
 class BaseAgent:
@@ -17,7 +17,7 @@ class BaseAgent:
 
     def is_valid_request(self, request: Dict[str, str]) -> bool:
         """
-        Check if the request is valid, i.e., if it contains all required fields. The required fileds are defiend in 'common/constants.py' file.
+        Check if the request is valid, i.e., if it contains all required fields. The required field is defined in 'common/constants.py' file.
         Input:
             request (Dict[str, str]): The request format.
         Output:
@@ -25,7 +25,7 @@ class BaseAgent:
         """
         return all(field in request.keys() for field in self.required_fields)
 
-    def make_decision(self, request: Dict[str, str]):
+    def make_decision(self, request: Dict[str, str]) -> List[Any] | bool:
         """
         Make decision based on the request. This should be overridden by subclasses.
         """

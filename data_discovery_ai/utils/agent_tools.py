@@ -1,24 +1,26 @@
 #  toolbox contains common tools shared by agents
-from typing import Any
+from typing import Any, Union
 import pickle
 from data_discovery_ai import logger
 from transformers import AutoTokenizer, TFBertModel
 import numpy as np
+from pathlib import Path
 
 
-def save_to_file(obj: Any, full_path: str) -> None:
+def save_to_file(obj: Any, full_path: Union[str, Path]) -> None:
     """
     Saves an object to a file using pickle serialization in the specific file path
     """
     try:
         with open(full_path, "wb") as file:
+            # noinspection PyTypeChecker
             pickle.dump(obj, file)
             logger.info(f"Saved to {full_path}")
     except Exception as e:
         logger.error(e)
 
 
-def load_from_file(full_path: str) -> Any:
+def load_from_file(full_path: Union[str, Path]) -> Any | None:
     """
     Loads an object from a file in the input folder using pickle deserialization.
     """
