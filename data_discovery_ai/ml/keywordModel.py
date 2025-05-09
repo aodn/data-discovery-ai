@@ -28,7 +28,6 @@ from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau  # type:
 from tensorflow.keras import backend as K  # type: ignore
 from tensorflow.keras.models import load_model  # type: ignore
 
-import logging
 from typing import Dict, Callable, Any, Tuple, Optional, List
 from configparser import ConfigParser
 import os
@@ -36,10 +35,8 @@ from pathlib import Path
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
 from data_discovery_ai.config.constants import KEYWORD_FOLDER
+from data_discovery_ai import logger
 
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:

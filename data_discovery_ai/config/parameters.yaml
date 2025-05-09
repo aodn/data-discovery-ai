@@ -79,26 +79,30 @@ model:
         content:
           - [data, dataset]
           - [download]
-  #  for training the pre-trained classification models
-
-  trainer:
-    keyword_classification:
-      vocabs:
-        - AODN Discovery Parameter Vocabulary
-        - AODN Platform Vocabulary
-      test_size: 0.2
-      n_splits: 5
-      dropout: 0.3
-      learning_rate: 0.0005
-      fl_gamma: 2
-      fl_alpha: 0.8
-      epoch: 100
-      batch_size: 32
-      early_stopping_patience: 5
-      reduce_lr_patience: 5
-      validation_split: 0.2
-    delivery_classification:
-      test_size: 0.3
-      n_estimators: 10
-      threshold: 0.9
-      n_components: 0.9
+#  for training the pre-trained classification models
+trainer:
+  keyword_classification:
+    vocabs:
+      - AODN Discovery Parameter Vocabulary
+      - AODN Platform Vocabulary
+    separator: " [SEP] "
+    test_size: 0.2
+    n_splits: 5
+    dropout: 0.3
+    learning_rate: 0.0005
+    fl_gamma: 2
+    fl_alpha: 0.8
+    epoch: 100
+    batch_size: 32
+    early_stopping_patience: 5
+    reduce_lr_patience: 5
+    validation_split: 0.2
+    rare_label_threshold: 3
+    saved_model_name: development
+  delivery_classification:
+    separator: " [SEP] "
+    test_size: 0.3
+    n_estimators: 10
+    threshold: 0.9
+    n_components: 0.9
+    saved_model_name: development
