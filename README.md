@@ -138,6 +138,15 @@ When the server is running, there are two available routers:
 - For selected models, their required fields are needed to be passed.
 - Routes are protected with authorisation checks. This means that the **request header** must include the key `X-API-Key`, and its value must match the `API_KEY` specified in the environment variables.
 
+
+## Model Training
+```shell
+python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name development
+```
+or
+```shell
+ python -m data_discovery_ai.ml.pipeline -p keyword -s False -n experimental
+```
 # File Structure
 ```
 data_discovery_ai/

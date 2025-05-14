@@ -26,6 +26,7 @@ class KeywordClassificationTrainerConfig(TypedDict):
     reduce_lr_patience: int
     validation_split: float
     saved_model_name: str
+    rare_label_threshold: int
     separator: str
 
 

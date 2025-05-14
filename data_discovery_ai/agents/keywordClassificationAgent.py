@@ -140,3 +140,12 @@ class KeywordClassificationAgent(BaseAgent):
         )
         labels = load_from_file(labels_file_path)
         return labels
+
+
+if __name__ == "__main__":
+    agent = KeywordClassificationAgent()
+    request = {
+        "title": "test title",
+        "abstract": "test abstract",
+    }
+    agent.execute(request)
