@@ -70,6 +70,7 @@ model:
           - trawler
           - data_type
           - format
+          - registry.opendata.aws
         title:
           - data access
           - data download

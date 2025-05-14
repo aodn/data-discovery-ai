@@ -3,8 +3,6 @@
 #  TODO: Separate the model predicting and training
 import logging
 import os
-from data_discovery_ai.utils.preprocessor import get_description_embedding
-import tensorflow as tf
 from sklearn.semi_supervised import SelfTrainingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
@@ -16,10 +14,10 @@ from typing import Any, Tuple
 from configparser import ConfigParser
 
 from data_discovery_ai.config.constants import FILTER_FOLDER
-from data_discovery_ai.utils.preprocessor import (
+from data_discovery_ai.utils.agent_tools import (
     save_to_file,
     load_from_file,
-    get_description_embedding,
+    get_text_embedding,
 )
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
@@ -38,9 +36,9 @@ def ddm_filter_model(
     The classification model for predicting the data delivery mode of metadata records, based on their titles, abstracts, and lineages.
     Currently, we applied a self-training model with a random forest classifier as the base model. It extends the idea of semi-supervised learning, in which both
     Input:
-        model_name: str. The name of the model, which should be stricted within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
-        X_labelled_train: np.ndarray. The training data of the metadata records, which is splited from the labelled data.
-        y_labelled_train: np.ndarray. The labels of the training data, which is splited from the labelled data.
+        model_name: str. The name of the model, which should be stricter within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
+        X_labelled_train: np.ndarray. The training data of the metadata records, which is split from the labelled data.
+        y_labelled_train: np.ndarray. The labels of the training data, which is split from the labelled data.
         params: ConfigParser. The configuration parameters for the model, which is loaded from the `MODEL_CONFIG` defined in `data_discovery_ai/common/constants.py`.
     Output:
         Tuple[Any, Any]. The trained model and pca model
@@ -81,7 +79,7 @@ def load_saved_model(model_name: str) -> Tuple[Any, Any]:
     Load the saved model and the trained pca model from local pickle files.
     The fine name is given by the 'selected_model' from the API request. The model file is end up with ".pkl" suffix, while the pca file is end up with the ".pca.pkl" suffix.
     Input:
-        model_name: str. The name of the model, which should be stricted within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
+        model_name: str. The name of the model, which should be stricter within the options of `AVAILABLE_MODELS` in `data_discovery_ai/common/constants.py`.
     Output:
         Tuple[Any, Any]. The trained model and pca model
     """
@@ -125,7 +123,7 @@ def make_prediction(model: Any, description: str, pca) -> np.ndarray:
     Output:
         np.ndarray. Return an np.ndarray of size 1, which is the predicted class of the metadata record. This prediction task has only two classes: 0 for "Real-Time" and 1 for "Delayed".
     """
-    description_embedding = get_description_embedding(description)
+    description_embedding = get_text_embedding(description)
     dimension = description_embedding.shape[0]
     target_X = description_embedding.reshape(1, dimension)
     target_X_pca = pca.transform(target_X)

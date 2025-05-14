@@ -1,6 +1,7 @@
 from elasticsearch import Elasticsearch
 import logging
 import pandas as pd
+from pandas import DataFrame
 from tqdm import tqdm
 import time
 import os
@@ -9,7 +10,7 @@ from dotenv import load_dotenv
 from data_discovery_ai import logger
 
 
-def connect_es() -> Elasticsearch:
+def connect_es() -> Elasticsearch | None:
     """
     Function to connect the ElasticSearch
     Input:
@@ -30,6 +31,7 @@ def connect_es() -> Elasticsearch:
         return client
     except Exception as e:
         logger.error(f"Elasticsearch connection failed: {e}")
+        return None
 
 
 def search_es(
@@ -37,7 +39,7 @@ def search_es(
     index: str,
     batch_size: int,
     sleep_time: int,
-) -> pd.DataFrame:
+) -> DataFrame | None:
     """
     Search elasticsearch index, convert the json format to dataframe, save the dataframe to a pickle file
     Input:
@@ -95,7 +97,7 @@ def search_es(
         current_pit = first_query_resp["pit_id"]
 
         # conduct further search
-        for round in tqdm(range(1, rounds), desc="searching elasticsearch"):
+        for r in tqdm(range(1, rounds), desc="searching elasticsearch"):
             query_body = {
                 "size": batch_size,
                 "query": {"match_all": {}},
@@ -134,7 +136,7 @@ def search_es(
                     raise KeyError("First query response is missing 'pit_id'.")
                 current_pit = first_query_resp["pit_id"]
 
-                round += 1
+                r += 1
                 time.sleep(sleep_time)
             except Exception as e:
                 logger.error(e)
@@ -150,4 +152,5 @@ def search_es(
         return pd.concat(dataframes, ignore_index=True)
 
     except Exception as e:
-        logger.error(f"Elasticsearch Search Faild: {e}")
+        logger.error(f"Elasticsearch Search Failed: {e}")
+        return None

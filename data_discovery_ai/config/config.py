@@ -54,12 +54,18 @@ class DescriptionFormattingConfig(TypedDict):
     response_key: str
 
 
+class DeliveryClassificationConfig(TypedDict):
+    pretrained_model: str
+    separator: str
+    response_key: str
+
+
 class ModelConfig(TypedDict):
     supervisor: Dict[str, Any]
     keyword_classification: KeywordClassificationConfig
     description_formatting: DescriptionFormattingConfig
+    delivery_classification: DeliveryClassificationConfig
     link_grouping: Dict[str, Any]
-    delivery_classification: DeliveryClassificationTrainerConfig
     trainer: TrainerConfig
 
 
@@ -87,7 +93,7 @@ class ConfigUtil:
         "logging": {"level": "INFO"},
     }
 
-    # Defaule parameters overridable via environment vars
+    # Default parameters overridable via environment vars
     ENV_VARS: Dict[str, str] = {
         "elasticsearch.batch_size": "ES_BATCH_SIZE",
         "elasticsearch.sleep_time": "ES_SLEEP_TIME",
@@ -130,7 +136,7 @@ class ConfigUtil:
             if env_val is not None:
                 try:
                     return type(default)(env_val)
-                except Exception:
+                except (TypeError, ValueError):
                     logging.warning(
                         f"Could not cast env var {env_key}='{env_val}' to {type(default)}"
                     )
@@ -168,6 +174,10 @@ class ConfigUtil:
         """Return keyword classification parameters from YAML."""
         return self._config_data["model"]["keyword_classification"]
 
+    def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
+        # set up through parameters.yaml
+        return self._config_data["model"]["delivery_classification"]
+
     def get_description_formatting_config(self) -> DescriptionFormattingConfig:
         """
         Return description formatting config. Defaults are hard-coded per-environment;
@@ -201,10 +211,6 @@ class ConfigUtil:
     def get_link_grouping_config(self) -> Dict[str, Any]:
         # set up through parameters.yaml
         return self._config_data["model"].get("link_grouping", {})
-
-    def get_delivery_classification_config(self) -> DeliveryClassificationTrainerConfig:
-        # set up through parameters.yaml
-        return self._config_data["model"]["delivery_classification"]
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
         # set up through parameters.yaml

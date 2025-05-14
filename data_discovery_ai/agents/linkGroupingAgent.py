@@ -21,7 +21,7 @@ class LinkGroupingAgent(BaseAgent):
     def is_valid_request(self, request: Dict[str, str]) -> bool:
         return super().is_valid_request(request)
 
-    def make_decision(self, request: Dict[str, Any]) -> List[Dict[str, str]]:
+    def make_decision(self, request: Dict[str, Any]) -> List[Any]:
         """
         The agent makes decision based on the request. The link grouping task only executes if the request is valid and the links are related (rel == "related").
         Input:
@@ -36,6 +36,7 @@ class LinkGroupingAgent(BaseAgent):
 
         Output:
             List[Dict[str, str]]: the related links with full title and href for further grouping.
+            Or an empty list if there are no valid links.
         """
         if self.is_valid_request(request):
             valid_links = []
@@ -49,6 +50,8 @@ class LinkGroupingAgent(BaseAgent):
                 ):
                     valid_links.append(link)
             return valid_links
+        else:
+            return []
 
     def take_action(self, links: List[Dict[str, str]]) -> List[Dict[str, str]]:
         if not links:
@@ -119,7 +122,7 @@ class LinkGroupingAgent(BaseAgent):
                 content = resp.text.lower()
                 if any(keyword in content for keyword in page_content_keywords):
                     return "Data Access"
-        except:
+        except requests.exceptions.RequestException:
             logger.info(f"Failed to crawl the link: {link['href']}")
             return "Other"
 
