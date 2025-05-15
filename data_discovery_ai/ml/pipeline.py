@@ -35,7 +35,7 @@ class BasePipeline:
         valid_model_name = self.valid_model_name
         if model_name.lower() not in valid_model_name:
             logger.error(
-                'Available model name: ["development", "staging", "production", "experimental", "benchmark"]'
+                'Model name invalid! \nAvailable model name: ["development", "staging", "production", "experimental", "benchmark"]'
             )
             return False
         else:
@@ -65,45 +65,53 @@ class KeywordClassifierPipeline(BasePipeline):
             start_from_preprocess: bool. The indicator to call the data preprocessing module or not.
             model_name: str. The model name for saving a selected pretrained model.
         """
-        if start_from_preprocess:
-            # fetch raw data
-            raw_data = self.preprocessor.fetch_raw_data()
+        executable = self.is_valid_model(model_name)
+        if executable:
+            if start_from_preprocess:
+                # fetch raw data
+                raw_data = self.preprocessor.fetch_raw_data()
 
-            # # for test only because it has more data
-            # raw_data = load_from_file(
-            #     self.config.base_dir / "resources" / "raw_data.pkl"
-            # )
+                # # for test only because it has more data
+                # raw_data = load_from_file(
+                #     self.config.base_dir / "resources" / "raw_data.pkl"
+                # )
 
-            # preprocess raw data
-            filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
+                # preprocess raw data
+                filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
 
-            # add the embedding column
-            preprocessed_data = self.preprocessor.calculate_embedding(
-                ds=filtered_data, seperator=self.params["separator"]
-            )
-        else:
-            preprocessed_data = load_from_file(
-                self.config.base_dir
-                / "resources"
-                / KEYWORD_FOLDER
-                / KEYWORD_SAMPLE_FILE
-            )
+                # add the embedding column
+                preprocessed_data = self.preprocessor.calculate_embedding(
+                    ds=filtered_data, seperator=self.params["separator"]
+                )
+            else:
+                preprocessed_data = load_from_file(
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_SAMPLE_FILE
+                )
+            if preprocessed_data is not None:
+                # prepare train test sets
+                self.preprocessor.prepare_train_test_set(raw_data=preprocessed_data)
 
-        # prepare train test sets
-        self.preprocessor.prepare_train_test_set(raw_data=preprocessed_data)
+                # save preprocessed data for future use
+                save_to_file(
+                    self.preprocessor.data.labels,
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_LABEL_FILE,
+                )
+                save_to_file(
+                    preprocessed_data,
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_SAMPLE_FILE,
+                )
 
-        # save preprocessed data for future use
-        save_to_file(
-            self.preprocessor.data.labels,
-            self.config.base_dir / "resources" / KEYWORD_FOLDER / KEYWORD_LABEL_FILE,
-        )
-        save_to_file(
-            preprocessed_data,
-            self.config.base_dir / "resources" / KEYWORD_FOLDER / KEYWORD_SAMPLE_FILE,
-        )
-
-        # train model
-        train_keyword_model(model_name, self.preprocessor)
+                # train model
+                train_keyword_model(model_name, self.preprocessor)
 
 
 #
@@ -114,29 +122,32 @@ class DeliveryClassificationPipeline(BasePipeline):
         self.preprocessor = DeliveryPreprocessor()
 
     def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
-        if start_from_preprocess:
-            raw_data = self.preprocessor.fetch_raw_data()
-            filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
-            preprocessed_data = self.preprocessor.calculate_embedding(
-                ds=filtered_data, seperator=self.params["separator"]
-            )
-            save_to_file(
-                preprocessed_data,
-                self.config.base_dir
-                / "resources"
-                / FILTER_FOLDER
-                / FILTER_PREPROCESSED_FILE,
-            )
-        else:
-            preprocessed_data = load_from_file(
-                self.config.base_dir
-                / "resources"
-                / FILTER_FOLDER
-                / FILTER_PREPROCESSED_FILE
-            )
-        self.preprocessor.prepare_train_test_set(preprocessed_data)
+        executable = self.is_valid_model(model_name)
+        if executable:
+            if start_from_preprocess:
+                raw_data = self.preprocessor.fetch_raw_data()
+                filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
+                preprocessed_data = self.preprocessor.calculate_embedding(
+                    ds=filtered_data, seperator=self.params["separator"]
+                )
+                save_to_file(
+                    preprocessed_data,
+                    self.config.base_dir
+                    / "resources"
+                    / FILTER_FOLDER
+                    / FILTER_PREPROCESSED_FILE,
+                )
+            else:
+                preprocessed_data = load_from_file(
+                    self.config.base_dir
+                    / "resources"
+                    / FILTER_FOLDER
+                    / FILTER_PREPROCESSED_FILE
+                )
 
-        train_delivery_model(model_name, self.preprocessor)
+            if preprocessed_data is not None:
+                self.preprocessor.prepare_train_test_set(preprocessed_data)
+                train_delivery_model(model_name, self.preprocessor)
 
 
 def main():
