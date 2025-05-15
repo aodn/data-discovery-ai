@@ -396,6 +396,7 @@ class DDMData:
     X: np.ndarray
     Y: np.ndarray
 
+
 @dataclass
 class DDMTrainTestData:
     X_labelled_train: np.ndarray
@@ -404,6 +405,7 @@ class DDMTrainTestData:
     Y_combined_train: np.ndarray
     X_test: np.ndarray
     Y_test: np.ndarray
+
 
 class DeliveryPreprocessor(BasePreprocessor):
     def __init__(self):
@@ -459,9 +461,9 @@ class DeliveryPreprocessor(BasePreprocessor):
 
     def prepare_train_test_set(self, df: pd.DataFrame) -> None:
         """
-            Prepares the training and testing datasets for the data delivery mode filter model.
-            Input:
-                df: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
+        Prepares the training and testing datasets for the data delivery mode filter model.
+        Input:
+            df: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
         """
         self.set_preprocessed_data(df)
         # split the data into labelled and unlabelled sets
@@ -477,7 +479,10 @@ class DeliveryPreprocessor(BasePreprocessor):
 
         # split labelled data into training and testing sets for validation
         X_labelled_train, X_test, Y_labelled_train, Y_test = train_test_split(
-            X_labelled, Y_labelled, test_size=self.trainer_config["test_size"], random_state=42
+            X_labelled,
+            Y_labelled,
+            test_size=self.trainer_config["test_size"],
+            random_state=42,
         )
         logger.info(
             f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_test)}"
@@ -490,7 +495,9 @@ class DeliveryPreprocessor(BasePreprocessor):
         # combine unlabelled data with labelled training data for training
         X_combined_train = np.vstack([X_labelled_train, X_unlabelled])
         Y_combined_train = np.hstack([Y_labelled_train, Y_unlabelled])
-        logger.info(f"size of final training set: {len(X_combined_train)} \n Size of test set: {len(X_test)}")
+        logger.info(
+            f"size of final training set: {len(X_combined_train)} \n Size of test set: {len(X_test)}"
+        )
         # just to make sure X and y are same size
         if len(X_combined_train) != len(Y_combined_train):
             logger.error("X and y are not the same size")

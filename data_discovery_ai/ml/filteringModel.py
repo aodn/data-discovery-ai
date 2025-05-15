@@ -2,7 +2,12 @@
 # Possible classes are 'Real Time', 'Delayed', and 'Other'.
 from sklearn.semi_supervised import SelfTrainingClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score, recall_score, precision_score
+from sklearn.metrics import (
+    classification_report,
+    accuracy_score,
+    recall_score,
+    precision_score,
+)
 from sklearn.decomposition import PCA
 import numpy as np
 from pathlib import Path
@@ -22,9 +27,9 @@ from data_discovery_ai import logger
 mlflow.set_tracking_uri("http://localhost:8080")
 mlflow.set_experiment("Data Delivery Mode Classification Model")
 
+
 def train_delivery_model(
-    model_name: str,
-    deliveryPreprocessor: DeliveryPreprocessor
+    model_name: str, deliveryPreprocessor: DeliveryPreprocessor
 ) -> Tuple[Any, Any]:
     """
     The classification model for predicting the data delivery mode of metadata records, based on their titles, abstracts, and lineages.
@@ -47,9 +52,7 @@ def train_delivery_model(
     pca = PCA(n_components=n_components)
     X_train_pca = pca.fit_transform(train_test_data.X_combined_train)
 
-    base_model = RandomForestClassifier(
-        n_estimators=n_estimators, random_state=42
-    )
+    base_model = RandomForestClassifier(n_estimators=n_estimators, random_state=42)
     # self-training classifier
     self_training_model = SelfTrainingClassifier(base_model, threshold=threshold)
 
@@ -58,10 +61,7 @@ def train_delivery_model(
         mlflow.log_params(trainer_config)
 
         evaluate_model(
-            self_training_model,
-            train_test_data.X_test,
-            train_test_data.Y_test,
-            pca
+            self_training_model, train_test_data.X_test, train_test_data.Y_test, pca
         )
 
         # model file path
@@ -118,8 +118,8 @@ def evaluate_model(model: Any, X_test: np.ndarray, Y_test: np.ndarray, pca) -> N
 
     # Generate classification metrics
     acc = accuracy_score(Y_test, Y_pred)
-    precision = precision_score(Y_test, Y_pred, average='weighted', zero_division=0)
-    rec = recall_score(Y_test, Y_pred, average='weighted', zero_division=0)
+    precision = precision_score(Y_test, Y_pred, average="weighted", zero_division=0)
+    rec = recall_score(Y_test, Y_pred, average="weighted", zero_division=0)
 
     # Log evaluation metrics
     mlflow.log_metric("accuracy", acc)
