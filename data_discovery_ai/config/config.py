@@ -25,7 +25,6 @@ class KeywordClassificationTrainerConfig(TypedDict):
     early_stopping_patience: int
     reduce_lr_patience: int
     validation_split: float
-    saved_model_name: str
     rare_label_threshold: int
     separator: str
 
@@ -35,7 +34,6 @@ class DeliveryClassificationTrainerConfig(TypedDict):
     n_estimators: int
     threshold: float
     n_components: float
-    saved_model_name: str
     separator: str
 
 

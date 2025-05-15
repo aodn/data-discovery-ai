@@ -98,11 +98,9 @@ trainer:
     reduce_lr_patience: 5
     validation_split: 0.2
     rare_label_threshold: 3
-    saved_model_name: development
   delivery_classification:
     separator: " [SEP] "
     test_size: 0.3
-    n_estimators: 10
+    n_estimators: 100
     threshold: 0.9
-    n_components: 0.9
-    saved_model_name: development
+    n_components: 0.5

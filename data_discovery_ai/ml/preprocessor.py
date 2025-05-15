@@ -9,6 +9,7 @@ from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from pandas import DataFrame
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
 from tqdm import tqdm
 
@@ -62,17 +63,17 @@ class BasePreprocessor:
         """
         tqdm.pandas()
         text_columns = self.require_embedding
-        # try:
-        ds[text_columns] = ds[text_columns].fillna("").astype(str)
-        ds["combined_text"] = ds[text_columns].agg(seperator.join, axis=1)
+        try:
+            ds[text_columns] = ds[text_columns].fillna("").astype(str)
+            ds["combined_text"] = ds[text_columns].agg(seperator.join, axis=1)
 
-        ds["embedding"] = ds["combined_text"].progress_apply(
-            lambda x: get_text_embedding(x)
-        )
-        return ds
-        # except Exception as e:
-        #     logger.error(f"Failed to calculate embeddings: {e}")
-        #     return None
+            ds["embedding"] = ds["combined_text"].progress_apply(
+                lambda x: get_text_embedding(x)
+            )
+            return ds
+        except Exception as e:
+            logger.error(f"Failed to calculate embeddings: {e}")
+            return None
 
     def set_preprocessed_data(self, df: pd.DataFrame) -> None:
         pass
@@ -225,17 +226,7 @@ class KeywordPreprocessor(BasePreprocessor):
         Prepares the training and testing datasets using multi-label stratified splitting.
         This function splits the feature matrix X and target matrix Y into training and testing sets based on parameters for multi-label stratified shuffling. It prints dataset information and returns the dimensions, number of labels, and split data for training and testing.
         Input:
-            X: np.ndarray. Feature matrix of shape (n_samples, dimension).
-            Y: np.ndarray. Target matrix of shape (n_samples, n_labels).
-            params: Dict[str, Any].
-        Output:
-            Tuple[int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-                - dim: int. Feature dimension of X.
-                - n_labels: int. Number of labels in Y.
-                - X_train: np.ndarray. Training features.
-                - Y_train: np.ndarray. Training targets.
-                - X_test: np.ndarray. Testing features.
-                - Y_test: np.ndarray. Testing targets.
+            raw_data: pd.DataFrame. The filtered data
         """
         # set preprocessed data
         self.set_preprocessed_data(raw_data)
@@ -400,6 +391,20 @@ def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
     return label_weight_dict
 
 
+@dataclass
+class DDMData:
+    X: np.ndarray
+    Y: np.ndarray
+
+@dataclass
+class DDMTrainTestData:
+    X_labelled_train: np.ndarray
+    Y_labelled_train: np.ndarray
+    X_combined_train: np.ndarray
+    Y_combined_train: np.ndarray
+    X_test: np.ndarray
+    Y_test: np.ndarray
+
 class DeliveryPreprocessor(BasePreprocessor):
     def __init__(self):
         super().__init__()
@@ -442,7 +447,62 @@ class DeliveryPreprocessor(BasePreprocessor):
 
         label_map = {"Real-Time": 0, "Delayed": 1, np.nan: -1}
         data_with_mode["mode"] = data_with_mode["mode"].map(label_map)
-        return filtered_df
+        return data_with_mode
 
     def fetch_raw_data(self) -> pd.DataFrame | None:
         return super().fetch_raw_data()
+
+    def set_preprocessed_data(self, df: pd.DataFrame) -> None:
+        X = np.array(df["embedding"].tolist())
+        Y = np.array(df["mode"].tolist())
+        self.data = DDMData(X, Y)
+
+    def prepare_train_test_set(self, df: pd.DataFrame) -> None:
+        """
+            Prepares the training and testing datasets for the data delivery mode filter model.
+            Input:
+                df: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
+        """
+        self.set_preprocessed_data(df)
+        # split the data into labelled and unlabelled sets
+        labelled_data = df[df["mode"] != -1]
+        logger.info(f"Size of labelled set: {len(labelled_data)}")
+
+        unlabelled_data = df[df["mode"] == -1]
+        logger.info(f"Size of unlabelled set: {len(unlabelled_data)}")
+
+        # only keep embedding column as feature X and mode column as target y for labelled data
+        X_labelled = labelled_data["embedding"].tolist()
+        Y_labelled = labelled_data["mode"].tolist()
+
+        # split labelled data into training and testing sets for validation
+        X_labelled_train, X_test, Y_labelled_train, Y_test = train_test_split(
+            X_labelled, Y_labelled, test_size=self.trainer_config["test_size"], random_state=42
+        )
+        logger.info(
+            f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_test)}"
+        )
+
+        # only keep embedding column as feature X and mode column as target y for unlabelled data
+        X_unlabelled = unlabelled_data["embedding"].tolist()
+        Y_unlabelled = unlabelled_data["mode"].tolist()
+
+        # combine unlabelled data with labelled training data for training
+        X_combined_train = np.vstack([X_labelled_train, X_unlabelled])
+        Y_combined_train = np.hstack([Y_labelled_train, Y_unlabelled])
+        logger.info(f"size of final training set: {len(X_combined_train)} \n Size of test set: {len(X_test)}")
+        # just to make sure X and y are same size
+        if len(X_combined_train) != len(Y_combined_train):
+            logger.error("X and y are not the same size")
+        # just to make sure train and test sets have same dimension
+        if X_combined_train[0].shape != X_test[0].shape:
+            logger.error("Train and test sets have different dimensions")
+        else:
+            self.train_test_data = DDMTrainTestData(
+                np.array(X_labelled_train),
+                np.array(Y_labelled_train),
+                X_combined_train,
+                Y_combined_train,
+                np.array(X_test),
+                np.array(Y_test),
+            )

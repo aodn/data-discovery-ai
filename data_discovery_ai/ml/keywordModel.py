@@ -4,7 +4,6 @@
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import f1_score
 import tensorflow as tf
 
 # this is an IDE issue reported 6 years ago and has not been fixed (https://youtrack.jetbrains.com/issue/PY-34174) and
@@ -17,7 +16,6 @@ from tensorflow.keras import backend as backend  # type: ignore
 from tensorflow.keras.models import load_model  # type: ignore
 
 from typing import Dict, Callable, Any, Tuple, Optional, List
-from configparser import ConfigParser
 import os
 from pathlib import Path
 
@@ -30,7 +28,7 @@ from data_discovery_ai.config.constants import KEYWORD_FOLDER
 from data_discovery_ai import logger
 
 mlflow.tensorflow.autolog()
-mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_tracking_uri("http://localhost:8080")
 mlflow.set_experiment("Keyword Classification Model")
 
 

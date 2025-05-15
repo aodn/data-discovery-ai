@@ -1,36 +1,30 @@
 # The data delivery mode filter model to classify the metadata records based on their titles, abstracts, and lineages.
 # Possible classes are 'Real Time', 'Delayed', and 'Other'.
-#  TODO: Separate the model predicting and training
-import logging
-import os
 from sklearn.semi_supervised import SelfTrainingClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score, recall_score, precision_score
 from sklearn.decomposition import PCA
 import numpy as np
 from pathlib import Path
-
+import mlflow  # type: ignore
 from typing import Any, Tuple
-from configparser import ConfigParser
 
 from data_discovery_ai.config.constants import FILTER_FOLDER
+from data_discovery_ai.ml.preprocessor import DeliveryPreprocessor
 from data_discovery_ai.utils.agent_tools import (
     save_to_file,
     load_from_file,
     get_text_embedding,
 )
-
-os.environ["TF_USE_LEGACY_KERAS"] = "1"
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from data_discovery_ai import logger
 
 
-def ddm_filter_model(
+mlflow.set_tracking_uri("http://localhost:8080")
+mlflow.set_experiment("Data Delivery Mode Classification Model")
+
+def train_delivery_model(
     model_name: str,
-    X_train: np.ndarray,
-    y_train: np.ndarray,
-    params: ConfigParser,
+    deliveryPreprocessor: DeliveryPreprocessor
 ) -> Tuple[Any, Any]:
     """
     The classification model for predicting the data delivery mode of metadata records, based on their titles, abstracts, and lineages.
@@ -43,35 +37,47 @@ def ddm_filter_model(
     Output:
         Tuple[Any, Any]. The trained model and pca model
     """
-    n_estimators = params.getint("filterModel", "n_estimators")
-    random_state = params.getint("filterModel", "random_state")
-    threshold = params.getfloat("filterModel", "threshold")
-    n_components = params.getfloat("filterModel", "n_components")
+    trainer_config = deliveryPreprocessor.trainer_config
+    n_estimators = trainer_config["n_estimators"]
+    threshold = trainer_config["threshold"]
+    n_components = trainer_config["n_components"]
+
+    train_test_data = deliveryPreprocessor.train_test_data
 
     pca = PCA(n_components=n_components)
-    X_train_pca = pca.fit_transform(X_train)
+    X_train_pca = pca.fit_transform(train_test_data.X_combined_train)
 
     base_model = RandomForestClassifier(
-        n_estimators=n_estimators, random_state=random_state
+        n_estimators=n_estimators, random_state=42
     )
     # self-training classifier
     self_training_model = SelfTrainingClassifier(base_model, threshold=threshold)
-    self_training_model.fit(X_train_pca, y_train)
 
-    # model file path
-    model_file_path = (
-        Path(__file__).resolve().parent.parent
-        / "resources"
-        / FILTER_FOLDER
-        / model_name
-    )
+    with mlflow.start_run():
+        self_training_model.fit(X_train_pca, train_test_data.Y_combined_train)
+        mlflow.log_params(trainer_config)
 
-    # make sure path exists
-    model_file_path.parent.mkdir(parents=True, exist_ok=True)
-    save_to_file(self_training_model, model_file_path.with_suffix(".pkl"))
-    save_to_file(pca, model_file_path.with_suffix(".pca.pkl"))
+        evaluate_model(
+            self_training_model,
+            train_test_data.X_test,
+            train_test_data.Y_test,
+            pca
+        )
 
-    return self_training_model, pca
+        # model file path
+        model_file_path = (
+            Path(__file__).resolve().parent.parent
+            / "resources"
+            / FILTER_FOLDER
+            / model_name
+        )
+
+        # make sure path exists
+        model_file_path.parent.mkdir(parents=True, exist_ok=True)
+        save_to_file(self_training_model, model_file_path.with_suffix(".pkl"))
+        save_to_file(pca, model_file_path.with_suffix(".pca.pkl"))
+
+        return self_training_model, pca
 
 
 def load_saved_model(model_name: str) -> Tuple[Any, Any]:
@@ -98,19 +104,31 @@ def load_saved_model(model_name: str) -> Tuple[Any, Any]:
     return trained_model, pca
 
 
-def evaluate_model(model: Any, X_test: np.ndarray, y_test: np.ndarray, pca) -> None:
+def evaluate_model(model: Any, X_test: np.ndarray, Y_test: np.ndarray, pca) -> None:
     """
     Evaluate the model with the testing data. The evaluation metrics comes from the classification report, which is printed out in the log.
     Input:
         model: Any. The trained model.
         X_test: np.ndarray. The testing data of the metadata records, which is splited from the labelled data.
-        y_test: np.ndarray. The real class ("real-time" or "delayed") of the testing data, which is splited from the labelled data. This can be used as the groundtruth to evaluate the model.
+        Y_test: np.ndarray. The real class ("real-time" or "delayed") of the testing data, which is splited from the labelled data. This can be used as the groundtruth to evaluate the model.
         pca: Any. The trained pca model.
     """
     X_test_pca = pca.transform(X_test)
-    y_pred = model.predict(X_test_pca)
-    report = classification_report(y_test, y_pred)
-    logger.info(f"Classification report: \n{report}")
+    Y_pred = model.predict(X_test_pca)
+
+    # Generate classification metrics
+    acc = accuracy_score(Y_test, Y_pred)
+    precision = precision_score(Y_test, Y_pred, average='weighted', zero_division=0)
+    rec = recall_score(Y_test, Y_pred, average='weighted', zero_division=0)
+
+    # Log evaluation metrics
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("precision", precision)
+    mlflow.log_metric("recall", rec)
+
+    # Optional: log full report as artifact or print
+    report = classification_report(Y_test, Y_pred)
+    print(f"Classification report: \n{report}")
 
 
 def make_prediction(model: Any, description: str, pca) -> np.ndarray:
@@ -121,7 +139,7 @@ def make_prediction(model: Any, description: str, pca) -> np.ndarray:
         description: str. The textual description of the metadata record, which is the combination of its title, abstract, and lineage.
         pca: Any. The trained pca model.
     Output:
-        np.ndarray. Return an np.ndarray of size 1, which is the predicted class of the metadata record. This prediction task has only two classes: 0 for "Real-Time" and 1 for "Delayed".
+        np.ndarray. Return a np.ndarray of size 1, which is the predicted class of the metadata record. This prediction task has only two classes: 0 for "Real-Time" and 1 for "Delayed".
     """
     description_embedding = get_text_embedding(description)
     dimension = description_embedding.shape[0]

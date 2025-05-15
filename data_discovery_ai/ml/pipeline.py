@@ -6,12 +6,13 @@ from data_discovery_ai.config.constants import (
     KEYWORD_FOLDER,
     KEYWORD_SAMPLE_FILE,
     KEYWORD_LABEL_FILE,
+    FILTER_FOLDER,
+    FILTER_PREPROCESSED_FILE
 )
 from data_discovery_ai.ml.keywordModel import train_keyword_model
+from data_discovery_ai.ml.filteringModel import train_delivery_model
 from data_discovery_ai import logger
-
 import argparse
-
 
 class BasePipeline:
     def __init__(self):
@@ -113,18 +114,20 @@ class DeliveryClassificationPipeline(BasePipeline):
 
     def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
         if start_from_preprocess:
-            # raw_data = self.preprocessor.fetch_raw_data()
-            # use this for test because it has more data
-            raw_data = load_from_file(
-                self.config.base_dir / "resources" / "raw_data.pkl"
-            )
-
+            raw_data = self.preprocessor.fetch_raw_data()
             filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
             preprocessed_data = self.preprocessor.calculate_embedding(
                 ds=filtered_data, seperator=self.params["separator"]
             )
-            print(preprocessed_data.head())
+            save_to_file(preprocessed_data,
+                         self.config.base_dir / "resources" / FILTER_FOLDER / FILTER_PREPROCESSED_FILE)
+        else:
+            preprocessed_data = load_from_file(
+                self.config.base_dir / "resources" / FILTER_FOLDER / FILTER_PREPROCESSED_FILE
+            )
+        self.preprocessor.prepare_train_test_set(preprocessed_data)
 
+        train_delivery_model(model_name, self.preprocessor)
 
 def main():
     parser = argparse.ArgumentParser()
