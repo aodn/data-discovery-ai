@@ -23,7 +23,6 @@ from data_discovery_ai.utils.agent_tools import (
 )
 from data_discovery_ai import logger
 
-
 mlflow.set_tracking_uri("http://localhost:8080")
 mlflow.set_experiment("Data Delivery Mode Classification Model")
 
@@ -126,9 +125,8 @@ def evaluate_model(model: Any, X_test: np.ndarray, Y_test: np.ndarray, pca) -> N
     mlflow.log_metric("precision", precision)
     mlflow.log_metric("recall", rec)
 
-    # Optional: log full report as artifact or print
     report = classification_report(Y_test, Y_pred)
-    print(f"Classification report: \n{report}")
+    logger.info(f"Classification report: \n{report}")
 
 
 def make_prediction(model: Any, description: str, pca) -> np.ndarray:

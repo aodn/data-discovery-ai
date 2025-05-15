@@ -1,5 +1,5 @@
 import ast
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Union, Tuple
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np

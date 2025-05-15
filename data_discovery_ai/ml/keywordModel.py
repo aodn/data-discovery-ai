@@ -1,7 +1,4 @@
-"""
-    The keyword classification model used to identify the potential keywords for non-categorised records.
-"""
-
+# The keyword classification model used to identify the potential keywords for non-categorised records.
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -122,14 +119,12 @@ def train_keyword_model(
         return model, history
 
 
-def replace_with_column_names(
-    row: pd.SparseDtype, column_names: List[int]
-) -> List[str]:
+def replace_with_column_names(row: pd.Series, column_names: Dict) -> List[str]:
     """
     Transform a row of binary values and returns a list of column names for which the value in the row is 1.
     Input:
         row: pd.Series. A row of binary values indicating presence (1) or absence (0) of each label.
-        column_names: List[int]. The anonymous predefiend label set.
+        column_names: Dict. The anonymous predefined label set.
     Output:
         str: The predicted keywords
     """
@@ -141,11 +136,11 @@ def get_predicted_keywords(prediction: np.ndarray, labels: Dict):
     Convert binary predictions to textual keywords.
     Input:
         prediction: np.ndarray. The predicted binary matrix.
-        labels: Dict. The predefiend keywords.
+        labels: Dict. The predefined keywords.
     Output:
         predicted_keywords: pd.Series. The predicted keywords for the given targets.
     """
-    target_predicted = pd.DataFrame(prediction, columns=labels)
+    target_predicted = pd.DataFrame(prediction, columns=list(labels))
     predicted_keywords = target_predicted.apply(
         lambda row: replace_with_column_names(row, labels), axis=1
     )
@@ -171,7 +166,7 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     try:
         saved_model = load_model(model_file_path, compile=False)
         return saved_model
-    except Exception as e:
+    except (OSError, ValueError, FileNotFoundError) as e:
         logger.error(
             f"Failed to load selected model {trained_model} from folder data_discovery_ai/resources"
         )
