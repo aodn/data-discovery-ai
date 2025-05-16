@@ -140,6 +140,10 @@ When the server is running, there are two available routers:
 
 
 ## Model Training
+Currently, two ML pipeline avaialble for training and evaluating ML models in use:
+`keyword`: keyword classification model, which is a Sequential model for multi-label classification task
+`delivery`: data delivery classification model, which is a self-learning model for binary classification task
+
 ```shell
 python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name development
 ```

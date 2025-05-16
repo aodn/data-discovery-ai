@@ -126,7 +126,7 @@ def replace_with_column_names(row: pd.Series, column_names: Dict) -> List[str]:
         row: pd.Series. A row of binary values indicating presence (1) or absence (0) of each label.
         column_names: Dict. The anonymous predefined label set.
     Output:
-        str: The predicted keywords
+        List[str]: The predicted keywords
     """
     return [column_names[i] for i, value in enumerate(row) if value == 1]
 

@@ -45,7 +45,7 @@ class BasePipeline:
         pass
 
 
-class KeywordClassifierPipeline(BasePipeline):
+class KeywordClassificationPipeline(BasePipeline):
     def __init__(self) -> None:
         """
         Init the pipeline, load parameters from file.
@@ -175,7 +175,7 @@ def main():
 
     args = parser.parse_args()
     if args.pipeline == "keyword":
-        pipeline = KeywordClassifierPipeline()
+        pipeline = KeywordClassificationPipeline()
         pipeline.pipeline(args.start_from_preprocess, args.model_name)
     elif args.pipeline == "delivery":
         pipeline = DeliveryClassificationPipeline()
