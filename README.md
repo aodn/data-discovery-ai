@@ -2,39 +2,37 @@
 [![CI](https://github.com/aodn/data-discovery-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/aodn/data-discovery-ai/actions/workflows/ci.yml)
 
 # Data Discovery AI
+A consolidated framework for AI and ML components developed for the new portal.
 
-## Environment variables
-
-If you wish to run the application locally, navigate to the root directory of the project and create a `.env` file.
-
-Open the `.env` file and add the following lines to for using this application:
-
+## 🔧 Setup
+### Environment variables
+To run the app locally:
+1. Go to the root folder of this project.
+2. Create a .env file. (or simply copy the .env.sample file)
+3. Add the following (with your real keys):
 ```shell
 API_KEY="your_actual_api_key_here"
-OPENAI_API_KEY="your_actual_openai_api_key"
+OPENAI_API_KEY="your_actual_openai_api_key_here"
+PROFILE="your_actual_environment_here"
 ```
-These variables are required for the application to function properly.
-
-**Note:** If you are running the application from a deployment environment, you do not need to set `API_KEY` manually as it has been already configured in the cloud environment. You may not need an OPENAI_API_KEY if `description_formatting` model was not called.
-
-If you are going to train the model, make sure these variables have been set up for connecting Elasticsearch:
+If you plan to train models, also include:
 ```shell
 ES_ENDPOINT="your_actual_elasticsearch_endpoint"
 ES_API_KEY="your_actual_es_api_key"
 ```
 
-## Run the API server with Docker
+## 🚀 Running the App
+### Option 1: Run with Docker (Recommended for Non-Developers)
+1. Copy the content in .env.sample` to `.env` and fill in your keys.
+2. Run
+    ```shell
+    ./startServer.sh
+    ```
+    Then visit [http://localhost:8000](http://localhost:8000)
+3. Test App health at [http://localhost:8000/api/v1/ml/health](http://localhost:8000/api/v1/ml/health)
 
-Simply run `./startServer.sh` to run the app, this will create a docker image and run the image for you.
-
-Host will be `http://localhost:8000`.
-
-## Run the API server for development
-
-### Requirements
-
-- Conda (recommended for creating a virtual environment)
-
+### Option 2: Run for Development (For Developers)
+#### Conda (recommended for creating a virtual environment)
 1. Install Conda (if not already installed):
 
    Follow the instructions at [Conda Installation](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
@@ -45,7 +43,7 @@ Host will be `http://localhost:8000`.
    conda env create -f environment.yml
    ```
 
-### Dependencies management
+#### Dependencies management
 
 Poetry is used for dependency management, the `pyproject.toml` file is what is the most important, it will orchestrate the project and its dependencies.
 
@@ -58,7 +56,7 @@ poetry remove <pypi-dependency-name> # e.g. poetry remove numpy
 
 You might want to update the `poetry.lock` file after manually modifying `pyproject.toml` with `poetry lock` command. To update all dependencies, use `poetry update` command.
 
-### Installation and Usage
+#### Installation and Usage
 
 1. Activate Conda virtual environment:
 
@@ -74,116 +72,47 @@ You might want to update the `poetry.lock` file after manually modifying `pyproj
    poetry install
    ```
 
-3. Run the FastAPI server:
+#### Before Usage
+FastAPI runs internal checks before making `\process_record` API calls. These checks include:
+1. ✅ Required model resource files must be present in `data_discovery_ai/resources/`.
+2. ✅ A valid `OPENAI_API_KEY` must be in `.env` unless you're in `development` environment.
+3. ✅ If `PROFILE=development`, Ollama must be running locally at http://localhost:11434.
 
+##### (Optional) Install Llama3 for Local Development
+To use the Llama3 model locally without OpenAI:
+1. Go to [Ollama download page](https://ollama.com/download) and download the version that matches your operating system (Windows, Linux, or macOS).
+2. After installation, start Ollama either by launching the app or running the following command:
+    ```shell
+    ollama serve
+    ```
+3. Pull the "llama3" model used for local development：
+    ```shell
+    ollama pull llama3
+    ```
+
+4. Consider install open-webui to run the llama3 for dev via:
+    ```shell
+    docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui ghcr.io/open-webui/open-webui:main
+    ```
+
+#### Run the FastAPI Server
+Simply run:
    ```shell
    poetry run uvicorn data_discovery_ai.server:app --reload --log-config=log_config.yaml
    ```
-
-4. Run the tests:
-
-   ```shell
-   poetry run pytest
-   ```
-5. To use free LLM (Llama3) in the local development environment, please go to [Ollama download page](https://ollama.com/download) and download the version that matches your operating system (Windows, Linux, or macOS). After installation, start Ollama either by launching the app or running the following command:
-```shell
-ollama serve
-```
-
-And pull the "llama3" model used for local development.
-```shell
-ollama pull llama3
-```
-
-Consider install open-webui to run the lama3 for dev
-```shell
-docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui ghcr.io/open-webui/open-webui:main
-```
-
-6. FastAPI performs readiness checks before making `\process_record` API calls. These checks include:
-    1. Ensuring that all required resources for the pre-trained model exist.
-    2. Confirming that the OpenAI API key is set, if the environment is not set to "development".
-    3. Verifying that Ollama is running at `http://localhost:11434` if the environment is set to "development".
-
-
-### Code formatting
-
-The command below is for manual checks; checks are also executed when you run `git commit`.
-
-The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`.
-
+#### Running Tests
+Run all tests with:
+    ```shell
+    poetry run python -m unittest discover -s tests
+    ```
+#### Code formatting
+Run manual checks:
 ```shell
 pre-commit run --all-files
 ```
+Checks are also executed when you run `git commit`. The configurations for pre-commit hooks are defined in `.pre-commit-config.yaml`.
 
-# Usage
-When the server is running, there are two available routers:
-- Health check through `/api/v1/ml/health`. Get method, no request parameter required.
-- One single point for calling AI models to process metadata record through `/api/v1/ml/process_record`. Post method. JSON format request required. For example:
-```JSON
-{
-    "selected_model":["description_formatting"],
-    "title": "test title",
-    "abstract": "test abstract"
-}
-```
-
-**Required Fields**
-
-- `selected_model`: the AI models provided by `data-discovery-ai`. It should be a list of strings, which are the name of the AI task agents. Currently, four AI task agents available for distinctive tasks:
-    - `keyword_classification`: predict keywords from AODN vocabularies based on metadata `title` and `abstract` with pretrained ML model.
-    - `delivery_classification`: predict data delivery mode based on metadata `title`, `abstract`, and `lineage` with pretrained ML model.
-    - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-4o-mini".
-    - `link_grouping`: categorising links into four groups: ["Python Notebook", "Document", "Data Access", "Other"] based on metadata `links`.
-- For selected models, their required fields are needed to be passed.
-- Routes are protected with authorisation checks. This means that the **request header** must include the key `X-API-Key`, and its value must match the `API_KEY` specified in the environment variables.
-
-
-## Model Training
-Currently, two ML pipeline avaialble for training and evaluating ML models in use:
-`keyword`: keyword classification model, which is a Sequential model for multi-label classification task
-`delivery`: data delivery classification model, which is a self-learning model for binary classification task
-
-```shell
-python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name development
-```
-or
-```shell
- python -m data_discovery_ai.ml.pipeline -p keyword -s False -n experimental
-```
-# File Structure
-```
-data_discovery_ai/
-├── config/             # Common utilities and shared configurations/constants used across modules│
-├── core/               # Core logic of the application such as API routes
-├── agents/             # Task-specific agent modules using ML/AI/rule-based tools
-├── ml/                 # Machine learning models: training, inference, evaluation logic
-├── utils/              # Utility functions and helper scripts for various tasks
-├── resources/          # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
-├── notebooks/          # Jupyter notebooks
-├── tests/              # Unit tests for validating core components
-│   ├── agents
-│   └── utils
-├── server.py             # FastAPI application entry point
-```
-
-## Required Configuration Files
-1. Global constants file
-File name `constants.py` saved under folder `data_discovery_ai/common`.
-
-2. Parameter configuration file
-File name `parameters.yaml` saved under folder `data_discovery_ai/commom`. Store parameter settings for ML models and AI agents.
-
-
-## Test
-All test files are located in the `tests` folder at the root of the project. To run them, use the following command:
-
-```bash
-poetry run python -m unittest discover -s tests
-```
-
-
-## Commit
+#### Git Commit Guide (Optional)
 
 We are using [gitmoji](https://gitmoji.dev/)(OPTIONAL) with husky and commitlint. Here you have an example of the most used ones:
 
@@ -201,7 +130,7 @@ We are using [gitmoji](https://gitmoji.dev/)(OPTIONAL) with husky and commitlint
 Example of use:
 `:wrench: add husky and commitlint config`
 
-## Branching name
+#### Branching name
 
 - `hotfix/`: for quickly fixing critical issues,
 - `usually/`: with a temporary solution
@@ -214,3 +143,93 @@ And add the issue id after an `/` followed with an explanation of the task.
 
 Example of use:
 `feature/5348-create-react-app`
+
+## ▶️ Using the API
+Once the app is running, two routes are available:
+
+| **Route**                        | **Description**                                                   |
+|----------------------------------|-------------------------------------------------------------------|
+| `GET /api/v1/ml/health`          | Health check                                                      |
+| `POST /api/v1/ml/process_record` | One single point for calling AI models to process metadata record |
+### Example Request Body
+```JSON
+{
+    "selected_model":["description_formatting"],
+    "title": "test title",
+    "abstract": "test abstract"
+}
+```
+
+**Required Header**
+```shell
+X-API-Key: your_api_key
+```
+
+(Must match the value of `API_KEY` specified in the environment variables).
+
+**AI Model Options**
+
+- `selected_model`: the AI models provided by `data-discovery-ai`. It should be a list of strings, which are the name of the AI task agents. Currently, four AI task agents available for distinctive tasks:
+    - `keyword_classification`: predict keywords from AODN vocabularies based on metadata `title` and `abstract` with pretrained ML model.
+    - `delivery_classification`: predict data delivery mode based on metadata `title`, `abstract`, and `lineage` with pretrained ML model.
+    - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-4o-mini".
+    - `link_grouping`: categorising links into four groups: ["Python Notebook", "Document", "Data Access", "Other"] based on metadata `links`.
+
+## 🤖 Model Training (Optional)
+Currently, two machine learning pipelines are available for training and evaluating models:
+
+- `keyword`: keyword classification model, which is a Sequential model for multi-label classification task
+- `delivery`: data delivery classification model, which is a self-learning model for binary classification task
+
+### How to Run
+To run one of the pipelines (for example, the keyword one), you can use the following command in your terminal:
+```shell
+python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name development
+```
+You can also use a shorter version:
+```shell
+ python -m data_discovery_ai.ml.pipeline -p keyword -s False -n experimental
+```
+
+### When Should I Re-Train?
+If the raw data has changed (e.g., updated, cleaned, or expanded), you are recommended to re-train the model using the latest data.
+To do this, set:
+```shell
+--start_from_preprocess True
+```
+
+As mentioned in [Environment variables](#environment-variables), ElasticSearch endpoint and API key are required to be set up in `.env` file.
+
+### Track Training Progress with MLflow
+We use [MLflow](https://mlflow.org/) to track model training and performance over time (like hypermeters, accuracy, precision, etc.).
+
+To start the tracking server locally, run:
+```shell
+mlflow server --port 8080
+```
+Once it's running, you can open the tracking dashboard in your browser: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+
+You can change the model's training settings (like how long it trains or how fast it learns) by editing the trainer section in the file: `data_discovery_ai/config/parameters.yaml`
+
+## 🛠️ Required Configuration Files
+| **File**                                   | **Description**                                       |
+|--------------------------------------------|-------------------------------------------------------|
+| `data_discovery_ai/common/constants.py`    | 	Shared constants                                     |
+| `data_discovery_ai/commom/parameters.yaml` | Store parameter settings for ML models and AI agents. |
+
+## 📁 Project Structure
+```
+data_discovery_ai/
+├── config/             # Common utilities and shared configurations/constants used across modules│
+├── core/               # Core logic of the application such as API routes
+├── agents/             # Task-specific agent modules using ML/AI/rule-based tools
+├── ml/                 # Machine learning models: training, inference, evaluation logic
+├── utils/              # Utility functions and helper scripts for various tasks
+├── resources/          # Stored assets such as pretrained models, sample datasets, and other resources required for model inference
+├── notebooks/          # Jupyter notebooks
+├── tests/              # Unit tests for validating core components
+│   ├── agents
+│   ├── ml
+│   └── utils
+├── server.py             # FastAPI application entry point
+```
