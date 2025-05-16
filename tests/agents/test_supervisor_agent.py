@@ -39,7 +39,9 @@ class TestSupervisorAgent(unittest.TestCase):
         )
 
         # Test non-dict request
-        self.assertFalse(self.agent.is_valid_request(self.non_dict_request))
+        self.assertFalse(
+            self.agent.is_valid_request(self.non_dict_request)
+        )  # type:ignore
 
     def test_create_task_agents(self):
         self.agent.make_decision(self.valid_request)

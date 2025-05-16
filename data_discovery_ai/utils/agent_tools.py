@@ -6,6 +6,12 @@ from transformers import AutoTokenizer, TFBertModel
 import numpy as np
 from pathlib import Path
 
+# init embedding model for global use
+# https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/bert#transformers.TFBertModel
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+# use in Tensorflow https://huggingface.co/google-bert/bert-base-uncased
+model = TFBertModel.from_pretrained("bert-base-uncased")
+
 
 def save_to_file(obj: Any, full_path: Union[str, Path]) -> None:
     """
@@ -42,12 +48,6 @@ def get_text_embedding(text: str) -> np.ndarray:
     Output:
         text_embedding: np.ndarray. A numpy array representing the text embedding as a feature vector. The shape of the output is (768,).
     """
-    # https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/bert#transformers.TFBertModel
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-
-    # use in Tensorflow https://huggingface.co/google-bert/bert-base-uncased
-    model = TFBertModel.from_pretrained("bert-base-uncased")
-
     # https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__.return_tensors, set as 'tf' to return tensorflow tensor
     inputs = tokenizer(text, return_tensors="tf", max_length=512, truncation=True)
     outputs = model(inputs)

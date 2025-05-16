@@ -97,7 +97,7 @@ def search_es(
         current_pit = first_query_resp["pit_id"]
 
         # conduct further search
-        for r in tqdm(range(1, rounds), desc="searching elasticsearch"):
+        for r in range(1, rounds):
             query_body = {
                 "size": batch_size,
                 "query": {"match_all": {}},
@@ -143,6 +143,7 @@ def search_es(
 
         # close pit
         try:
+            logger.info(f"Total results: {len(dataframes)}")
             client.close_point_in_time(
                 id=current_pit,
             )

@@ -25,6 +25,8 @@ class KeywordClassificationTrainerConfig(TypedDict):
     early_stopping_patience: int
     reduce_lr_patience: int
     validation_split: float
+    rare_label_threshold: int
+    separator: str
 
 
 class DeliveryClassificationTrainerConfig(TypedDict):
@@ -32,6 +34,7 @@ class DeliveryClassificationTrainerConfig(TypedDict):
     n_estimators: int
     threshold: float
     n_components: float
+    separator: str
 
 
 class TrainerConfig(TypedDict):
@@ -66,12 +69,12 @@ class ModelConfig(TypedDict):
     description_formatting: DescriptionFormattingConfig
     delivery_classification: DeliveryClassificationConfig
     link_grouping: Dict[str, Any]
-    trainer: TrainerConfig
 
 
 class FullConfig(TypedDict):
     elasticsearch: ElasticsearchConfig
     model: ModelConfig
+    trainer: TrainerConfig
     logging: Dict[str, Any]
 
 
@@ -214,8 +217,8 @@ class ConfigUtil:
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
         # set up through parameters.yaml
-        return self._config_data["model"]["trainer"]["keyword_classification"]
+        return self._config_data["trainer"]["keyword_classification"]
 
     def get_delivery_trainer_config(self) -> DeliveryClassificationTrainerConfig:
         # set up through parameters.yaml
-        return self._config_data["model"]["trainer"]["delivery_classification"]
+        return self._config_data["trainer"]["delivery_classification"]
