@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Optional, Iterable
-from keras.api.models import load_model
+from keras.models import load_model  # type: ignore
 
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
