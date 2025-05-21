@@ -49,8 +49,8 @@ class TestAgentTools(unittest.TestCase):
         self.assertEqual(str(args[0]), "File not found")
         self.assertIsNone(result)
 
-    @patch("data_discovery_ai.utils.agent_tools.AutoTokenizer.from_pretrained")
-    @patch("data_discovery_ai.utils.agent_tools.TFBertModel.from_pretrained")
+    @patch("data_discovery_ai.utils.agent_tools.tokenizer")
+    @patch("data_discovery_ai.utils.agent_tools.model")
     def test_get_text_embedding(self, mock_embedding_model, mock_tokenizer_model):
         mock_tokenizer = MagicMock()
         mock_tokenizer.return_value = {"input_ids": [[101]], "attention_mask": [[1]]}
@@ -64,8 +64,7 @@ class TestAgentTools(unittest.TestCase):
             mock_output
         )
 
-        mock_model = MagicMock(return_value=mock_model_output)
-        mock_embedding_model.return_value = mock_model
+        mock_embedding_model.return_value = mock_model_output
 
         embedding = get_text_embedding("This is a test text")
         self.assertEqual(embedding.shape, (768,))

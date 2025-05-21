@@ -9,7 +9,3 @@ KEYWORD_SAMPLE_FILE = "keyword_sample.pkl"
 KEYWORD_LABEL_FILE = "keyword_label.pkl"
 FILTER_PREPROCESSED_FILE = "filter_preprocessed.pkl"
 FILTER_FOLDER = "DataDeliveryModeFilter"
-
-# global constants for preprocessor
-# TODO: move to parameter file
-RARE_LABEL_THRESHOLD = 3
