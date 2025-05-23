@@ -200,6 +200,76 @@ To do this, set:
 
 As mentioned in [Environment variables](#environment-variables), ElasticSearch endpoint and API key are required to be set up in `.env` file.
 
+### What Happens When I Run a Pipeline?
+Running a pipeline trains a Machine Learning model and saves several resource files for reuse — so you don’t have to reprocess data or retrain the model every time.
+
+1. `delivery` pipeline
+
+    Outputs are saved in: `data_discovery_ai/resources/DataDeliveryModeFilter/`
+
+    | File Name                 | Description                                     |
+    |---------------------------|-------------------------------------------------|
+    | `filter_preprocessed.pkl` | Preprocessed data used for training and testing |
+    | `development.pkl`         | Trained binary classification model             |
+    | `development.pca.pkl`     | PCA model used for dimensionality reduction     |
+
+2. `keyword` pipeline
+
+    Outputs are saved in: `data_discovery_ai/resources/KeywordClassifier/`
+
+    | File Name            | Description                                           |
+    |----------------------|-------------------------------------------------------|
+    | `keyword_sample.pkl` | Preprocessed data used for training and testing       |
+    | `keyword_label.pkl`  | Mapping between labels and internal IDs               |
+    | `development.keras`  | Trained Keras model file (name set by `--model_name`) |
+
+These files are **generated automatically during pipeline training** and **saved automatically after pipeline running**. They are intended for reuse in subsequent runs to avoid retraining.
+
+#### Accepted Model Names
+The `--model_name` argument helps organise different versions of your model. Here's how they’re typically used:
+
+| Name           | Purpose                                    | When to Use                                           |
+|----------------|--------------------------------------------|-------------------------------------------------------|
+| `development`  | Active model development                   | For testing and iterating on new ideas                |
+| `experimental` | Try new techniques or tuning               | For exploring new features or architectures           |
+| `benchmark`    | Compare against the current baseline model | When validating improvements over a previous version  |
+| `staging`      | Pre-production readiness                   | When testing full integration before final deployment |
+| `production`   | Final production model                     | Live version used in production APIs or systems       |
+
+> 🛠 **Tip:** When working locally, use `--model_name experimental` to avoid overwriting files used in deployments.
+
+#### Model Naming Guidelines
+Each model name reflects a stage in the model lifecycle:
+
+1. Development
+    - Initial model design and prototyping
+    - Reaches minimum performance targets with stable training
+
+2. Experimental
+    - Shows consistent performance improvements
+    - Experiment logs and results are clearly documented
+
+3. Benchmark
+    - Outperforms the existing benchmark (usually a copy of the production model)
+    - Validated using selected evaluation metrics
+
+4. Staging
+    - Successfully integrated with application components (e.g. APIs)
+    - Ready for deployment, pending final checks
+
+5. Production
+    - Deployed in a live environment
+    - Monitored continuously, supports user feedback and live data updates
+
+#### Model Usage
+In the configuration file `data_discovery_ai/common/parameters.yaml`, you can specify which model version each task should use. For example:
+```yaml
+model:
+  delivery_classification:
+    pretrained_model: development
+```
+This means the agent handling the `delivery_classification` task will use the `development` version of the model.
+
 ### Track Training Progress with MLflow
 We use [MLflow](https://mlflow.org/) to track model training and performance over time (like hypermeters, accuracy, precision, etc.).
 

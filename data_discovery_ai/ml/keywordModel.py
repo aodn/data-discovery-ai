@@ -54,10 +54,10 @@ def focal_loss(
 
 
 def train_keyword_model(
-    model_name: str, keywordPreprocessor: KeywordPreprocessor
+    model_name: str, keyword_preprocessor: KeywordPreprocessor
 ) -> Tuple[Sequential, Any]:
-    train_test_data = keywordPreprocessor.train_test_data
-    trainer_config = keywordPreprocessor.trainer_config
+    train_test_data = keyword_preprocessor.train_test_data
+    trainer_config = keyword_preprocessor.trainer_config
 
     model = Sequential(
         [
@@ -93,7 +93,7 @@ def train_keyword_model(
         min_lr=1e-6,
     )
     with mlflow.start_run():
-        trainer_params = keywordPreprocessor.trainer_config
+        trainer_params = keyword_preprocessor.trainer_config
         mlflow.log_params(trainer_params)
 
         history = model.fit(
@@ -107,7 +107,7 @@ def train_keyword_model(
         )
 
         model_file_path = (
-            keywordPreprocessor.config.base_dir
+            keyword_preprocessor.config.base_dir
             / "resources"
             / KEYWORD_FOLDER
             / model_name

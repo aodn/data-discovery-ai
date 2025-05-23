@@ -28,7 +28,7 @@ mlflow.set_experiment("Data Delivery Mode Classification Model")
 
 
 def train_delivery_model(
-    model_name: str, deliveryPreprocessor: DeliveryPreprocessor
+    model_name: str, delivery_preprocessor: DeliveryPreprocessor
 ) -> Tuple[Any, Any]:
     """
     The classification model for predicting the data delivery mode of metadata records, based on their titles, abstracts, and lineages.
@@ -41,12 +41,12 @@ def train_delivery_model(
     Output:
         Tuple[Any, Any]. The trained model and pca model
     """
-    trainer_config = deliveryPreprocessor.trainer_config
+    trainer_config = delivery_preprocessor.trainer_config
     n_estimators = trainer_config["n_estimators"]
     threshold = trainer_config["threshold"]
     n_components = trainer_config["n_components"]
 
-    train_test_data = deliveryPreprocessor.train_test_data
+    train_test_data = delivery_preprocessor.train_test_data
 
     pca = PCA(n_components=n_components)
     X_train_pca = pca.fit_transform(train_test_data.X_combined_train)

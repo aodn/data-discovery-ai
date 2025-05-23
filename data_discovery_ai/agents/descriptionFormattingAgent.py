@@ -49,7 +49,9 @@ def retrieve_json(output: str) -> str:
         r'\{\s*"formatted_abstract"\s*:\s*""".*?"""\s*}', output, re.DOTALL
     )
     if not triple:
-        logger.error("No JSON found in LLM response.")
+        logger.error(
+            f"No JSON found in LLM response. The original response is \n{output}"
+        )
         return output.strip()
 
     block = triple.group()
