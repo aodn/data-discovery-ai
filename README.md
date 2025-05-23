@@ -102,9 +102,9 @@ Simply run:
    ```
 #### Running Tests
 Run all tests with:
-    ```shell
-    poetry run python -m unittest discover -s tests
-    ```
+```shell
+poetry run python -m unittest discover -s tests
+```
 #### Code formatting
 Run manual checks:
 ```shell
@@ -184,7 +184,7 @@ Currently, two machine learning pipelines are available for training and evaluat
 ### How to Run
 To run one of the pipelines (for example, the keyword one), you can use the following command in your terminal:
 ```shell
-python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name development
+python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name experimental
 ```
 You can also use a shorter version:
 ```shell

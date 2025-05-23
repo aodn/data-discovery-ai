@@ -26,7 +26,6 @@ from data_discovery_ai import logger
 
 mlflow.tensorflow.autolog()
 mlflow.set_tracking_uri("http://localhost:8080")
-mlflow.set_experiment("Keyword Classification Model")
 
 
 def focal_loss(
@@ -92,6 +91,8 @@ def train_keyword_model(
         patience=trainer_config["reduce_lr_patience"],
         min_lr=1e-6,
     )
+
+    mlflow.set_experiment("Keyword Classification Model")
     with mlflow.start_run():
         trainer_params = keyword_preprocessor.trainer_config
         mlflow.log_params(trainer_params)

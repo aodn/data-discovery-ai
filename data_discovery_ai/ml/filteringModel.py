@@ -24,7 +24,6 @@ from data_discovery_ai.utils.agent_tools import (
 from data_discovery_ai import logger
 
 mlflow.set_tracking_uri("http://localhost:8080")
-mlflow.set_experiment("Data Delivery Mode Classification Model")
 
 
 def train_delivery_model(
@@ -55,6 +54,7 @@ def train_delivery_model(
     # self-training classifier
     self_training_model = SelfTrainingClassifier(base_model, threshold=threshold)
 
+    mlflow.set_experiment("Data Delivery Mode Classification Model")
     with mlflow.start_run():
         self_training_model.fit(X_train_pca, train_test_data.Y_combined_train)
         mlflow.log_params(trainer_config)
