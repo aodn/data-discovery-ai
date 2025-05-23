@@ -49,7 +49,9 @@ def retrieve_json(output: str) -> str:
         r'\{\s*"formatted_abstract"\s*:\s*""".*?"""\s*}', output, re.DOTALL
     )
     if not triple:
-        logger.error("No JSON found in LLM response.")
+        logger.error(
+            f"No JSON found in LLM response. The original response is \n{output}"
+        )
         return output.strip()
 
     block = triple.group()
@@ -94,14 +96,14 @@ class DescriptionFormattingAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag and "abstract" in request:
-            self.response = {self.model_config["response_key"]: request["abstract"]}
+            self.response = {self.model_config.response_key: request["abstract"]}
         elif not flag and "abstract" not in request:
-            self.response = {self.model_config["response_key"]: ""}
+            self.response = {self.model_config.response_key: ""}
         else:
             title = request["title"]
             abstract = request["abstract"]
             self.response = {
-                self.model_config["response_key"]: self.take_action(title, abstract)
+                self.model_config.response_key: self.take_action(title, abstract)
             }
         # set status to 2 as finished
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
@@ -135,7 +137,7 @@ class DescriptionFormattingAgent(BaseAgent):
         response = None
         try:
             # if you use OpenAI model in production or staging
-            if self.model_config["model"] == "gpt-4o-mini":
+            if self.model_config.model == "gpt-4o-mini":
                 system_prompt = """You are a Marine Science Officer processing metadata records. Given a title and abstract of a metadata record, perform the following tasks:
 
                                             Task 1: Convert Text to Markdown
@@ -151,16 +153,16 @@ class DescriptionFormattingAgent(BaseAgent):
                 client = OpenAI(api_key=self.openai_api_key)
                 # noinspection PyTypeChecker
                 completion = client.chat.completions.create(
-                    model=self.model_config["model"],
+                    model=self.model_config.model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": input_text},
                     ],
-                    temperature=self.model_config["temperature"],
-                    max_tokens=self.model_config["max_tokens"],
+                    temperature=self.model_config.temperature,
+                    max_tokens=self.model_config.max_tokens,
                 )
                 response = completion.choices[0].message.content
-            elif self.model_config["model"] == "llama3":
+            elif self.model_config.model == "llama3":
                 # in dev use free llama 3 model
                 system_prompt = """
             Process a metadata record's title and abstract. Reformat the abstract, keeping original text, using Markdown: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https).
@@ -170,14 +172,14 @@ class DescriptionFormattingAgent(BaseAgent):
             }
             """
                 response = chat(
-                    model=self.model_config["model"],
+                    model=self.model_config.model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": input_text},
                     ],
                     options={
-                        "temperature": self.model_config["temperature"],
-                        "max_tokens": self.model_config["max_tokens"],
+                        "temperature": self.model_config.temperature,
+                        "max_tokens": self.model_config.max_tokens,
                     },
                 )
                 response = response.message.content

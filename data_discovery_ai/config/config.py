@@ -2,17 +2,21 @@ import os
 import logging
 from pathlib import Path
 from typing import Any, Dict, TypedDict, List
+from dataclasses import dataclass, field
 import yaml
+
 import data_discovery_ai.config.constants as constants
 
 
-class ElasticsearchConfig(TypedDict):
+@dataclass(frozen=True)
+class ElasticsearchConfig:
     batch_size: int
     sleep_time: int
     es_index_name: str
 
 
-class KeywordClassificationTrainerConfig(TypedDict):
+@dataclass(frozen=True)
+class KeywordClassificationTrainerConfig:
     vocabs: List[str]
     test_size: float
     n_splits: int
@@ -29,7 +33,8 @@ class KeywordClassificationTrainerConfig(TypedDict):
     separator: str
 
 
-class DeliveryClassificationTrainerConfig(TypedDict):
+@dataclass(frozen=True)
+class DeliveryClassificationTrainerConfig:
     test_size: float
     n_estimators: int
     threshold: float
@@ -37,12 +42,14 @@ class DeliveryClassificationTrainerConfig(TypedDict):
     separator: str
 
 
-class TrainerConfig(TypedDict):
+@dataclass(frozen=True)
+class TrainerConfig:
     keyword_classification: KeywordClassificationTrainerConfig
     delivery_classification: DeliveryClassificationTrainerConfig
 
 
-class KeywordClassificationConfig(TypedDict):
+@dataclass(frozen=True)
+class KeywordClassificationConfig:
     confidence: float
     top_N: int
     separator: str
@@ -50,28 +57,37 @@ class KeywordClassificationConfig(TypedDict):
     response_key: str
 
 
-class DescriptionFormattingConfig(TypedDict):
+@dataclass(frozen=True)
+class DescriptionFormattingConfig:
     model: str
     temperature: float
     max_tokens: int
     response_key: str
 
 
-class DeliveryClassificationConfig(TypedDict):
+@dataclass(frozen=True)
+class DeliveryClassificationConfig:
     pretrained_model: str
     separator: str
     response_key: str
 
 
-class ModelConfig(TypedDict):
-    supervisor: Dict[str, Any]
+@dataclass(frozen=True)
+class SupervisorConfig:
+    settings: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ModelConfig:
+    supervisor: SupervisorConfig
     keyword_classification: KeywordClassificationConfig
     description_formatting: DescriptionFormattingConfig
     delivery_classification: DeliveryClassificationConfig
     link_grouping: Dict[str, Any]
 
 
-class FullConfig(TypedDict):
+@dataclass(frozen=True)
+class FullConfig:
     elasticsearch: ElasticsearchConfig
     model: ModelConfig
     trainer: TrainerConfig
@@ -112,7 +128,7 @@ class ConfigUtil:
         """Load YAML config, determine environment, and initialize logging."""
         self.base_dir = Path(__file__).resolve().parent.parent
         self.config_path = self.base_dir / "config" / config_file
-        self._config_data: FullConfig = self._load_yaml()
+        self._config_data: Dict[str, Any] = self._load_yaml()
 
         # determine environment (default to 'development')
         env_val = os.getenv(self.ENV_VARS["environment"])
@@ -124,13 +140,12 @@ class ConfigUtil:
         logger = logging.getLogger()
         logger.setLevel(numeric_level)
 
-    def _load_yaml(self) -> FullConfig:
+    def _load_yaml(self) -> Dict[str, Any]:
         """Read and parse the YAML configuration file."""
         if not self.config_path.exists():
             raise FileNotFoundError(f"YAML config file not found: {self.config_path}")
         with open(self.config_path, "r") as f:
-            data = yaml.safe_load(f) or {}
-        return data  # type: ignore
+            return yaml.safe_load(f) or {}
 
     def _get_value(self, path: str, default: Any) -> Any:
         env_key = self.ENV_VARS.get(path)
@@ -155,38 +170,35 @@ class ConfigUtil:
         return data
 
     def get_es_config(self) -> ElasticsearchConfig:
-        """Return Elasticsearch settings."""
+        sub = "elasticsearch"
         return ElasticsearchConfig(
             batch_size=self._get_value(
-                "elasticsearch.batch_size", self.DEFAULTS["elasticsearch"]["batch_size"]
+                f"{sub}.batch_size", self.DEFAULTS[sub]["batch_size"]
             ),
             sleep_time=self._get_value(
-                "elasticsearch.sleep_time", self.DEFAULTS["elasticsearch"]["sleep_time"]
+                f"{sub}.sleep_time", self.DEFAULTS[sub]["sleep_time"]
             ),
             es_index_name=self._get_value(
-                "elasticsearch.es_index_name",
-                self.DEFAULTS["elasticsearch"]["es_index_name"],
+                f"{sub}.es_index_name", self.DEFAULTS[sub]["es_index_name"]
             ),
         )
 
-    def get_supervisor_config(self) -> Dict[str, Any]:
-        """Return supervisor agent configuration from YAML."""
-        return self._config_data["model"].get("supervisor", {})
+    def get_supervisor_config(self) -> SupervisorConfig:
+        return SupervisorConfig(
+            settings=self._config_data.get("model", {}).get("supervisor", {})
+        )
 
     def get_keyword_classification_config(self) -> KeywordClassificationConfig:
-        """Return keyword classification parameters from YAML."""
-        return self._config_data["model"]["keyword_classification"]
-
-    def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
-        # set up through parameters.yaml
-        return self._config_data["model"]["delivery_classification"]
+        m = self._config_data.get("model", {}).get("keyword_classification", {})
+        return KeywordClassificationConfig(
+            confidence=m.get("confidence", 0.0),
+            top_N=m.get("top_N", 0),
+            separator=m.get("separator", ""),
+            pretrained_model=m.get("pretrained_model", ""),
+            response_key=m.get("response_key", ""),
+        )
 
     def get_description_formatting_config(self) -> DescriptionFormattingConfig:
-        """
-        Return description formatting config. Defaults are hard-coded per-environment;
-        ignores YAML for param values except model name override via ENV.
-        """
-        # set defaults by environment
         if self.env == "development":
             defaults = {
                 "model": "llama3",
@@ -211,14 +223,21 @@ class ConfigUtil:
             response_key=defaults["response_key"],
         )
 
+    def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
+        m = self._config_data.get("model", {}).get("delivery_classification", {})
+        return DeliveryClassificationConfig(
+            pretrained_model=m.get("pretrained_model", ""),
+            separator=m.get("separator", ""),
+            response_key=m.get("response_key", ""),
+        )
+
     def get_link_grouping_config(self) -> Dict[str, Any]:
-        # set up through parameters.yaml
-        return self._config_data["model"].get("link_grouping", {})
+        return self._config_data.get("model", {}).get("link_grouping", {})
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
-        # set up through parameters.yaml
-        return self._config_data["trainer"]["keyword_classification"]
+        tr = self._config_data.get("trainer", {}).get("keyword_classification", {})
+        return KeywordClassificationTrainerConfig(**tr)
 
     def get_delivery_trainer_config(self) -> DeliveryClassificationTrainerConfig:
-        # set up through parameters.yaml
-        return self._config_data["trainer"]["delivery_classification"]
+        tr = self._config_data.get("trainer", {}).get("delivery_classification", {})
+        return DeliveryClassificationTrainerConfig(**tr)

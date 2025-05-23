@@ -13,6 +13,7 @@ import numpy as np
 from pathlib import Path
 import mlflow  # type: ignore
 from typing import Any, Tuple
+from dataclasses import asdict
 
 from data_discovery_ai.config.constants import FILTER_FOLDER
 from data_discovery_ai.ml.preprocessor import DeliveryPreprocessor
@@ -24,11 +25,10 @@ from data_discovery_ai.utils.agent_tools import (
 from data_discovery_ai import logger
 
 mlflow.set_tracking_uri("http://localhost:8080")
-mlflow.set_experiment("Data Delivery Mode Classification Model")
 
 
 def train_delivery_model(
-    model_name: str, deliveryPreprocessor: DeliveryPreprocessor
+    model_name: str, delivery_preprocessor: DeliveryPreprocessor
 ) -> Tuple[Any, Any]:
     """
     The classification model for predicting the data delivery mode of metadata records, based on their titles, abstracts, and lineages.
@@ -41,12 +41,12 @@ def train_delivery_model(
     Output:
         Tuple[Any, Any]. The trained model and pca model
     """
-    trainer_config = deliveryPreprocessor.trainer_config
-    n_estimators = trainer_config["n_estimators"]
-    threshold = trainer_config["threshold"]
-    n_components = trainer_config["n_components"]
+    trainer_config = delivery_preprocessor.trainer_config
+    n_estimators = trainer_config.n_estimators
+    threshold = trainer_config.threshold
+    n_components = trainer_config.n_components
 
-    train_test_data = deliveryPreprocessor.train_test_data
+    train_test_data = delivery_preprocessor.train_test_data
 
     pca = PCA(n_components=n_components)
     X_train_pca = pca.fit_transform(train_test_data.X_combined_train)
@@ -55,9 +55,10 @@ def train_delivery_model(
     # self-training classifier
     self_training_model = SelfTrainingClassifier(base_model, threshold=threshold)
 
+    mlflow.set_experiment("Data Delivery Mode Classification Model")
     with mlflow.start_run():
         self_training_model.fit(X_train_pca, train_test_data.Y_combined_train)
-        mlflow.log_params(trainer_config)
+        mlflow.log_params(asdict(trainer_config))
 
         evaluate_model(
             self_training_model, train_test_data.X_test, train_test_data.Y_test, pca

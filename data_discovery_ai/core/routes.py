@@ -33,14 +33,14 @@ async def ensure_ready():
     base_path = config.base_dir / "resources"
 
     # Paths for keyword classification
-    keyword_model = config.get_keyword_classification_config()["pretrained_model"]
+    keyword_model = config.get_keyword_classification_config().pretrained_model
     keyword_model_path = (base_path / KEYWORD_FOLDER / keyword_model).with_suffix(
         ".keras"
     )
     keyword_label_path = base_path / KEYWORD_FOLDER / KEYWORD_LABEL_FILE
 
     # Path for delivery classification
-    delivery_model = config.get_delivery_classification_config()["pretrained_model"]
+    delivery_model = config.get_delivery_classification_config().pretrained_model
     delivery_model_path = (base_path / FILTER_FOLDER / delivery_model).with_suffix(
         ".pkl"
     )

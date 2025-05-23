@@ -34,9 +34,9 @@ class BasePreprocessor:
         if client:
             raw_data = es_connector.search_es(
                 client=client,
-                index=es_config["es_index_name"],
-                batch_size=es_config["batch_size"],
-                sleep_time=es_config["sleep_time"],
+                index=es_config.es_index_name,
+                batch_size=es_config.batch_size,
+                sleep_time=es_config.sleep_time,
             )
             return raw_data
         else:
@@ -55,7 +55,7 @@ class BasePreprocessor:
         self, ds: pd.DataFrame, seperator: str
     ) -> pd.DataFrame | None:
         """
-        Calculate embeddings for a dataframe, based on the description field, add a embedding column for this dataframe
+        Calculate embeddings for a dataframe, based on the description field, add an embedding column for this dataframe
         Input:
             ds: pd.DataFrame. the dataset that need to be calculated
         Output:
@@ -164,7 +164,7 @@ class KeywordPreprocessor(BasePreprocessor):
         )
 
     def set_rare_labels(self):
-        rare_label_threshold = self.trainer_config["rare_label_threshold"]
+        rare_label_threshold = self.trainer_config.rare_label_threshold
         label_df = self.data.Y_df.copy()
         label_distribution = label_df.sum().sort_values().to_frame(name="count")
         rare_labels = label_distribution[
@@ -177,7 +177,7 @@ class KeywordPreprocessor(BasePreprocessor):
         return raw_data
 
     def post_filter_hook(self, df: pd.DataFrame) -> pd.DataFrame | None:
-        watched_vocabs = self.trainer_config["vocabs"]
+        watched_vocabs = self.trainer_config.vocabs
         # only keep rows with vocabs in selected vocabs
         watched_df = df[
             df["keywords"].apply(
@@ -196,7 +196,7 @@ class KeywordPreprocessor(BasePreprocessor):
 
     def customized_resample(self):
         """
-        Customised resampling strategy: given a list of rare labels, i.e., the labels appears under a certain times in alll records, duplicate the records which has these labels with a num_copies.
+        Customised resampling strategy: given a list of rare labels, i.e., the labels appears under a certain times in all records, duplicate the records which has these labels with a num_copies.
         Input:
             X_train: np.ndarray. The feature matrix X to be augmented.
             Y_train: np.ndarray. The target matrix Y to be augmented.
@@ -206,7 +206,7 @@ class KeywordPreprocessor(BasePreprocessor):
         """
         X_augmented = self.data.X.copy()
         Y_augmented = self.data.Y.copy()
-        num_copies = self.trainer_config["rare_label_threshold"]
+        num_copies = self.trainer_config.rare_label_threshold
 
         for label_idx in self.rare_labels:
             positive_idx = np.where(self.data.Y[:, label_idx] == 1)[0]
@@ -241,8 +241,8 @@ class KeywordPreprocessor(BasePreprocessor):
         dim = X_augmented.shape[1]
 
         shuffle_split = MultilabelStratifiedShuffleSplit(
-            n_splits=self.trainer_config["n_splits"],
-            test_size=self.trainer_config["test_size"],
+            n_splits=self.trainer_config.n_splits,
+            test_size=self.trainer_config.test_size,
             random_state=42,
         )
         X_train, Y_train, X_test, Y_test = None, None, None, None
@@ -381,7 +381,7 @@ def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
     Input:
         Y_train: numpy.ndarray. The train set of Y
     Output:
-        label_weight_dic: Dict[int, float]. The label weights, keys are the indexs of labels and values are the weights.
+        label_weight_dic: Dict[int, float]. The label weights, keys are the indexes of labels and values are the weights.
     """
     label_frequency = np.sum(Y_train, axis=0)
     epsilon = 1e-6
@@ -481,7 +481,7 @@ class DeliveryPreprocessor(BasePreprocessor):
         X_labelled_train, X_test, Y_labelled_train, Y_test = train_test_split(
             X_labelled,
             Y_labelled,
-            test_size=self.trainer_config["test_size"],
+            test_size=self.trainer_config.test_size,
             random_state=42,
         )
         logger.info(

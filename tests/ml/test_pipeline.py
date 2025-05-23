@@ -23,6 +23,10 @@ from data_discovery_ai.ml.pipeline import (
     DeliveryClassificationPipeline,
     main,
 )
+from data_discovery_ai.config.config import (
+    KeywordClassificationTrainerConfig,
+    DeliveryClassificationTrainerConfig,
+)
 
 
 class TestKeywordClassificationPipeline(unittest.TestCase):
@@ -47,7 +51,24 @@ class TestKeywordClassificationPipeline(unittest.TestCase):
         self.mock_load = load_p.start()
         self.mock_train = train_p.start()
 
-        config_instance.get_keyword_trainer_config.return_value = {"separator": "|"}
+        config_instance.get_keyword_trainer_config.return_value = (
+            KeywordClassificationTrainerConfig(
+                vocabs=["A", "B"],
+                test_size=0.2,
+                n_splits=3,
+                dropout=0.1,
+                learning_rate=1e-3,
+                fl_gamma=2.0,
+                fl_alpha=0.25,
+                epoch=1,
+                batch_size=16,
+                early_stopping_patience=2,
+                reduce_lr_patience=1,
+                validation_split=0.1,
+                rare_label_threshold=5,
+                separator="|",
+            )
+        )
         self.pipeline = KeywordClassificationPipeline()
         self.preprocessor = self.mock_Preprocessor.return_value
 
@@ -103,7 +124,15 @@ class TestDeliveryClassificationPipeline(unittest.TestCase):
         self.mock_load = load_p.start()
         self.mock_train = train_p.start()
 
-        config_instance.get_keyword_trainer_config.return_value = {"separator": "[SEP]"}
+        config_instance.get_keyword_trainer_config.return_value = (
+            DeliveryClassificationTrainerConfig(
+                test_size=0.2,
+                n_estimators=1,
+                threshold=0.5,
+                n_components=3,
+                separator="[SEP]",
+            )
+        )
         self.pipeline = DeliveryClassificationPipeline()
         self.preprocessor = self.mock_Preprocessor.return_value
 

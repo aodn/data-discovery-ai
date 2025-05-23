@@ -3,16 +3,32 @@ import unittest
 from unittest.mock import patch
 import pandas as pd
 
-from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.config.config import (
+    ConfigUtil,
+    KeywordClassificationTrainerConfig,
+)
 from data_discovery_ai.ml.preprocessor import KeywordPreprocessor, DeliveryPreprocessor
 
 
 class TestKeywordPreprocessorFilter(unittest.TestCase):
     @patch.object(ConfigUtil, "get_keyword_trainer_config")
     def test_filter_raw_data(self, mock_get_conf):
-        mock_get_conf.return_value = {
-            "vocabs": ["AODN Vocabulary 1", "AODN Vocabulary 2"]
-        }
+        mock_get_conf.return_value = KeywordClassificationTrainerConfig(
+            vocabs=["A", "B"],
+            test_size=0.2,
+            n_splits=3,
+            dropout=0.1,
+            learning_rate=1e-3,
+            fl_gamma=2.0,
+            fl_alpha=0.25,
+            epoch=1,
+            batch_size=16,
+            early_stopping_patience=2,
+            reduce_lr_patience=1,
+            validation_split=0.1,
+            rare_label_threshold=5,
+            separator="|",
+        )
         kp = KeywordPreprocessor()
 
         themes_1 = [
@@ -20,7 +36,7 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
                 "concepts": [{"id": "1", "url": "https://vocabs.ardc.edu.au/1"}],
                 "scheme": "",
                 "description": "",
-                "title": "AODN Vocabulary 1",
+                "title": "A",
             }
         ]
         themes_2 = [
@@ -28,7 +44,7 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
                 "concepts": [{"id": "2", "url": "https://vocabs.ardc.edu.au/2"}],
                 "scheme": "",
                 "description": "",
-                "title": "AODN Vocabulary 2",
+                "title": "B",
             }
         ]
         df = pd.DataFrame(
@@ -49,7 +65,7 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
         # the expected format of keyword is a dict like {"vocab_type": vocab_type, "value": value,"url": url}
         kw0 = out["keywords"].iloc[0]
         self.assertIsInstance(kw0, list)
-        self.assertEqual(kw0[0]["vocab_type"], "AODN Vocabulary 1")
+        self.assertEqual(kw0[0]["vocab_type"], "A")
         self.assertEqual(kw0[0]["value"], "1")
         self.assertTrue(kw0[0]["url"].startswith("http"))
 

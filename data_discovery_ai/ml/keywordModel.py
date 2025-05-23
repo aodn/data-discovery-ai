@@ -13,6 +13,7 @@ from tensorflow.keras import backend as backend  # type: ignore
 from tensorflow.keras.models import load_model  # type: ignore
 
 from typing import Dict, Callable, Any, Tuple, Optional, List
+from dataclasses import asdict
 import os
 from pathlib import Path
 
@@ -26,7 +27,6 @@ from data_discovery_ai import logger
 
 mlflow.tensorflow.autolog()
 mlflow.set_tracking_uri("http://localhost:8080")
-mlflow.set_experiment("Keyword Classification Model")
 
 
 def focal_loss(
@@ -54,47 +54,49 @@ def focal_loss(
 
 
 def train_keyword_model(
-    model_name: str, keywordPreprocessor: KeywordPreprocessor
+    model_name: str, keyword_preprocessor: KeywordPreprocessor
 ) -> Tuple[Sequential, Any]:
-    train_test_data = keywordPreprocessor.train_test_data
-    trainer_config = keywordPreprocessor.trainer_config
+    train_test_data = keyword_preprocessor.train_test_data
+    trainer_config = keyword_preprocessor.trainer_config
 
     model = Sequential(
         [
             Input(shape=(train_test_data.dimension,)),
             Dense(128, activation="relu"),
-            Dropout(trainer_config["dropout"]),
+            Dropout(trainer_config.dropout),
             Dense(train_test_data.n_labels, activation="sigmoid"),
         ]
     )
 
     model.compile(
-        optimizer=Adam(learning_rate=trainer_config["learning_rate"]),
+        optimizer=Adam(learning_rate=trainer_config.learning_rate),
         loss=focal_loss(
-            gamma=trainer_config["fl_gamma"],
-            alpha=trainer_config["fl_alpha"],
+            gamma=trainer_config.fl_gamma,
+            alpha=trainer_config.fl_alpha,
         ),
         metrics=["accuracy", "precision", "recall"],
     )
 
     model.summary()
 
-    epoch = trainer_config["epoch"]
-    batch_size = trainer_config["batch_size"]
+    epoch = trainer_config.epoch
+    batch_size = trainer_config.batch_size
 
     early_stopping = EarlyStopping(
         monitor="val_loss",
-        patience=trainer_config["early_stopping_patience"],
+        patience=trainer_config.early_stopping_patience,
         restore_best_weights=True,
     )
     reduce_lr = ReduceLROnPlateau(
         monitor="val_loss",
-        patience=trainer_config["reduce_lr_patience"],
+        patience=trainer_config.reduce_lr_patience,
         min_lr=1e-6,
     )
+
+    mlflow.set_experiment("Keyword Classification Model")
     with mlflow.start_run():
-        trainer_params = keywordPreprocessor.trainer_config
-        mlflow.log_params(trainer_params)
+        trainer_params = keyword_preprocessor.trainer_config
+        mlflow.log_params(asdict(trainer_params))
 
         history = model.fit(
             train_test_data.X_train,
@@ -102,12 +104,12 @@ def train_keyword_model(
             epochs=epoch,
             batch_size=batch_size,
             class_weight=train_test_data.label_weight_dict,
-            validation_split=trainer_config["validation_split"],
+            validation_split=trainer_config.validation_split,
             callbacks=[early_stopping, reduce_lr],
         )
 
         model_file_path = (
-            keywordPreprocessor.config.base_dir
+            keyword_preprocessor.config.base_dir
             / "resources"
             / KEYWORD_FOLDER
             / model_name
@@ -166,7 +168,7 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     try:
         saved_model = load_model(model_file_path, compile=False)
         return saved_model
-    except (OSError, ValueError, FileNotFoundError) as e:
+    except (OSError, ValueError, FileNotFoundError):
         logger.error(
             f"Failed to load selected model {trained_model} from folder data_discovery_ai/resources"
         )

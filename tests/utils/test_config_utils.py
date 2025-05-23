@@ -27,12 +27,12 @@ class TestConfigUtil(unittest.TestCase):
 
     def test_get_es_config(self):
         es_config = self.config_util.get_es_config()
-        self.assertEqual(es_config["batch_size"], 100)
-        self.assertEqual(es_config["es_index_name"], "test_index")
+        self.assertEqual(es_config.batch_size, 100)
+        self.assertEqual(es_config.es_index_name, "test_index")
 
     def test_get_keyword_classification_config(self):
         model_config = self.config_util.get_keyword_classification_config()
-        self.assertEqual(model_config["top_N"], 2)
+        self.assertEqual(model_config.top_N, 2)
 
 
 if __name__ == "__main__":

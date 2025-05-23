@@ -49,10 +49,7 @@ class TestESConnector(unittest.TestCase):
 
     @patch("data_discovery_ai.utils.es_connector.logger")
     @patch("data_discovery_ai.utils.es_connector.pd")
-    @patch(
-        "data_discovery_ai.utils.es_connector.tqdm", side_effect=lambda x, **kwargs: x
-    )
-    def test_search_es_success(self, mock_tqdm, mock_pd, mock_logger):
+    def test_search_es_success(self, mock_pd, mock_logger):
         # Setup
         mock_client = MagicMock()
         mock_client.count.return_value = {"count": 3}

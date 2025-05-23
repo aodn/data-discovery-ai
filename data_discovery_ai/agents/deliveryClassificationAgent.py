@@ -40,9 +40,9 @@ class DeliveryClassificationAgent(BaseAgent):
             # calculate the embedding of the title, abstract, and lineage
             request_text = (
                 title
-                + self.model_config["separator"]
+                + self.model_config.separator
                 + abstract
-                + self.model_config["separator"]
+                + self.model_config.separator
                 + lineage
             )
             text_embedding = get_text_embedding(request_text)
@@ -67,18 +67,18 @@ class DeliveryClassificationAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag:
-            self.response = {self.model_config["response_key"]: ""}
+            self.response = {self.model_config.response_key: ""}
         else:
             title = request["title"]
             abstract = request["abstract"]
             lineage = request["lineage"]
             prediction = self.take_action(title, abstract, lineage)
-            self.response = {self.model_config["response_key"]: prediction}
+            self.response = {self.model_config.response_key: prediction}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def load_saved_model(self) -> Tuple[Any, Any]:
-        pretrained_model_name = self.model_config["pretrained_model"]
+        pretrained_model_name = self.model_config.pretrained_model
         # load model pickle file
         model_file_path = (
             self.config.base_dir / "resources" / FILTER_FOLDER / pretrained_model_name
