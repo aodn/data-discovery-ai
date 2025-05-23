@@ -2,7 +2,6 @@ from elasticsearch import Elasticsearch
 import logging
 import pandas as pd
 from pandas import DataFrame
-from tqdm import tqdm
 import time
 import os
 from dotenv import load_dotenv
@@ -45,7 +44,7 @@ def search_es(
     Input:
         client: Elasticsearch. The initialised Elasticsearch client instance
         index: str. The index name in Elasticsearch. Default as "es-indexer-staging"
-        batch_size: int. The number of documents searches at one query. Please not set a very large number in case to search too deep.
+        batch_size: int. The number of documents searches at one query. Please do not set a very large number in case to search too deep.
         sleep_time: int. The number of seconds of sleep time between each query. This should be set with consideration of 'batch_size'. If 'batch_size' is large, set 'sleep_time' to a large number to ensure each query is finished and does not impact the next query.
     Output:
         raw_data: pd.DataFrame. The fetched raw data in a tabular format.

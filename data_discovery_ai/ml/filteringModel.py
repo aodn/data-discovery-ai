@@ -13,6 +13,7 @@ import numpy as np
 from pathlib import Path
 import mlflow  # type: ignore
 from typing import Any, Tuple
+from dataclasses import asdict
 
 from data_discovery_ai.config.constants import FILTER_FOLDER
 from data_discovery_ai.ml.preprocessor import DeliveryPreprocessor
@@ -41,9 +42,9 @@ def train_delivery_model(
         Tuple[Any, Any]. The trained model and pca model
     """
     trainer_config = delivery_preprocessor.trainer_config
-    n_estimators = trainer_config["n_estimators"]
-    threshold = trainer_config["threshold"]
-    n_components = trainer_config["n_components"]
+    n_estimators = trainer_config.n_estimators
+    threshold = trainer_config.threshold
+    n_components = trainer_config.n_components
 
     train_test_data = delivery_preprocessor.train_test_data
 
@@ -57,7 +58,7 @@ def train_delivery_model(
     mlflow.set_experiment("Data Delivery Mode Classification Model")
     with mlflow.start_run():
         self_training_model.fit(X_train_pca, train_test_data.Y_combined_train)
-        mlflow.log_params(trainer_config)
+        mlflow.log_params(asdict(trainer_config))
 
         evaluate_model(
             self_training_model, train_test_data.X_test, train_test_data.Y_test, pca
