@@ -81,7 +81,7 @@ class KeywordClassificationPipeline(BasePipeline):
 
                 # add the embedding column
                 preprocessed_data = self.preprocessor.calculate_embedding(
-                    ds=filtered_data, seperator=self.params["separator"]
+                    ds=filtered_data, seperator=self.params.separator
                 )
             else:
                 preprocessed_data = load_from_file(
@@ -128,7 +128,7 @@ class DeliveryClassificationPipeline(BasePipeline):
                 raw_data = self.preprocessor.fetch_raw_data()
                 filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
                 preprocessed_data = self.preprocessor.calculate_embedding(
-                    ds=filtered_data, seperator=self.params["separator"]
+                    ds=filtered_data, seperator=self.params.separator
                 )
                 save_to_file(
                     preprocessed_data,

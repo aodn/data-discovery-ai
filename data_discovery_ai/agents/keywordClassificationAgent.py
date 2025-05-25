@@ -50,7 +50,7 @@ class KeywordClassificationAgent(BaseAgent):
         self.config = ConfigUtil()
         self.model_config = self.config.get_keyword_classification_config()
 
-        self.pretrained_model_name = self.model_config["pretrained_model"]
+        self.pretrained_model_name = self.model_config.pretrained_model
 
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
@@ -72,12 +72,12 @@ class KeywordClassificationAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag:
-            self.response = {self.model_config["response_key"]: []}
+            self.response = {self.model_config.response_key: []}
         else:
             title = request["title"]
             abstract = request["abstract"]
             prediction = self.take_action(title, abstract)
-            self.response = {self.model_config["response_key"]: prediction}
+            self.response = {self.model_config.response_key: prediction}
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def take_action(self, title, abstract) -> List[Any]:
@@ -85,12 +85,12 @@ class KeywordClassificationAgent(BaseAgent):
         The action module of the Keyword Classification Agent. Its task is to classify the keywords based on the provided title and abstract.
         """
         # calculate the embedding of the title and abstract
-        request_text = title + self.model_config["separator"] + abstract
+        request_text = title + self.model_config.separator + abstract
         text_embedding = get_text_embedding(request_text)
 
         # set up model parameters
-        confidence = self.model_config["confidence"]
-        top_N = self.model_config["top_N"]
+        confidence = self.model_config.confidence
+        top_N = self.model_config.top_N
 
         # load the pretrained model
         pretrained_model = self.load_saved_model()
@@ -116,7 +116,7 @@ class KeywordClassificationAgent(BaseAgent):
             return []
 
     def load_saved_model(self) -> Optional[load_model]:
-        pretrained_model_name = self.model_config["pretrained_model"]
+        pretrained_model_name = self.model_config.pretrained_model
         model_file_path = (
             self.config.base_dir / "resources" / KEYWORD_FOLDER / pretrained_model_name
         ).with_suffix(".keras")
