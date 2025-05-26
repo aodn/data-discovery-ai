@@ -76,6 +76,8 @@ model:
           - data download
           - download data
           - access data
+          - get data
+          - direct download
         content:
           - [data, dataset]
           - [download]
