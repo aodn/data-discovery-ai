@@ -41,8 +41,8 @@ def retrieve_json(output: str) -> str:
     try:
         parsed = json.loads(json_str)
         return parsed["formatted_abstract"]
-    except json.JSONDecodeError:
-        logger.warning("No JSON found in LLM response.")
+    except json.JSONDecodeError as e:
+        logger.error(f"No JSON found in LLM response. Error message: \n{e}")
 
     # if the first attempt fails, try to find a triple-quote JSON block, the llama often outputs in this way
     triple = re.search(
@@ -65,8 +65,8 @@ def retrieve_json(output: str) -> str:
     try:
         parsed = json.loads(fixed)
         return parsed["formatted_abstract"]
-    except (json.JSONDecodeError, KeyError):
-        logger.error(f"No JSON found in LLM response.")
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.error(f"No JSON found in LLM response. Error message: \n{e}")
         return output.strip()
 
 

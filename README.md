@@ -90,10 +90,12 @@ To use the Llama3 model locally without OpenAI:
     ollama pull llama3
     ```
 
-4. Consider install open-webui to run the llama3 for dev via:
+4. (Optional) Consider installing Open WebUI to test Llama3 locally through a user-friendly interface:
     ```shell
-    docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui ghcr.io/open-webui/open-webui:main
+    docker run -d --network=host -v open-webui:/app/backend/data -e PORT=8090 -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui ghcr.io/open-webui/open-webui:main
     ```
+
+   Once the Open WebUI container is running, open your browser and go to: http://localhost:8090.
 
 #### Run the FastAPI Server
 Simply run:
