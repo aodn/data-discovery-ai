@@ -35,6 +35,7 @@ openai = "^1.66.3"
 h11 = "0.16.0"
 ollama = "^0.4.8"
 setuptools = "78.1.1"
+mlflow = {extras = ["genai"], version = "^2.22.0"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
