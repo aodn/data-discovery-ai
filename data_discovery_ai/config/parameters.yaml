@@ -30,7 +30,7 @@ model:
     response_key: "classified_keywords"
   description_formatting:
     model: gpt-4o-mini
-    temperature: 0.1
+    temperature: 0.01
     max_tokens: 10000
     response_key: "formatted_abstract"
   delivery_classification:
