@@ -32,16 +32,16 @@ mlflow.set_tracking_uri("http://localhost:8080")
 def focal_loss(
     gamma: float, alpha: float
 ) -> Callable[[tf.Tensor, tf.Tensor], tf.Tensor]:
-    """
-    Creates a focal loss function with specified gamma and alpha parameters. To address imbalanced class.
-    Input:
-        gamma: int. parameter that controls the down-weighting of easy examples. Higher gamma increases the effect.
-        alpha: float. Should be in the range of [0,1]. Balancing factor for positive vs negative classes.
-    Output:
-        Callable[[tf.Tensor, tf.Tensor], tf.Tensor]: A focal loss function that takes in `y_true` (true labels) and `y_pred` (predicted labels) tensors and returns the focal loss as a tensor.
-    """
-
     def focal_loss_fixed(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        """
+        Creates a focal loss function with specified gamma and alpha parameters. To address imbalanced class.
+        Input:
+            gamma: int. parameter that controls the down-weighting of easy examples. Higher gamma increases the effect.
+            alpha: float. Should be in the range of [0,1]. Balancing factor for positive vs negative classes.
+        Output:
+            Callable[[tf.Tensor, tf.Tensor], tf.Tensor]: A focal loss function that takes in `y_true` (true labels) and `y_pred` (predicted labels) tensors and returns the focal loss as a tensor.
+        """
+
         epsilon = backend.epsilon()
         y_pred = tf.clip_by_value(y_pred, epsilon, 1.0 - epsilon)
         y_true = tf.cast(y_true, tf.float32)
@@ -168,8 +168,8 @@ def load_saved_model(trained_model: str) -> Optional[load_model]:
     try:
         saved_model = load_model(model_file_path, compile=False)
         return saved_model
-    except (OSError, ValueError, FileNotFoundError):
+    except (OSError, ValueError, FileNotFoundError) as e:
         logger.error(
-            f"Failed to load selected model {trained_model} from folder data_discovery_ai/resources"
+            f"Failed to load selected model {trained_model} from folder data_discovery_ai/resources. Error message: \n{e}"
         )
         return None

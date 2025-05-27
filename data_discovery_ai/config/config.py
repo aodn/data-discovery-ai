@@ -154,9 +154,9 @@ class ConfigUtil:
             if env_val is not None:
                 try:
                     return type(default)(env_val)
-                except (TypeError, ValueError):
+                except (TypeError, ValueError) as e:
                     logging.warning(
-                        f"Could not cast env var {env_key}='{env_val}' to {type(default)}"
+                        f"Could not cast env var {env_key}='{env_val}' to {type(default)}. Error message: \n{e}"
                     )
                     return default
 
