@@ -234,12 +234,11 @@ class KeywordPreprocessor(BasePreprocessor):
         # set rare labels
         self.set_rare_labels()
 
-        # customised resampling
-        X_augmented = self.data.X.copy()
-        Y_augmented = self.data.Y.copy()
+        X_copy = self.data.X.copy()
+        Y_copy = self.data.Y.copy()
 
-        n_labels = Y_augmented.shape[1]
-        dim = X_augmented.shape[1]
+        n_labels = Y_copy.shape[1]
+        dim = X_copy.shape[1]
 
         shuffle_split = MultilabelStratifiedShuffleSplit(
             n_splits=self.trainer_config.n_splits,
@@ -247,9 +246,9 @@ class KeywordPreprocessor(BasePreprocessor):
             random_state=42,
         )
         X_train, Y_train, X_test, Y_test = None, None, None, None
-        for train_index, test_index in shuffle_split.split(X_augmented, Y_augmented):
-            X_train, X_test = X_augmented[train_index], X_augmented[test_index]
-            Y_train, Y_test = Y_augmented[train_index], Y_augmented[test_index]
+        for train_index, test_index in shuffle_split.split(X_copy, Y_copy):
+            X_train, X_test = X_copy[train_index], X_copy[test_index]
+            Y_train, Y_test = Y_copy[train_index], Y_copy[test_index]
 
         X_train, Y_train = self.customized_resample()
 
