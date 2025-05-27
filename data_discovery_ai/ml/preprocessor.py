@@ -235,7 +235,8 @@ class KeywordPreprocessor(BasePreprocessor):
         self.set_rare_labels()
 
         # customised resampling
-        X_augmented, Y_augmented = self.customized_resample()
+        X_augmented = self.data.X.copy()
+        Y_augmented = self.data.Y.copy()
 
         n_labels = Y_augmented.shape[1]
         dim = X_augmented.shape[1]
@@ -250,7 +251,7 @@ class KeywordPreprocessor(BasePreprocessor):
             X_train, X_test = X_augmented[train_index], X_augmented[test_index]
             Y_train, Y_test = Y_augmented[train_index], Y_augmented[test_index]
 
-        # X_train_resampled, Y_train_resampled = resampling(X_train, Y_train, "ROS")
+        X_train, Y_train = self.customized_resample()
 
         label_weight_dict = get_class_weights(Y_train)
 
