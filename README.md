@@ -277,7 +277,7 @@ We use [MLflow](https://mlflow.org/) to track model training and performance ove
 
 To start the tracking server locally, run:
 ```shell
-mlflow server --port 8080
+./start_mlflow.sh
 ```
 Once it's running, you can open the tracking dashboard in your browser: [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
