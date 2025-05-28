@@ -279,7 +279,7 @@ To start the tracking server locally, run:
 ```shell
 ./start_mlflow.sh
 ```
-Once it's running, you can open the tracking dashboard in your browser: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+Once it's running, you can open the tracking dashboard in your browser: [http://127.0.0.1:53000](http://127.0.0.1:53000)
 
 You can change the model's training settings (like how long it trains or how fast it learns) by editing the trainer section in the file: `data_discovery_ai/config/parameters.yaml`
 

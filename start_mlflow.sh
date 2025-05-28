@@ -14,10 +14,10 @@ echo "Exporting API Key..."
 echo "OPENAI_API_KEY=$OPENAI_API_KEY"
 
 echo "Starting MLFLOW Gateway..."
-nohup mlflow gateway start --config-path mlflow_config.yaml --port 8090 > gateway.log 2>&1 &
+nohup mlflow gateway start --config-path mlflow_config.yaml --port 53001 > gateway.log 2>&1 &
 sleep 5
 
-export MLFLOW_DEPLOYMENTS_TARGET="http://127.0.0.1:8090"
+export MLFLOW_DEPLOYMENTS_TARGET="http://127.0.0.1:53001"
 
 echo "Starting MLFLOW Server..."
-mlflow server --port 8080
+mlflow server --port 53000
