@@ -16,7 +16,6 @@ from typing import Dict, Callable, Any, Tuple, Optional, List
 from dataclasses import asdict
 import os
 from pathlib import Path
-
 from data_discovery_ai.ml.preprocessor import KeywordPreprocessor
 import mlflow  # type: ignore
 
@@ -26,7 +25,6 @@ from data_discovery_ai.config.constants import KEYWORD_FOLDER
 from data_discovery_ai import logger
 
 mlflow.tensorflow.autolog()
-mlflow.set_tracking_uri("http://localhost:53000")
 
 
 def focal_loss(
@@ -94,6 +92,10 @@ def train_keyword_model(
     )
 
     mlflow.set_experiment("Keyword Classification Model")
+    mlflow_config = keyword_preprocessor.mlflow_config
+    port_num = mlflow_config.port
+    mlflow.set_tracking_uri("http://localhost:{}".format(port_num))
+
     with mlflow.start_run():
         trainer_params = keyword_preprocessor.trainer_config
         mlflow.log_params(asdict(trainer_params))

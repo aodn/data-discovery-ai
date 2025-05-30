@@ -9,6 +9,11 @@ import data_discovery_ai.config.constants as constants
 
 
 @dataclass(frozen=True)
+class MlflowConfig:
+    port: int
+
+
+@dataclass(frozen=True)
 class ElasticsearchConfig:
     batch_size: int
     sleep_time: int
@@ -241,3 +246,7 @@ class ConfigUtil:
     def get_delivery_trainer_config(self) -> DeliveryClassificationTrainerConfig:
         tr = self._config_data.get("trainer", {}).get("delivery_classification", {})
         return DeliveryClassificationTrainerConfig(**tr)
+
+    def get_mlflow_config(self) -> MlflowConfig:
+        c = self._config_data.get("mlflow", {})
+        return MlflowConfig(port=c.get("port", 53000))

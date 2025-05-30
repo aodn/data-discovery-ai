@@ -2,6 +2,8 @@ elasticsearch:
   batch_size: 100
   sleep_time: 5
   es_index_name: es-indexer-staging
+mlflow:
+  port: 53000
 model:
   supervisor:
     response_key: result
