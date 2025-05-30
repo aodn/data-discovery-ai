@@ -143,6 +143,7 @@ class KeywordPreprocessor(BasePreprocessor):
     def __init__(self):
         super().__init__()
         self.trainer_config = self.config.get_keyword_trainer_config()
+        self.mlflow_config = self.config.get_mlflow_config()
 
         self.watched_columns = [
             "_id",
@@ -411,6 +412,7 @@ class DeliveryPreprocessor(BasePreprocessor):
     def __init__(self):
         super().__init__()
         self.trainer_config = self.config.get_delivery_trainer_config()
+        self.mlflow_config = self.config.get_mlflow_config()
 
         self.watched_columns = [
             "_id",

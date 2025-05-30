@@ -13,6 +13,11 @@ from data_discovery_ai.ml.keywordModel import train_keyword_model
 from data_discovery_ai.ml.filteringModel import train_delivery_model
 from data_discovery_ai import logger
 import argparse
+import subprocess
+from dotenv import load_dotenv
+import os
+import time
+import socket
 
 
 class BasePipeline:
@@ -43,6 +48,56 @@ class BasePipeline:
 
     def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
         pass
+
+    def start_mlflow(self) -> None:
+        """
+        Start mlflow server and gateway background, the server log is saved in mlflow_server.log and gateway.log, separately.
+        :return:
+        """
+        load_dotenv()
+
+        mlflow_config = self.config.get_mlflow_config()
+
+        # check if port is in use or not
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", mlflow_config.port)) == 0:
+                logger.warning(
+                    f"Port {mlflow_config.port} is already in use. view at http://localhost:{mlflow_config.port})"
+                )
+                return
+
+        logger.info("Exporting OPENAI_API_KEY...")
+        logger.info("Starting MLflow Gateway in background...")
+
+        gateway_port = mlflow_config.gateway.split(":")[2]
+        subprocess.Popen(
+            [
+                "mlflow",
+                "gateway",
+                "start",
+                "--config-path",
+                "mlflow_config.yaml",
+                "--port",
+                gateway_port,
+            ],
+            stdout=open("gateway.log", "w"),
+            stderr=subprocess.STDOUT,
+        )
+
+        time.sleep(5)
+
+        os.environ["MLFLOW_DEPLOYMENTS_TARGET"] = mlflow_config.gateway
+
+        logger.info(
+            "Starting MLflow Server in background, view at http://localhost:{}".format(
+                mlflow_config.port
+            )
+        )
+        subprocess.Popen(
+            ["mlflow", "server", "--port", str(mlflow_config.port)],
+            stdout=open("mlflow_server.log", "w"),
+            stderr=subprocess.STDOUT,
+        )
 
 
 class KeywordClassificationPipeline(BasePipeline):
@@ -176,9 +231,11 @@ def main():
     args = parser.parse_args()
     if args.pipeline == "keyword":
         pipeline = KeywordClassificationPipeline()
+        pipeline.start_mlflow()
         pipeline.pipeline(args.start_from_preprocess, args.model_name)
     elif args.pipeline == "delivery":
         pipeline = DeliveryClassificationPipeline()
+        pipeline.start_mlflow()
         pipeline.pipeline(args.start_from_preprocess, args.model_name)
     else:
         logger.error("Invalid pipeline")

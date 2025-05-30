@@ -275,11 +275,7 @@ This means the agent handling the `delivery_classification` task will use the `d
 ### Track Training Progress with MLflow
 We use [MLflow](https://mlflow.org/) to track model training and performance over time (like hypermeters, accuracy, precision, etc.).
 
-To start the tracking server locally, run:
-```shell
-./start_mlflow.sh
-```
-Once it's running, you can open the tracking dashboard in your browser: [http://127.0.0.1:53000](http://127.0.0.1:53000)
+It is automatically started at the beginning of the pipeline. Once a pipeline starts, you can open the tracking dashboard in your browser: [http://127.0.0.1:53000](http://127.0.0.1:53000)
 
 You can change the model's training settings (like how long it trains or how fast it learns) by editing the trainer section in the file: `data_discovery_ai/config/parameters.yaml`
 

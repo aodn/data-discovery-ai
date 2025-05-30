@@ -2,6 +2,9 @@ elasticsearch:
   batch_size: 100
   sleep_time: 5
   es_index_name: es-indexer-staging
+mlflow:
+  port: 53000
+  gateway: "http://127.0.0.1:53001"
 model:
   supervisor:
     response_key: result
@@ -105,5 +108,5 @@ trainer:
     separator: " [SEP] "
     test_size: 0.3
     n_estimators: 100
-    threshold: 0.9
-    n_components: 0.5
+    threshold: 0.75
+    n_components: 0.95
