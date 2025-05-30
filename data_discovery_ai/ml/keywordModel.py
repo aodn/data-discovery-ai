@@ -26,7 +26,7 @@ from data_discovery_ai.config.constants import KEYWORD_FOLDER
 from data_discovery_ai import logger
 
 mlflow.tensorflow.autolog()
-mlflow.set_tracking_uri("http://localhost:8080")
+mlflow.set_tracking_uri("http://localhost:53000")
 
 
 def focal_loss(
