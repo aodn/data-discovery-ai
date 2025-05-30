@@ -13,6 +13,10 @@ from data_discovery_ai.ml.keywordModel import train_keyword_model
 from data_discovery_ai.ml.filteringModel import train_delivery_model
 from data_discovery_ai import logger
 import argparse
+import subprocess
+from dotenv import load_dotenv
+import os
+import time
 
 
 class BasePipeline:
@@ -43,6 +47,44 @@ class BasePipeline:
 
     def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
         pass
+
+    def start_mlflow(self):
+        load_dotenv()
+
+        mlflow_config = self.config.get_mlflow_config()
+        logger.info("Exporting OPENAI_API_KEY...")
+        logger.info("Starting MLflow Gateway in background...")
+
+        gateway_port = mlflow_config.gateway.split(":")[1]
+
+        subprocess.Popen(
+            [
+                "mlflow",
+                "gateway",
+                "start",
+                "--config-path",
+                "mlflow_config.yaml",
+                "--port",
+                gateway_port,
+            ],
+            stdout=open("gateway.log", "w"),
+            stderr=subprocess.STDOUT,
+        )
+
+        time.sleep(5)
+
+        os.environ["MLFLOW_DEPLOYMENTS_TARGET"] = mlflow_config.gateway
+
+        logger.info(
+            "Starting MLflow Server in background, view at http://localhost:{}".format(
+                gateway_port
+            )
+        )
+        subprocess.Popen(
+            ["mlflow", "server", "--port", str(mlflow_config.port)],
+            stdout=open("mlflow_server.log", "w"),
+            stderr=subprocess.STDOUT,
+        )
 
 
 class KeywordClassificationPipeline(BasePipeline):
@@ -176,9 +218,11 @@ def main():
     args = parser.parse_args()
     if args.pipeline == "keyword":
         pipeline = KeywordClassificationPipeline()
+        pipeline.start_mlflow()
         pipeline.pipeline(args.start_from_preprocess, args.model_name)
     elif args.pipeline == "delivery":
         pipeline = DeliveryClassificationPipeline()
+        pipeline.start_mlflow()
         pipeline.pipeline(args.start_from_preprocess, args.model_name)
     else:
         logger.error("Invalid pipeline")

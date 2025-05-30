@@ -4,6 +4,7 @@ elasticsearch:
   es_index_name: es-indexer-staging
 mlflow:
   port: 53000
+  gateway: "http://127.0.0.1:53001"
 model:
   supervisor:
     response_key: result
