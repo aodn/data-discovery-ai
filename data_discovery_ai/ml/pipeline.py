@@ -17,6 +17,7 @@ import subprocess
 from dotenv import load_dotenv
 import os
 import time
+import socket
 
 
 class BasePipeline:
@@ -48,15 +49,27 @@ class BasePipeline:
     def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
         pass
 
-    def start_mlflow(self):
+    def start_mlflow(self) -> None:
+        """
+        Start mlflow server and gateway background, the server log is saved in mlflow_server.log and gateway.log, separately.
+        :return:
+        """
         load_dotenv()
 
         mlflow_config = self.config.get_mlflow_config()
+
+        # check if port is in use or not
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", mlflow_config.port)) == 0:
+                logger.warning(
+                    f"Port {mlflow_config.port} is already in use. view at http://localhost:{mlflow_config.port})"
+                )
+                return
+
         logger.info("Exporting OPENAI_API_KEY...")
         logger.info("Starting MLflow Gateway in background...")
 
-        gateway_port = mlflow_config.gateway.split(":")[1]
-
+        gateway_port = mlflow_config.gateway.split(":")[2]
         subprocess.Popen(
             [
                 "mlflow",
@@ -77,7 +90,7 @@ class BasePipeline:
 
         logger.info(
             "Starting MLflow Server in background, view at http://localhost:{}".format(
-                gateway_port
+                mlflow_config.port
             )
         )
         subprocess.Popen(
