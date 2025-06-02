@@ -24,8 +24,6 @@ from data_discovery_ai.utils.agent_tools import (
 )
 from data_discovery_ai import logger
 
-mlflow.set_tracking_uri("http://localhost:53000")
-
 
 def train_delivery_model(
     model_name: str, delivery_preprocessor: DeliveryPreprocessor
