@@ -28,9 +28,6 @@ jobs:
         run: |
           poetry lock
           poetry install
-      - name: Mock env file
-        run: |
-          cp .env.sample .env
       - name: Run pre-commit checks
         run: |
           poetry run pre-commit run --all-files
