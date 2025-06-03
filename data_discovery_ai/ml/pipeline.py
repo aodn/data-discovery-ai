@@ -186,7 +186,7 @@ class DeliveryClassificationPipeline(BasePipeline):
             if start_from_preprocess:
                 raw_data = self.preprocessor.fetch_raw_data()
 
-                # for test only because it has more data
+                # # # for test only because it has more data
                 # raw_data = load_from_file(
                 #     self.config.base_dir / "resources" / "raw_data.pkl"
                 # )
@@ -211,7 +211,15 @@ class DeliveryClassificationPipeline(BasePipeline):
                 )
 
             if preprocessed_data is not None:
-                # preprocessed_data = add_manual_labelled_data(preprocessed_data)
+                manual_labelled_data = load_from_file(
+                    self.config.base_dir
+                    / "resources"
+                    / FILTER_FOLDER
+                    / "manual_labelled_data.pkl"
+                )
+                preprocessed_data = add_manual_labelled_data(
+                    preprocessed_data, manual_labelled_data
+                )
                 self.preprocessor.prepare_train_test_set(preprocessed_data)
                 train_delivery_model(model_name, self.preprocessor)
 

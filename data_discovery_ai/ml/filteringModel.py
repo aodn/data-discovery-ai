@@ -1,8 +1,6 @@
 # The data delivery mode filter model to classify the metadata records based on their titles, abstracts, and lineages.
 # Possible classes are 'Real Time', 'Delayed', and 'Other'.
 from sklearn.semi_supervised import SelfTrainingClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     classification_report,
     accuracy_score,
@@ -12,7 +10,7 @@ from sklearn.metrics import (
 import numpy as np
 from pathlib import Path
 import mlflow  # type: ignore
-from typing import Any, Tuple
+from typing import Any
 from dataclasses import asdict
 
 from sklearn.tree import DecisionTreeClassifier
@@ -27,7 +25,7 @@ from data_discovery_ai.utils.agent_tools import (
 from data_discovery_ai import logger
 
 
-mlflow.sklearn.autolog()
+mlflow.sklearn.autolog(log_input_examples=True, log_model_signatures=True)
 
 
 def train_delivery_model(
@@ -48,13 +46,16 @@ def train_delivery_model(
     threshold = trainer_config.threshold
     train_test_data = delivery_preprocessor.train_test_data
 
-    base_model = DecisionTreeClassifier(max_depth=20, max_leaf_nodes=2, random_state=42)
-    # base_model = LogisticRegression(class_weight={0:5/12, 1:7/12})
+    base_model = DecisionTreeClassifier(
+        max_depth=20, max_leaf_nodes=2, class_weight="balanced", random_state=42
+    )
 
     # self-training classifier
-    self_training_model = SelfTrainingClassifier(base_model, threshold=threshold)
+    self_training_model = SelfTrainingClassifier(
+        base_model, threshold=threshold, k_best=5, verbose=True, max_iter=10
+    )
 
-    mlflow.set_experiment("Data Delivery Mode Classification Model")
+    mlflow.set_experiment("delivery model experiment")
     mlflow_config = delivery_preprocessor.mlflow_config
     port_num = mlflow_config.port
     mlflow.set_tracking_uri("http://localhost:{}".format(port_num))
