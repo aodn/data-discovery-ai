@@ -1,7 +1,11 @@
 # ML pipeline, may need to be deployed in cloud environment in the future
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import save_to_file, load_from_file
-from data_discovery_ai.ml.preprocessor import KeywordPreprocessor, DeliveryPreprocessor
+from data_discovery_ai.ml.preprocessor import (
+    KeywordPreprocessor,
+    DeliveryPreprocessor,
+    add_manual_labelled_data,
+)
 from data_discovery_ai.config.constants import (
     KEYWORD_FOLDER,
     KEYWORD_SAMPLE_FILE,
@@ -181,6 +185,12 @@ class DeliveryClassificationPipeline(BasePipeline):
         if executable:
             if start_from_preprocess:
                 raw_data = self.preprocessor.fetch_raw_data()
+
+                # for test only because it has more data
+                # raw_data = load_from_file(
+                #     self.config.base_dir / "resources" / "raw_data.pkl"
+                # )
+
                 filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
                 preprocessed_data = self.preprocessor.calculate_embedding(
                     ds=filtered_data, seperator=self.params.separator
@@ -201,6 +211,7 @@ class DeliveryClassificationPipeline(BasePipeline):
                 )
 
             if preprocessed_data is not None:
+                # preprocessed_data = add_manual_labelled_data(preprocessed_data)
                 self.preprocessor.prepare_train_test_set(preprocessed_data)
                 train_delivery_model(model_name, self.preprocessor)
 
