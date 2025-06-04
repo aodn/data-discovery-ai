@@ -45,14 +45,21 @@ def train_delivery_model(
     trainer_config = delivery_preprocessor.trainer_config
     threshold = trainer_config.threshold
     train_test_data = delivery_preprocessor.train_test_data
+    max_depth = trainer_config.max_depth
+    max_leaf_nodes = trainer_config.max_leaf_nodes
+    k_best = trainer_config.k_best
+    max_iter = trainer_config.max_iter
 
     base_model = DecisionTreeClassifier(
-        max_depth=20, max_leaf_nodes=2, class_weight="balanced", random_state=42
+        max_depth=max_depth,
+        max_leaf_nodes=max_leaf_nodes,
+        class_weight="balanced",
+        random_state=42,
     )
 
     # self-training classifier
     self_training_model = SelfTrainingClassifier(
-        base_model, threshold=threshold, k_best=5, verbose=True, max_iter=10
+        base_model, threshold=threshold, k_best=k_best, verbose=True, max_iter=max_iter
     )
 
     mlflow.set_experiment("delivery model experiment")

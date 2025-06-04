@@ -124,32 +124,40 @@ class TestDeliveryClassificationPipeline(unittest.TestCase):
         self.mock_load = load_p.start()
         self.mock_train = train_p.start()
 
-        config_instance.get_keyword_trainer_config.return_value = (
+        add_manual_p = patch("data_discovery_ai.ml.pipeline.add_manual_labelled_data")
+        self.addCleanup(add_manual_p.stop)
+        self.mock_add_manual = add_manual_p.start()
+        self.mock_add_manual.return_value = "data_with_manual_labels"
+
+        config_instance.get_delivery_trainer_config.return_value = (
             DeliveryClassificationTrainerConfig(
                 test_size=0.2,
-                n_estimators=1,
                 threshold=0.5,
-                n_components=3,
                 separator="[SEP]",
+                max_depth=10,
+                max_leaf_nodes=2,
+                k_best=1,
+                max_iter=1,
             )
         )
         self.pipeline = DeliveryClassificationPipeline()
         self.preprocessor = self.mock_Preprocessor.return_value
 
     def test_pipeline_not_start_from_preprocess(self):
-        self.mock_load.return_value = "saved_preprocessed_data_with_embedding"
-        self.preprocessor.data = SimpleNamespace(labels="labels")
-
+        self.mock_load.side_effect = [
+            "saved_preprocessed_data_with_embedding",
+            "manual_labelled_data",
+        ]
         self.pipeline.pipeline(start_from_preprocess=False, model_name="development")
 
         # expect to start from prepare train and test sets, and call training model
         self.preprocessor.fetch_raw_data.assert_not_called()
         self.preprocessor.filter_raw_data.assert_not_called()
         self.preprocessor.calculate_embedding.assert_not_called()
+        self.assertEqual(self.mock_load.call_count, 2)
 
-        self.mock_load.assert_called_once()
-        self.preprocessor.prepare_train_test_set.assert_called_once_with(
-            "saved_preprocessed_data_with_embedding"
+        self.mock_add_manual.assert_called_once_with(
+            "saved_preprocessed_data_with_embedding", "manual_labelled_data"
         )
         self.mock_train.assert_called_once_with("development", self.preprocessor)
 

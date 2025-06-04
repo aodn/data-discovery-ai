@@ -44,6 +44,10 @@ class DeliveryClassificationTrainerConfig:
     test_size: float
     threshold: float
     separator: str
+    max_depth: int
+    max_leaf_nodes: int
+    k_best: int
+    max_iter: int
 
 
 @dataclass(frozen=True)

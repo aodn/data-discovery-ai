@@ -173,7 +173,6 @@ class KeywordClassificationPipeline(BasePipeline):
                 train_keyword_model(model_name, self.preprocessor)
 
 
-#
 class DeliveryClassificationPipeline(BasePipeline):
     def __init__(self) -> None:
         super().__init__()

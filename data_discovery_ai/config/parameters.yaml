@@ -108,3 +108,7 @@ trainer:
     separator: " [SEP] "
     test_size: 0.3
     threshold: 0.75
+    max_depth: 20
+    max_leaf_nodes: 2
+    k_best: 5
+    max_iter: 10
