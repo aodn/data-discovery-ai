@@ -67,7 +67,10 @@ class TestLinkGroupingAgent(unittest.TestCase):
         self.agent.execute(self.valid_request)
         self.assertTrue(self.agent.response["grouped_links"], 3)
         # expect output:
-        # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'type': 'text/html', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
+        # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
         self.assertEqual(
             self.agent.response["grouped_links"][1]["group"], "Python Notebook"
+        )
+        self.assertEqual(
+            self.agent.response["grouped_links"][1]["type"], "application/x-ipynb+json"
         )
