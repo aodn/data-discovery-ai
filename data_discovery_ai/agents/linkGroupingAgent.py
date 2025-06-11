@@ -66,6 +66,9 @@ class LinkGroupingAgent(BaseAgent):
                     link_group = self.grouping(link, page_content_keywords)
                     if link_group:
                         link["group"] = link_group
+                        if link_group == "Python Notebook":
+                            # make sure the python notebook type is as required
+                            link["type"] = "application/x-ipynb+json"
             return links
 
     def content_keyword(self) -> List[str]:
