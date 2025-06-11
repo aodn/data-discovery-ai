@@ -108,6 +108,11 @@ class SupervisorAgent(BaseAgent):
             logger.error("Invalid request format: expected a dictionary.")
             return False
 
+        uuid = request.get("uuid", None)
+        if uuid is None:
+            logger.error("Invalid request format: expected a UUID.")
+            return False
+
         selected_models = request.get("selected_model")
         if not selected_models or not isinstance(selected_models, list):
             logger.error(

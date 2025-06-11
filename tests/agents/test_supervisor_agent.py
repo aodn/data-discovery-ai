@@ -12,13 +12,22 @@ class TestSupervisorAgent(unittest.TestCase):
     def setUp(self):
         self.agent = SupervisorAgent()
         self.valid_request = {
+            "uuid": "Example uuid",
             "selected_model": ["description_formatting"],
             "title": "Example title",
             "abstract": "Example abstract",
         }
 
         self.invalid_model_request = {
+            "uuid": "Example uuid",
             "selected_model": ["description_formatting", "unknown model"],
+            "title": "Example title",
+            "abstract": "Example abstract",
+            "links": ["https://example.com"],
+        }
+
+        self.invalid_no_uuid_request = {
+            "selected_model": ["description_formatting"],
             "title": "Example title",
             "abstract": "Example abstract",
             "links": ["https://example.com"],
@@ -37,6 +46,10 @@ class TestSupervisorAgent(unittest.TestCase):
         mock_logger.error.assert_called_with(
             "Invalid model name: unknown model. Choose from ['keyword_classification', 'delivery_classification', 'description_formatting', 'link_grouping']"
         )
+
+        # Test no uuid request
+        self.assertFalse(self.agent.is_valid_request(self.invalid_no_uuid_request))
+        mock_logger.error.assert_called_with("Invalid request format: expected a UUID.")
 
         # Test non-dict request
         self.assertFalse(
