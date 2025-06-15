@@ -62,7 +62,7 @@ class LinkGroupingAgent(BaseAgent):
                 keys = set(link.keys())
                 if "href" not in keys or "title" not in keys:
                     logger.info(f"Invalid link with no href or title: {link}")
-                elif link["rel"] == "related":
+                elif link["rel"] not in ["icon", "preview", "parent", "sibling"]:
                     link_group = self.grouping(link, page_content_keywords)
                     if link_group:
                         link["group"] = link_group
