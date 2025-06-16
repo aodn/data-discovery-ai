@@ -123,7 +123,6 @@ class ConfigUtil:
         "elasticsearch.batch_size": "ES_BATCH_SIZE",
         "elasticsearch.sleep_time": "ES_SLEEP_TIME",
         "elasticsearch.es_index_name": "ES_INDEX_NAME",
-        "model.description_formatting.model": "DESCRIPTION_MODEL",
         # environment selection
         "environment": "PROFILE",
         # logging level
@@ -206,27 +205,17 @@ class ConfigUtil:
 
     def get_description_formatting_config(self) -> DescriptionFormattingConfig:
         if self.env == "development":
-            defaults = {
-                "model": "llama3",
-                "temperature": 0.0,
-                "max_tokens": 4000,
-                "response_key": "formatted_abstract",
-            }
+            defaults = {"model": "llama3", "temperature": 0.0, "max_tokens": 4000}
         else:
-            defaults = {
-                "model": "gpt-4o-mini",
-                "temperature": 0.1,
-                "max_tokens": 10000,
-                "response_key": "formatted_abstract",
-            }
-        model = os.getenv(
-            self.ENV_VARS["model.description_formatting.model"], defaults["model"]
-        )
+            defaults = {"model": "gpt-4o-mini", "temperature": 0.1, "max_tokens": 10000}
+        model = defaults["model"]
+        m = self._config_data.get("model", {}).get("description_formatting", {})
+
         return DescriptionFormattingConfig(
             model=model,
             temperature=defaults["temperature"],
             max_tokens=defaults["max_tokens"],
-            response_key=defaults["response_key"],
+            response_key=m.get("response_key", ""),
         )
 
     def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
