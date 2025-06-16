@@ -23,7 +23,7 @@ class LinkGroupingAgent(BaseAgent):
 
     def make_decision(self, request: Dict[str, Any]) -> List[Any]:
         """
-        The agent makes decision based on the request. The link grouping task only executes if the request is valid and the links are related (rel == "related").
+        The agent makes decision based on the request. The link grouping task only executes if the request is valid and the links are need to be grouped (the value of `rel` is not excluded).
         Input:
             request (Dict[str, Any]): The request format, which is expected to contain the following fields:
                 links (List[Dict[str, str]]): A list of dictionaries. Each link is a dict with keys 'href', 'rel', 'type', and 'title'. An example likes:
@@ -38,13 +38,14 @@ class LinkGroupingAgent(BaseAgent):
             List[Dict[str, str]]: the related links with full title and href for further grouping.
             Or an empty list if there are no valid links.
         """
+        exclude_rel_values = self.model_config["exclude_rel_values"]
         if self.is_valid_request(request):
             valid_links = []
             # check if the links are related
             links = request.get("links", [])
             for link in links:
                 if (
-                    link.get("rel") == "related"
+                    link.get("rel") not in exclude_rel_values
                     and link.get("href")
                     and link.get("title")
                 ):
@@ -62,17 +63,7 @@ class LinkGroupingAgent(BaseAgent):
                 keys = set(link.keys())
                 if "href" not in keys or "title" not in keys:
                     logger.info(f"Invalid link with no href or title: {link}")
-                elif link["rel"] not in [
-                    "child",
-                    "icon",
-                    "license",
-                    "parent",
-                    "preview",
-                    "self",
-                    "sibling",
-                    "summary",
-                    "thumbnail",
-                ]:
+                else:
                     link_group = self.grouping(link, page_content_keywords)
                     if link_group:
                         link["group"] = link_group
