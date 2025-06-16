@@ -36,11 +36,34 @@ class TestLinkGroupingAgent(unittest.TestCase):
             ]
         }
 
+        self.valid_protocol_request = {
+            "links": [
+                {
+                    "href": "http://nesptropical.edu.au/wp-content/uploads/2016/03/NESP-TWQ-3.1-FINAL-REPORT.pdf",
+                    "rel": "WWW:LINK-1.0-http--publication",
+                    "type": "",
+                    "title": "REPORT - Project Final Report [PDF]",
+                },
+                {
+                    "href": "https://catalogue.aodn.org.au:443/geonetwork/srv/api/records/05818c50-14c2-11dd-bdaa-00188b4c0af8/attachments/1989_01_12.zip",
+                    "rel": "data",
+                    "type": "",
+                    "title": "1989_01_12.zip",
+                },
+                {
+                    "href": "https://processes.aodn.org.au/wps",
+                    "rel": "OGC:WPS--gogoduck",
+                    "type": "",
+                    "title": "csiro_oa_reconstruction_url",
+                },
+            ]
+        }
+
         self.invalid_request = {
             "links": [
                 {
                     "href": "https://example.com",
-                    "rel": "parant",
+                    "rel": "parent",
                     "type": "text/html",
                     "title": "Example Link",
                 }
@@ -73,4 +96,33 @@ class TestLinkGroupingAgent(unittest.TestCase):
         )
         self.assertEqual(
             self.agent.response["grouped_links"][1]["type"], "application/x-ipynb+json"
+        )
+
+    def test_execute_with_protocol(self):
+        self.agent.execute(self.valid_protocol_request)
+        self.assertEqual(
+            self.agent.response["grouped_links"],
+            [
+                {
+                    "href": "http://nesptropical.edu.au/wp-content/uploads/2016/03/NESP-TWQ-3.1-FINAL-REPORT.pdf",
+                    "rel": "WWW:LINK-1.0-http--publication",
+                    "type": "",
+                    "title": "REPORT - Project Final Report [PDF]",
+                    "group": "Document",
+                },
+                {
+                    "href": "https://catalogue.aodn.org.au:443/geonetwork/srv/api/records/05818c50-14c2-11dd-bdaa-00188b4c0af8/attachments/1989_01_12.zip",
+                    "rel": "data",
+                    "type": "",
+                    "title": "1989_01_12.zip",
+                    "group": "Data Access",
+                },
+                {
+                    "href": "https://processes.aodn.org.au/wps",
+                    "rel": "OGC:WPS--gogoduck",
+                    "type": "",
+                    "title": "csiro_oa_reconstruction_url",
+                    "group": "Data Access",
+                },
+            ],
         )

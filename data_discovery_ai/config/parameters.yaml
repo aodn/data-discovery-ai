@@ -42,6 +42,16 @@ model:
     response_key: "classified_delivery_mode"
   link_grouping:
     response_key: "grouped_links"
+    exclude_rel_values:
+      - child
+      - icon
+      - license
+      - parent
+      - preview
+      - self
+      - sibling
+      - summary
+      - thumbnail
     grouping_rules:
       Python Notebook:
         href:
@@ -69,6 +79,7 @@ model:
           - wfs
           - wms
           - ows
+          - wps
           - thredds
           - trawler
           - data_type
