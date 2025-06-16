@@ -82,11 +82,7 @@ class TestSupervisorAgent(unittest.TestCase):
         mock_pool.map.assert_called_once()
         self.assertEqual(
             self.agent.response,
-            {
-                "result": {
-                    "formatted_abstract": "#descrption agent response: **mock_response**"
-                }
-            },
+            {"formatted_abstract": "#descrption agent response: **mock_response**"},
         )
 
 

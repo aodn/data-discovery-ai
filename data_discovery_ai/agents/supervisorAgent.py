@@ -93,8 +93,7 @@ class SupervisorAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if flag:
-            response = self.take_action(request)
-            self.response = {"result": response}
+            self.response = self.take_action(request)
         else:
             self.response = {}
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
