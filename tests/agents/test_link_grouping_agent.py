@@ -56,6 +56,12 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": "csiro_oa_reconstruction_url",
                 },
+                {
+                    "href": "https://example.com",
+                    "rel": "parent",
+                    "type": "text/html",
+                    "title": "Example Link",
+                },
             ]
         }
 
@@ -88,41 +94,45 @@ class TestLinkGroupingAgent(unittest.TestCase):
 
     def test_execute(self):
         self.agent.execute(self.valid_request)
-        self.assertTrue(self.agent.response["grouped_links"], 3)
+        self.assertTrue(self.agent.response["links"], 3)
         # expect output:
         # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
+        self.assertEqual(self.agent.response["links"][1]["ai_group"], "Python Notebook")
         self.assertEqual(
-            self.agent.response["grouped_links"][1]["group"], "Python Notebook"
-        )
-        self.assertEqual(
-            self.agent.response["grouped_links"][1]["type"], "application/x-ipynb+json"
+            self.agent.response["links"][1]["type"], "application/x-ipynb+json"
         )
 
     def test_execute_with_protocol(self):
         self.agent.execute(self.valid_protocol_request)
         self.assertEqual(
-            self.agent.response["grouped_links"],
+            self.agent.response["links"],
             [
                 {
                     "href": "http://nesptropical.edu.au/wp-content/uploads/2016/03/NESP-TWQ-3.1-FINAL-REPORT.pdf",
                     "rel": "WWW:LINK-1.0-http--publication",
                     "type": "",
                     "title": "REPORT - Project Final Report [PDF]",
-                    "group": "Document",
+                    "ai_group": "Document",
                 },
                 {
                     "href": "https://catalogue.aodn.org.au:443/geonetwork/srv/api/records/05818c50-14c2-11dd-bdaa-00188b4c0af8/attachments/1989_01_12.zip",
                     "rel": "data",
                     "type": "",
                     "title": "1989_01_12.zip",
-                    "group": "Data Access",
+                    "ai_group": "Data Access",
                 },
                 {
                     "href": "https://processes.aodn.org.au/wps",
                     "rel": "OGC:WPS--gogoduck",
                     "type": "",
                     "title": "csiro_oa_reconstruction_url",
-                    "group": "Data Access",
+                    "ai_group": "Data Access",
+                },
+                {
+                    "href": "https://example.com",
+                    "rel": "parent",
+                    "type": "text/html",
+                    "title": "Example Link",
                 },
             ],
         )

@@ -41,7 +41,7 @@ model:
     separator: " [SEP] "
     response_key: "classified_delivery_mode"
   link_grouping:
-    response_key: "grouped_links"
+    response_key: "links"
     exclude_rel_values:
       - child
       - icon
