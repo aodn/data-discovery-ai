@@ -210,14 +210,14 @@ class ConfigUtil:
                 "model": "llama3",
                 "temperature": 0.0,
                 "max_tokens": 4000,
-                "response_key": "ai_description",
+                "response_key": "summaries.ai:description",
             }
         else:
             defaults = {
                 "model": "gpt-4o-mini",
                 "temperature": 0.1,
                 "max_tokens": 10000,
-                "response_key": "ai_description",
+                "response_key": "summaries.ai:description",
             }
         model = os.getenv(
             self.ENV_VARS["model.description_formatting.model"], defaults["model"]

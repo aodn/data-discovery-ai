@@ -65,14 +65,16 @@ class TestSupervisorAgent(unittest.TestCase):
     def test_execute(self, mock_pool_class):
         mock_pool = MagicMock()
         mock_pool.map.return_value = [
-            {"ai_description": "#descrption agent response: **mock_response**"}
+            {
+                "summaries.ai:description": "#descrption agent response: **mock_response**"
+            }
         ]
         mock_pool_class.return_value.__enter__.return_value = mock_pool
 
         mock_agent = MagicMock()
         mock_agent.execute = MagicMock()
         mock_agent.response = {
-            "ai_description": "#descrption agent response: **mock_response**"
+            "summaries.ai:description": "#descrption agent response: **mock_response**"
         }
 
         self.agent.task_agents = [mock_agent]
@@ -83,9 +85,7 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertEqual(
             self.agent.response,
             {
-                "result": {
-                    "ai_description": "#descrption agent response: **mock_response**"
-                }
+                "summaries.ai:description": "#descrption agent response: **mock_response**"
             },
         )
 

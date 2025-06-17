@@ -42,7 +42,9 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         self.agent.take_action.assert_called_once_with(
             request["title"], request["abstract"], request["lineage"]
         )
-        self.assertEqual(self.agent.response, {"ai_update_frequency": "real-time"})
+        self.assertEqual(
+            self.agent.response, {"summaries.ai:update_frequency": "real-time"}
+        )
 
         # Check logging
         mock_logger.info.assert_called_once()
