@@ -85,16 +85,14 @@ class SupervisorAgent(BaseAgent):
 
     def execute(self, request: Dict) -> None:
         """
-        Execute the action module of the Supervisor Agent. The action is to classify the delivery mode based on the provided request.
-        The agent perceives the request, and make decision based on the received request. If it decides to take action, it will call the LLM module to classify the delivery mode and set self response as the classified delivery mode.
-        Otherwise, it will set self.response as an empty string.
+        Execute the action module of the Supervisor Agent.
+        The agent perceives the request, and make decision based on the received request.
         Input:
             request (dict): The request format.
         """
         flag = self.make_decision(request)
         if flag:
-            response = self.take_action(request)
-            self.response = {"result": response}
+            self.response = self.take_action(request)
         else:
             self.response = {}
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")

@@ -63,9 +63,9 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
         self.agent.execute(self.valid_request)
 
         self.assertEqual(
-            self.agent.response["formatted_abstract"], "#title **Formatted abstract**"
+            self.agent.response["ai_description"], "#title **Formatted abstract**"
         )
-        expected_response = {"formatted_abstract": "#title **Formatted abstract**"}
+        expected_response = {"ai_description": "#title **Formatted abstract**"}
         expected_calls = [
             call("Description is being reformatted by description_formatting agent"),
             call(
