@@ -36,6 +36,7 @@ h11 = "0.16.0"
 ollama = "^0.4.8"
 setuptools = "78.1.1"
 mlflow = {extras = ["genai"], version = "^2.22.0"}
+protobuf = "4.25.8"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
