@@ -77,24 +77,36 @@ class SupervisorAgent(BaseAgent):
             results = pool.map(
                 self.run_agent, [(agent, request) for agent in self.task_agents]
             )
+
         # combine the response from all task agents
         combined_response = {}
+        summaries = {}
+
         for response in results:
-            combined_response.update(response)
+            summary_fields = {
+                k.split(".")[1]: v
+                for k, v in response.items()
+                if "summaries" in k and len(k.split(".")) > 1
+            }
+            other_fields = {k: v for k, v in response.items() if "summaries" not in k}
+            if summary_fields:
+                summaries.update(summary_fields)
+
+            combined_response.update(other_fields)
+            if summaries:
+                combined_response["summaries"] = summaries
         return combined_response
 
     def execute(self, request: Dict) -> None:
         """
-        Execute the action module of the Supervisor Agent. The action is to classify the delivery mode based on the provided request.
-        The agent perceives the request, and make decision based on the received request. If it decides to take action, it will call the LLM module to classify the delivery mode and set self response as the classified delivery mode.
-        Otherwise, it will set self.response as an empty string.
+        Execute the action module of the Supervisor Agent.
+        The agent perceives the request, and make decision based on the received request.
         Input:
             request (dict): The request format.
         """
         flag = self.make_decision(request)
         if flag:
-            response = self.take_action(request)
-            self.response = {"result": response}
+            self.response = self.take_action(request)
         else:
             self.response = {}
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")

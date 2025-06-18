@@ -30,18 +30,18 @@ model:
     top_N: 2
     separator: " [SEP] "
     pretrained_model: development
-    response_key: "classified_keywords"
+    response_key: "themes"
   description_formatting:
     model: gpt-4o-mini
     temperature: 0.01
     max_tokens: 10000
-    response_key: "formatted_abstract"
+    response_key: "summaries.ai:description"
   delivery_classification:
     pretrained_model: development
     separator: " [SEP] "
-    response_key: "classified_delivery_mode"
+    response_key: "summaries.ai:update_frequency"
   link_grouping:
-    response_key: "grouped_links"
+    response_key: "links"
     exclude_rel_values:
       - child
       - icon
