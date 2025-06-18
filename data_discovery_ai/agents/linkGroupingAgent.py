@@ -59,11 +59,12 @@ class LinkGroupingAgent(BaseAgent):
             return []
         else:
             page_content_keywords = self.content_keyword()
+            exclude_rel_values = self.model_config["exclude_rel_values"]
             for link in links:
                 keys = set(link.keys())
                 if "href" not in keys or "title" not in keys:
                     logger.info(f"Invalid link with no href or title: {link}")
-                else:
+                elif link["rel"] not in exclude_rel_values:
                     link_group = self.grouping(link, page_content_keywords)
                     if link_group:
                         link["ai:group"] = link_group
