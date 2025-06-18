@@ -88,7 +88,8 @@ class TestLinkGroupingAgent(unittest.TestCase):
 
     def test_execute(self):
         self.agent.execute(self.valid_request)
-        self.assertTrue(self.agent.response["links"], 3)
+        # it should return all links with selected links to be grouped
+        self.assertEqual(len(self.agent.response["links"]), 4)
         # expect output:
         # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
         self.assertEqual(self.agent.response["links"][1]["ai:group"], "Python Notebook")

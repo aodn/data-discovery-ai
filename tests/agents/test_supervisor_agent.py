@@ -66,7 +66,7 @@ class TestSupervisorAgent(unittest.TestCase):
         mock_pool = MagicMock()
         mock_pool.map.return_value = [
             {
-                "summaries.ai:description": "#descrption agent response: **mock_response**"
+                "summaries.ai:description": "#description agent response: **mock_response**"
             }
         ]
         mock_pool_class.return_value.__enter__.return_value = mock_pool
@@ -74,7 +74,7 @@ class TestSupervisorAgent(unittest.TestCase):
         mock_agent = MagicMock()
         mock_agent.execute = MagicMock()
         mock_agent.response = {
-            "summaries.ai:description": "#descrption agent response: **mock_response**"
+            "summaries.ai:description": "#description agent response: **mock_response**"
         }
 
         self.agent.task_agents = [mock_agent]
@@ -86,7 +86,7 @@ class TestSupervisorAgent(unittest.TestCase):
             self.agent.response,
             {
                 "summaries": {
-                    "ai:description": "#descrption agent response: **mock_response**"
+                    "ai:description": "#description agent response: **mock_response**"
                 }
             },
         )

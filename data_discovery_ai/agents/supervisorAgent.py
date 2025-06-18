@@ -84,7 +84,9 @@ class SupervisorAgent(BaseAgent):
 
         for response in results:
             summary_fields = {
-                k.split(".")[1]: v for k, v in response.items() if "summaries" in k
+                k.split(".")[1]: v
+                for k, v in response.items()
+                if "summaries" in k and len(k.split(".")) > 1
             }
             other_fields = {k: v for k, v in response.items() if "summaries" not in k}
             if summary_fields:
