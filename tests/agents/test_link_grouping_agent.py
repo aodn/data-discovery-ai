@@ -91,7 +91,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
         self.assertTrue(self.agent.response["links"], 3)
         # expect output:
         # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
-        self.assertEqual(self.agent.response["links"][1]["ai_group"], "Python Notebook")
+        self.assertEqual(self.agent.response["links"][1]["ai:group"], "Python Notebook")
         self.assertEqual(
             self.agent.response["links"][1]["type"], "application/x-ipynb+json"
         )
@@ -106,21 +106,21 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "rel": "WWW:LINK-1.0-http--publication",
                     "type": "",
                     "title": "REPORT - Project Final Report [PDF]",
-                    "ai_group": "Document",
+                    "ai:group": "Document",
                 },
                 {
                     "href": "https://catalogue.aodn.org.au:443/geonetwork/srv/api/records/05818c50-14c2-11dd-bdaa-00188b4c0af8/attachments/1989_01_12.zip",
                     "rel": "data",
                     "type": "",
                     "title": "1989_01_12.zip",
-                    "ai_group": "Data Access",
+                    "ai:group": "Data Access",
                 },
                 {
                     "href": "https://processes.aodn.org.au/wps",
                     "rel": "OGC:WPS--gogoduck",
                     "type": "",
                     "title": "csiro_oa_reconstruction_url",
-                    "ai_group": "Data Access",
+                    "ai:group": "Data Access",
                 },
             ],
         )

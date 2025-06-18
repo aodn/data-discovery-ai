@@ -85,7 +85,9 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertEqual(
             self.agent.response,
             {
-                "summaries.ai:description": "#descrption agent response: **mock_response**"
+                "summaries": {
+                    "ai:description": "#descrption agent response: **mock_response**"
+                }
             },
         )
 
