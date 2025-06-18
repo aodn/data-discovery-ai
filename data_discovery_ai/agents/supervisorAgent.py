@@ -77,10 +77,22 @@ class SupervisorAgent(BaseAgent):
             results = pool.map(
                 self.run_agent, [(agent, request) for agent in self.task_agents]
             )
+
         # combine the response from all task agents
         combined_response = {}
+        summaries = {}
+
         for response in results:
-            combined_response.update(response)
+            summary_fields = {
+                k.split(".")[1]: v for k, v in response.items() if "summaries" in k
+            }
+            other_fields = {k: v for k, v in response.items() if "summaries" not in k}
+            if summary_fields:
+                summaries.update(summary_fields)
+
+            combined_response.update(other_fields)
+            if summaries:
+                combined_response["summaries"] = summaries
         return combined_response
 
     def execute(self, request: Dict) -> None:
