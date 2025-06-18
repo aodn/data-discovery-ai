@@ -52,6 +52,7 @@ model:
       - sibling
       - summary
       - thumbnail
+      - describedby
     grouping_rules:
       Python Notebook:
         href:
@@ -67,6 +68,7 @@ model:
           - guide
           - help
           - report
+          - article
       Data Access:
         href:
           - access
