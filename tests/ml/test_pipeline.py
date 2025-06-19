@@ -127,9 +127,7 @@ class TestDeliveryClassificationPipeline(unittest.TestCase):
         config_instance.get_keyword_trainer_config.return_value = (
             DeliveryClassificationTrainerConfig(
                 test_size=0.2,
-                n_estimators=1,
                 threshold=0.5,
-                n_components=3,
                 separator="[SEP]",
                 max_depth=5,
                 max_leaf_nodes=2,
