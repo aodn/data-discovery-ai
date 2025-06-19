@@ -31,14 +31,12 @@ class TestFilteringModel(unittest.TestCase):
     @patch("data_discovery_ai.ml.filteringModel.load_from_file")
     def test_load_saved_model(self, mock_load):
         mock_model = MagicMock()
-        mock_pca = MagicMock()
-        mock_load.side_effect = [mock_model, mock_pca]
+        mock_load.side_effect = [mock_model]
 
-        model, pca = filteringModel.load_saved_model("test")
+        model = filteringModel.load_saved_model("test")
 
-        self.assertEqual(mock_load.call_count, 2)
+        self.assertEqual(mock_load.call_count, 1)
         self.assertIs(model, mock_model)
-        self.assertIs(pca, mock_pca)
 
 
 if __name__ == "__main__":

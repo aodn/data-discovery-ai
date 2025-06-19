@@ -42,9 +42,7 @@ class KeywordClassificationTrainerConfig:
 @dataclass(frozen=True)
 class DeliveryClassificationTrainerConfig:
     test_size: float
-    n_estimators: int
     threshold: float
-    n_components: float
     separator: str
     max_depth: int
     max_leaf_nodes: int
