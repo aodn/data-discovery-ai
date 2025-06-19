@@ -123,3 +123,7 @@ trainer:
     n_estimators: 100
     threshold: 0.75
     n_components: 0.95
+    max_depth: 20
+    max_leaf_nodes: 2
+    k_best: 5
+    max_iter: 10

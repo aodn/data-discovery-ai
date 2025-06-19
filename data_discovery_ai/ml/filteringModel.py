@@ -1,7 +1,7 @@
 # The data delivery mode filter model to classify the metadata records based on their titles, abstracts, and lineages.
 # Possible classes are 'Real Time', 'Delayed', and 'Other'.
 from sklearn.semi_supervised import SelfTrainingClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import (
     classification_report,
     accuracy_score,
@@ -25,6 +25,9 @@ from data_discovery_ai.utils.agent_tools import (
 from data_discovery_ai import logger
 
 
+mlflow.sklearn.autolog(log_input_examples=True, log_model_signatures=True)
+
+
 def train_delivery_model(
     model_name: str, delivery_preprocessor: DeliveryPreprocessor
 ) -> Tuple[Any, Any]:
@@ -43,15 +46,26 @@ def train_delivery_model(
     n_estimators = trainer_config.n_estimators
     threshold = trainer_config.threshold
     n_components = trainer_config.n_components
+    max_depth = trainer_config.max_depth
+    max_leaf_nodes = trainer_config.max_leaf_nodes
+    k_best = trainer_config.k_best
+    max_iter = trainer_config.max_iter
 
     train_test_data = delivery_preprocessor.train_test_data
 
     pca = PCA(n_components=n_components)
     X_train_pca = pca.fit_transform(train_test_data.X_combined_train)
 
-    base_model = RandomForestClassifier(n_estimators=n_estimators, random_state=42)
+    base_model = DecisionTreeClassifier(
+        max_depth=max_depth,
+        max_leaf_nodes=max_leaf_nodes,
+        class_weight="balanced",
+        random_state=42,
+    )
     # self-training classifier
-    self_training_model = SelfTrainingClassifier(base_model, threshold=threshold)
+    self_training_model = SelfTrainingClassifier(
+        base_model, threshold=threshold, k_best=k_best, verbose=True, max_iter=max_iter
+    )
 
     mlflow.set_experiment("Data Delivery Mode Classification Model")
     mlflow_config = delivery_preprocessor.mlflow_config
