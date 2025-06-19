@@ -484,6 +484,8 @@ class DeliveryPreprocessor(BasePreprocessor):
             X_labelled,
             Y_labelled,
             test_size=self.trainer_config.test_size,
+            # shuffle=True,
+            # use this line instead of shuffle to reproduce the best performance model
             random_state=42,
         )
         logger.info(
@@ -515,3 +517,20 @@ class DeliveryPreprocessor(BasePreprocessor):
                 np.array(X_test),
                 np.array(Y_test),
             )
+
+
+def add_manual_labelled_data(df, manual_labelled_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    There are some records have been manually labelled. Add them to post-filter_hook.
+    Input: df: filtered data. manual_labelled_data: manually labeled data. These two dataframe are expected to have same shape.
+    Output: pd.DataFrame. Filtered data with manually labelled data.
+    """
+    df = df.copy()
+    df.set_index("id", inplace=True)
+    manual_labelled_data.set_index("id", inplace=True)
+
+    df.update(manual_labelled_data[["mode"]])
+    new_rows = manual_labelled_data[~manual_labelled_data.index.isin(df.index)]
+    df = pd.concat([df, new_rows], axis=0)
+    df.reset_index(inplace=True)
+    return df

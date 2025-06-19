@@ -213,7 +213,6 @@ Running a pipeline trains a Machine Learning model and saves several resource fi
     |---------------------------|-------------------------------------------------|
     | `filter_preprocessed.pkl` | Preprocessed data used for training and testing |
     | `development.pkl`         | Trained binary classification model             |
-    | `development.pca.pkl`     | PCA model used for dimensionality reduction     |
 
 2. `keyword` pipeline
 
