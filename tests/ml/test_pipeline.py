@@ -131,6 +131,10 @@ class TestDeliveryClassificationPipeline(unittest.TestCase):
                 threshold=0.5,
                 n_components=3,
                 separator="[SEP]",
+                max_depth=5,
+                max_leaf_nodes=2,
+                max_iter=10,
+                k_best=5,
             )
         )
         self.pipeline = DeliveryClassificationPipeline()
