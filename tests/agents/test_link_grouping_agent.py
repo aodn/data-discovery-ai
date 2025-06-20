@@ -50,11 +50,40 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": "1989_01_12.zip",
                 },
+            ]
+        }
+
+        self.hide_protocol_request = {
+            "links": [
                 {
                     "href": "https://processes.aodn.org.au/wps",
                     "rel": "OGC:WPS--gogoduck",
                     "type": "",
                     "title": "csiro_oa_reconstruction_url",
+                },
+                {
+                    "href": "https://help.aodn.org.au/web-services/gogoduck-aggregator/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "GoGoDuck help documentation",
+                },
+                {
+                    "href": "https://portal.aodn.org.au/search?uuid=7709f541-fc0c-4318-b5b9-9053aa474e0e",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "View and download data though the AODN Portal",
+                },
+                {
+                    "href": "https://help.aodn.org.au/web-services/ncurllist-service/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "ncUrlList help documentation",
+                },
+                {
+                    "href": "http://geoserver-123.aodn.org.au/geoserver/ows",
+                    "rel": "IMOS:AGGREGATION--bodaac",
+                    "type": "",
+                    "title": "anmn_velocity_timeseries_map#file_url",
                 },
             ]
         }
@@ -116,12 +145,44 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "title": "1989_01_12.zip",
                     "ai:group": "Data Access",
                 },
+            ],
+        )
+
+    def test_execute_with_hidden_protocol(self):
+        self.agent.execute(self.hide_protocol_request)
+        # non of them should have `ai:group` field
+        self.assertEqual(
+            self.agent.response["links"],
+            [
                 {
                     "href": "https://processes.aodn.org.au/wps",
                     "rel": "OGC:WPS--gogoduck",
                     "type": "",
                     "title": "csiro_oa_reconstruction_url",
-                    "ai:group": "Data Access",
+                },
+                {
+                    "href": "https://help.aodn.org.au/web-services/gogoduck-aggregator/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "GoGoDuck help documentation",
+                },
+                {
+                    "href": "https://portal.aodn.org.au/search?uuid=7709f541-fc0c-4318-b5b9-9053aa474e0e",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "View and download data though the AODN Portal",
+                },
+                {
+                    "href": "https://help.aodn.org.au/web-services/ncurllist-service/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "ncUrlList help documentation",
+                },
+                {
+                    "href": "http://geoserver-123.aodn.org.au/geoserver/ows",
+                    "rel": "IMOS:AGGREGATION--bodaac",
+                    "type": "",
+                    "title": "anmn_velocity_timeseries_map#file_url",
                 },
             ],
         )

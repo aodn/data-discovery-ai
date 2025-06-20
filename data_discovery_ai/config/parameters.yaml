@@ -42,17 +42,24 @@ model:
     response_key: "summaries.ai:update_frequency"
   link_grouping:
     response_key: "links"
-    exclude_rel_values:
-      - child
-      - icon
-      - license
-      - parent
-      - preview
-      - self
-      - sibling
-      - summary
-      - thumbnail
-      - describedby
+    exclude_rules:
+      rel:
+        - child
+        - icon
+        - license
+        - parent
+        - preview
+        - self
+        - sibling
+        - summary
+        - thumbnail
+        - describedby
+        - OGC:WPS--gogoduck
+        - IMOS:AGGREGATION--bodaac
+      title:
+        - "View and download data though the AODN Portal"
+        - "GoGoDuck help documentation"
+        - "ncUrlList help documentation"
     grouping_rules:
       Python Notebook:
         href:
