@@ -38,7 +38,7 @@ class LinkGroupingAgent(BaseAgent):
             List[Dict[str, str]]: the related links with full title and href for further grouping.
             Or an empty list if there are no valid links.
         """
-        exclude_rel_values = self.model_config["exclude_rules"]["rel"]
+        exclude_rel_values = self.model_config.get("exclude_rules", {}).get("rel", [])
         if self.is_valid_request(request):
             valid_links = []
             # check if the links are related
