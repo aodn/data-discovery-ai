@@ -127,40 +127,65 @@ class KeywordClassificationPipeline(BasePipeline):
         executable = self.is_valid_model(model_name)
         if executable:
             if start_from_preprocess:
-                # fetch raw data
-                # raw_data = self.preprocessor.fetch_raw_data()
-
-                # for test only because it has more data
+                #     # fetch raw data
+                #     # raw_data = self.preprocessor.fetch_raw_data()
+                #
+                #     # for test only because it has more data
+                #     # raw_data = load_from_file(
+                #     #     self.config.base_dir / "resources" / "raw_data.pkl"
+                #     # )
                 raw_data = load_from_file(
-                    self.config.base_dir / "resources" / "raw_data.pkl"
+                    self.config.base_dir / "resources" / "raw_data_test.pkl"
                 )
 
                 # preprocess raw data
                 filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
+                preprocessed_label = self.preprocessor.concept_to_index
+                logger.debug(preprocessed_label)
 
-                # add the embedding column
+                # save textual labels for future use
+                save_to_file(
+                    preprocessed_label,
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_LABEL_FILE,
+                )
+
+            #
+            #     # add the embedding column
             #     preprocessed_data = self.preprocessor.calculate_embedding(
             #         ds=filtered_data, seperator=self.params.separator
             #     )
-            # else:
-            #     preprocessed_data = load_from_file(
+            else:
+                #     preprocessed_data = load_from_file(
+                #         self.config.base_dir
+                #         / "resources"
+                #         / KEYWORD_FOLDER
+                #         / KEYWORD_SAMPLE_FILE
+                #     )
+                #
+                preprocessed_labels = load_from_file(
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_LABEL_FILE,
+                )
+                logger.debug(preprocessed_labels)
+            # if preprocessed_data is not None:
+            #     # save preprocessed data for future use
+            #     save_to_file(
+            #         preprocessed_data,
             #         self.config.base_dir
             #         / "resources"
             #         / KEYWORD_FOLDER
-            #         / KEYWORD_SAMPLE_FILE
+            #         / KEYWORD_SAMPLE_FILE,
             #     )
-            # if preprocessed_data is not None:
+
             #     # prepare train test sets
             #     self.preprocessor.prepare_train_test_set(raw_data=preprocessed_data)
             #
             #     # save preprocessed data for future use
-            #     save_to_file(
-            #         self.preprocessor.data.labels,
-            #         self.config.base_dir
-            #         / "resources"
-            #         / KEYWORD_FOLDER
-            #         / KEYWORD_LABEL_FILE,
-            #     )
             #     save_to_file(
             #         preprocessed_data,
             #         self.config.base_dir
