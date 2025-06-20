@@ -83,7 +83,7 @@ class KMData:
     X: np.ndarray
     Y: np.ndarray
     Y_df: pd.DataFrame
-    labels: Dict[Any, int]
+    labels: Dict[int, Any]
 
 
 @dataclass
@@ -187,7 +187,7 @@ class Concept:
         self.theme = None
 
     def to_json(self) -> Dict[str, Any]:
-        return {"id": self.value, "url": self.url, "theme": self.theme.title}
+        return {"id": self.value, "url": self.url, "theme": self.theme.to_json()}
 
     def set_theme(self, theme: ConceptTheme) -> None:
         self.theme = theme
@@ -223,7 +223,7 @@ class KeywordPreprocessor(BasePreprocessor):
         self.data = None
         self.train_test_data = None
         self.concepts = set()
-        self.concept_to_index: Dict[Dict, int] = {}
+        self.concept_to_index: Dict[int, Dict] = {}
         self.themes = set()
 
     def set_preprocessed_data(self, df: pd.DataFrame) -> None:
@@ -386,10 +386,16 @@ class KeywordPreprocessor(BasePreprocessor):
                         if concept_obj not in self.concepts:
                             concept_index = len(self.concepts)
                             self.concepts.add(concept_obj)
-                            self.concept_to_index[concept_obj.to_json()] = concept_index
+                            self.concept_to_index[concept_index] = concept_obj.to_json()
                         else:
-                            concept_index = self.concept_to_index[concept_obj.to_json()]
-
+                            concept_index = next(
+                                (
+                                    k
+                                    for k, v in self.concept_to_index.items()
+                                    if v == concept_obj
+                                ),
+                                None,
+                            )
                         concept_indices.append(concept_index)
             except Exception as e:
                 logger.error("Error in keywords_formatter: %s", e)

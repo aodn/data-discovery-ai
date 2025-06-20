@@ -152,35 +152,33 @@ class KeywordClassificationPipeline(BasePipeline):
                     / KEYWORD_LABEL_FILE,
                 )
 
-            #
-            #     # add the embedding column
-            #     preprocessed_data = self.preprocessor.calculate_embedding(
-            #         ds=filtered_data, seperator=self.params.separator
-            #     )
+                # add the embedding column
+                preprocessed_data = self.preprocessor.calculate_embedding(
+                    ds=filtered_data, seperator=self.params.separator
+                )
             else:
-                #     preprocessed_data = load_from_file(
-                #         self.config.base_dir
-                #         / "resources"
-                #         / KEYWORD_FOLDER
-                #         / KEYWORD_SAMPLE_FILE
-                #     )
-                #
+                preprocessed_data = load_from_file(
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_SAMPLE_FILE
+                )
+
                 preprocessed_labels = load_from_file(
                     self.config.base_dir
                     / "resources"
                     / KEYWORD_FOLDER
                     / KEYWORD_LABEL_FILE,
                 )
-                logger.debug(preprocessed_labels)
-            # if preprocessed_data is not None:
-            #     # save preprocessed data for future use
-            #     save_to_file(
-            #         preprocessed_data,
-            #         self.config.base_dir
-            #         / "resources"
-            #         / KEYWORD_FOLDER
-            #         / KEYWORD_SAMPLE_FILE,
-            #     )
+            if preprocessed_data is not None:
+                # save preprocessed data with their embeddings for future use
+                save_to_file(
+                    preprocessed_data,
+                    self.config.base_dir
+                    / "resources"
+                    / KEYWORD_FOLDER
+                    / KEYWORD_SAMPLE_FILE,
+                )
 
             #     # prepare train test sets
             #     self.preprocessor.prepare_train_test_set(raw_data=preprocessed_data)
