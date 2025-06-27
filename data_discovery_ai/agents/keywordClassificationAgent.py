@@ -51,6 +51,10 @@ class KeywordClassificationAgent(BaseAgent):
         self.model_config = self.config.get_keyword_classification_config()
 
         self.pretrained_model_name = self.model_config.pretrained_model
+        self.supervisor = None
+
+    def set_supervisor(self, supervisor):
+        self.supervisor = supervisor
 
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
@@ -86,7 +90,9 @@ class KeywordClassificationAgent(BaseAgent):
         """
         # calculate the embedding of the title and abstract
         request_text = title + self.model_config.separator + abstract
-        text_embedding = get_text_embedding(request_text)
+        tokenizer = self.supervisor.tokenizer
+        embedding_model = self.supervisor.embedding_model
+        text_embedding = get_text_embedding(request_text, tokenizer, embedding_model)
 
         # set up model parameters
         confidence = self.model_config.confidence

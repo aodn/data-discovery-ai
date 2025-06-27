@@ -110,6 +110,9 @@ async def process_record(request: Request) -> JSONResponse:
 
     supervisor = SupervisorAgent()
 
+    supervisor.set_tokenizer(request.app.state.tokenizer)
+    supervisor.set_embedding_model(request.app.state.embedding_model)
+
     if not supervisor.is_valid_request(body):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid request format."

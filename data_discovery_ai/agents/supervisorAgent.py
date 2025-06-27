@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-from typing import Dict, Union
+from typing import Dict, Union, Any
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai import logger
@@ -32,6 +32,14 @@ class SupervisorAgent(BaseAgent):
             "link_grouping": LinkGroupingAgent,
             "delivery_classification": DeliveryClassificationAgent,
         }
+        self.tokenizer = None
+        self.embedding_model = None
+
+    def set_tokenizer(self, tokenizer: Any):
+        self.tokenizer = tokenizer
+
+    def set_embedding_model(self, embedding_model: Any):
+        self.embedding_model = embedding_model
 
     def make_decision(self, request: Dict) -> bool:
         """
@@ -46,6 +54,7 @@ class SupervisorAgent(BaseAgent):
                 AgentClass = self.model_name_class_map.get(selected_model)
                 if AgentClass:
                     task_agent = AgentClass()
+                    task_agent.set_supervisor(self)
                     task_agent_config = self.model_config["task_agents"].get(
                         selected_model, None
                     )
@@ -73,10 +82,7 @@ class SupervisorAgent(BaseAgent):
         Input: request: Dict. The request from API call
         Output: Dict. The combined response from all task agents.
         """
-        with Pool(processes=MAX_PROCESS) as pool:
-            results = pool.map(
-                self.run_agent, [(agent, request) for agent in self.task_agents]
-            )
+        results = [self.run_agent((agent, request)) for agent in self.task_agents]
 
         # combine the response from all task agents
         combined_response = {}
@@ -105,6 +111,7 @@ class SupervisorAgent(BaseAgent):
             request (dict): The request format.
         """
         flag = self.make_decision(request)
+
         if flag:
             self.response = self.take_action(request)
         else:
