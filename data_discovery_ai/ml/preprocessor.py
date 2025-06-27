@@ -403,6 +403,15 @@ class KeywordPreprocessor(BasePreprocessor):
         return concept_indices
 
 
+def clean_keywords(x):
+    if isinstance(x, list):
+        return [i for i in x if i is not None]
+    elif pd.isna(x):
+        return []
+    else:
+        return []
+
+
 def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
     """
     Prepares the target matrix (Y) by applying multi-label binarization on keywords. This function uses `MultiLabelBinarizer` to transform the `keywords` column of the dataset into a binary matrix format,
@@ -414,6 +423,7 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
     Output:
         K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword.
     """
+    ds["keywords"] = ds["keywords"].apply(clean_keywords)
     mlb = MultiLabelBinarizer()
     Y = mlb.fit_transform(ds["keywords"])
     K = pd.DataFrame(Y, columns=mlb.classes_)

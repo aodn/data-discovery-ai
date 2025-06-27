@@ -125,78 +125,63 @@ class KeywordClassificationPipeline(BasePipeline):
             model_name: str. The model name for saving a selected pretrained model.
         """
         executable = self.is_valid_model(model_name)
-        if executable:
-            if start_from_preprocess:
-                #     # fetch raw data
-                #     # raw_data = self.preprocessor.fetch_raw_data()
-                #
-                #     # for test only because it has more data
-                #     # raw_data = load_from_file(
-                #     #     self.config.base_dir / "resources" / "raw_data.pkl"
-                #     # )
-                raw_data = load_from_file(
-                    self.config.base_dir / "resources" / "raw_data_test.pkl"
-                )
 
-                # preprocess raw data
-                filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
-                preprocessed_label = self.preprocessor.concept_to_index
-                logger.debug(preprocessed_label)
+        if not executable:
+            return
 
-                # save textual labels for future use
-                save_to_file(
-                    preprocessed_label,
-                    self.config.base_dir
-                    / "resources"
-                    / KEYWORD_FOLDER
-                    / KEYWORD_LABEL_FILE,
-                )
-
-                # add the embedding column
-                preprocessed_data = self.preprocessor.calculate_embedding(
-                    ds=filtered_data, seperator=self.params.separator
-                )
-            else:
-                preprocessed_data = load_from_file(
-                    self.config.base_dir
-                    / "resources"
-                    / KEYWORD_FOLDER
-                    / KEYWORD_SAMPLE_FILE
-                )
-
-                preprocessed_labels = load_from_file(
-                    self.config.base_dir
-                    / "resources"
-                    / KEYWORD_FOLDER
-                    / KEYWORD_LABEL_FILE,
-                )
-            if preprocessed_data is not None:
-                # save preprocessed data with their embeddings for future use
-                save_to_file(
-                    preprocessed_data,
-                    self.config.base_dir
-                    / "resources"
-                    / KEYWORD_FOLDER
-                    / KEYWORD_SAMPLE_FILE,
-                )
-
-            #     # prepare train test sets
-            #     self.preprocessor.prepare_train_test_set(raw_data=preprocessed_data)
+        if start_from_preprocess:
+            #     # fetch raw data
+            #     # raw_data = self.preprocessor.fetch_raw_data()
             #
-            #     # save preprocessed data for future use
-            #     save_to_file(
-            #         preprocessed_data,
-            #         self.config.base_dir
-            #         / "resources"
-            #         / KEYWORD_FOLDER
-            #         / KEYWORD_SAMPLE_FILE,
-            #     )
-            #
-            #     # train model
-            #     train_keyword_model(model_name, self.preprocessor)
+            #     # for test only because it has more data
+            #     # raw_data = load_from_file(
+            #     #     self.config.base_dir / "resources" / "raw_data.pkl"
+            #     # )
+            raw_data = load_from_file(
+                self.config.base_dir / "resources" / "raw_data_test.pkl"
+            )
+
+            # preprocess raw data
+            filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
+            preprocessed_label = self.preprocessor.concept_to_index
+
+            # save textual labels for future use
+            save_to_file(
+                preprocessed_label,
+                self.config.base_dir
+                / "resources"
+                / KEYWORD_FOLDER
+                / KEYWORD_LABEL_FILE,
+            )
+
+            # add the embedding column
+            preprocessed_data = self.preprocessor.calculate_embedding(
+                ds=filtered_data, seperator=self.params.separator
+            )
+        else:
+            preprocessed_data = load_from_file(
+                self.config.base_dir
+                / "resources"
+                / KEYWORD_FOLDER
+                / KEYWORD_SAMPLE_FILE
+            )
+
+            preprocessed_label = load_from_file(
+                self.config.base_dir
+                / "resources"
+                / KEYWORD_FOLDER
+                / KEYWORD_LABEL_FILE,
+            )
+
+        if preprocessed_data is None or preprocessed_label is None:
+            raise FileNotFoundError("Pretrained model resources not found.")
+            # prepare train test sets
+        self.preprocessor.prepare_train_test_set(raw_data=preprocessed_data)
+
+        # train model
+        train_keyword_model(model_name, self.preprocessor)
 
 
-#
 class DeliveryClassificationPipeline(BasePipeline):
     def __init__(self) -> None:
         super().__init__()
