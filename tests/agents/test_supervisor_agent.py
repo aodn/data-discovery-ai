@@ -61,34 +61,12 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertEqual(len(self.agent.task_agents), 1)
         self.assertIsInstance(self.agent.task_agents[0], DescriptionFormattingAgent)
 
-    @patch("data_discovery_ai.agents.supervisorAgent.Pool")
-    def test_execute(self, mock_pool_class):
-        mock_pool = MagicMock()
-        mock_pool.map.return_value = [
-            {
-                "summaries.ai:description": "#description agent response: **mock_response**"
-            }
-        ]
-        mock_pool_class.return_value.__enter__.return_value = mock_pool
-
-        mock_agent = MagicMock()
-        mock_agent.execute = MagicMock()
-        mock_agent.response = {
-            "summaries.ai:description": "#description agent response: **mock_response**"
-        }
-
-        self.agent.task_agents = [mock_agent]
-
+    def test_execute(self):
         self.agent.execute(self.valid_request)
 
-        mock_pool.map.assert_called_once()
         self.assertEqual(
             self.agent.response,
-            {
-                "summaries": {
-                    "ai:description": "#description agent response: **mock_response**"
-                }
-            },
+            {"summaries": {"ai:description": "Example abstract"}},
         )
 
 

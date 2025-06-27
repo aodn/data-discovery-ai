@@ -14,6 +14,10 @@ class LinkGroupingAgent(BaseAgent):
         self.type = "link_grouping"
         self.config = ConfigUtil()
         self.model_config = self.config.get_link_grouping_config()
+        self.supervisor = None
+
+    def set_supervisor(self, supervisor):
+        self.supervisor = supervisor
 
     def set_required_fields(self, required_fields):
         return super().set_required_fields(required_fields)
