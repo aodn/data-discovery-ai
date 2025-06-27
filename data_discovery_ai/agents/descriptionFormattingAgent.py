@@ -80,6 +80,11 @@ class DescriptionFormattingAgent(BaseAgent):
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.model_config = ConfigUtil().get_description_formatting_config()
 
+        self.supervisor = None
+
+    def set_supervisor(self, supervisor):
+        self.supervisor = supervisor
+
     def set_required_fields(self, required_fields: list) -> None:
         super().set_required_fields(required_fields)
 

@@ -49,24 +49,34 @@ class TestAgentTools(unittest.TestCase):
         self.assertEqual(str(args[0]), "File not found")
         self.assertIsNone(result)
 
-    @patch("data_discovery_ai.utils.agent_tools.tokenizer")
-    @patch("data_discovery_ai.utils.agent_tools.model")
-    def test_get_text_embedding(self, mock_embedding_model, mock_tokenizer_model):
+    def test_get_text_embedding(self):
+        # Mock tokenizer
         mock_tokenizer = MagicMock()
-        mock_tokenizer.return_value = {"input_ids": [[101]], "attention_mask": [[1]]}
-        mock_tokenizer_model.return_value = mock_tokenizer
+        mock_tokenizer.return_value = {
+            "input_ids": [[101]],
+            "attention_mask": [[1]],
+        }
 
-        # the expected shape should be (768,), assume they all value 1
-        mock_output = np.ones((1, 768))
-        mock_model_output = MagicMock()
-        mock_model_output.last_hidden_state = MagicMock()
-        mock_model_output.last_hidden_state.__getitem__.return_value.numpy.return_value = (
-            mock_output
+        # Mock model
+        mock_model = MagicMock()
+
+        mock_output_array = np.ones((1, 768))
+
+        mock_last_hidden_state = MagicMock()
+        mock_last_hidden_state.__getitem__.return_value.numpy.return_value = (
+            mock_output_array
         )
 
-        mock_embedding_model.return_value = mock_model_output
+        mock_outputs = MagicMock()
+        mock_outputs.last_hidden_state = mock_last_hidden_state
 
-        embedding = get_text_embedding("This is a test text")
+        mock_model.return_value = mock_outputs
+
+        embedding = get_text_embedding(
+            "This is a test text", mock_tokenizer, mock_model
+        )
+
+        self.assertIsInstance(embedding, np.ndarray)
         self.assertEqual(embedding.shape, (768,))
         self.assertTrue((embedding == 1.0).all())
 

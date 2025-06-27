@@ -14,6 +14,10 @@ class LinkGroupingAgent(BaseAgent):
         self.type = "link_grouping"
         self.config = ConfigUtil()
         self.model_config = self.config.get_link_grouping_config()
+        self.supervisor = None
+
+    def set_supervisor(self, supervisor):
+        self.supervisor = supervisor
 
     def set_required_fields(self, required_fields):
         return super().set_required_fields(required_fields)
@@ -38,7 +42,7 @@ class LinkGroupingAgent(BaseAgent):
             List[Dict[str, str]]: the related links with full title and href for further grouping.
             Or an empty list if there are no valid links.
         """
-        exclude_rel_values = self.model_config["exclude_rel_values"]
+        exclude_rel_values = self.model_config.get("exclude_rules", {}).get("rel", [])
         if self.is_valid_request(request):
             valid_links = []
             # check if the links are related
@@ -54,24 +58,37 @@ class LinkGroupingAgent(BaseAgent):
         else:
             return []
 
+    def is_excluded(self, link: Dict[str, Any]) -> bool:
+        exclude_rules = self.model_config.get("exclude_rules", {})
+
+        for field, exclude_values in exclude_rules.items():
+            if link.get(field) in exclude_values:
+                return True
+
+        return False
+
     def take_action(self, links: List[Dict[str, str]]) -> List[Dict[str, str]]:
         if not links:
             return []
-        else:
-            page_content_keywords = self.content_keyword()
-            exclude_rel_values = self.model_config["exclude_rel_values"]
-            for link in links:
-                keys = set(link.keys())
-                if "href" not in keys or "title" not in keys:
-                    logger.info(f"Invalid link with no href or title: {link}")
-                elif link["rel"] not in exclude_rel_values:
-                    link_group = self.grouping(link, page_content_keywords)
-                    if link_group:
-                        link["ai:group"] = link_group
-                        if link_group == "Python Notebook":
-                            # make sure the python notebook type is as required
-                            link["type"] = "application/x-ipynb+json"
-            return links
+        page_content_keywords = self.content_keyword()
+        for link in links:
+            keys = set(link.keys())
+            if "href" not in keys or "title" not in keys:
+                logger.info(f"Invalid link with no href or title: {link}")
+                continue
+
+            if self.is_excluded(link):
+                continue
+
+            link_group = self.grouping(link, page_content_keywords)
+            if not link_group:
+                continue
+
+            link["ai:group"] = link_group
+            if link_group == "Python Notebook":
+                # make sure the python notebook type is as required
+                link["type"] = "application/x-ipynb+json"
+        return links
 
     def content_keyword(self) -> List[str]:
         """

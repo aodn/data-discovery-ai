@@ -19,6 +19,10 @@ class DeliveryClassificationAgent(BaseAgent):
         self.type = "delivery_classification"
         self.config = ConfigUtil()
         self.model_config = self.config.get_delivery_classification_config()
+        self.supervisor = None
+
+    def set_supervisor(self, supervisor):
+        self.supervisor = supervisor
 
     def set_required_fields(self, required_fields) -> None:
         return super().set_required_fields(required_fields)
@@ -34,9 +38,9 @@ class DeliveryClassificationAgent(BaseAgent):
         """
         The action module of the Delivery Classification Agent. Its task is to classify the delivery mode based on the provided title, abstract, and lineage.
         """
-        # load the model and pca
-        pretrained_model, pca = self.load_saved_model()
-        if pretrained_model and pca:
+        # load the model
+        pretrained_model = self.load_saved_model()
+        if pretrained_model:
             # calculate the embedding of the title, abstract, and lineage
             request_text = (
                 title
@@ -45,12 +49,15 @@ class DeliveryClassificationAgent(BaseAgent):
                 + self.model_config.separator
                 + lineage
             )
-            text_embedding = get_text_embedding(request_text)
+            tokenizer = self.supervisor.tokenizer
+            embedding_model = self.supervisor.embedding_model
+            text_embedding = get_text_embedding(
+                request_text, tokenizer, embedding_model
+            )
             dimension = text_embedding.shape[0]
             target_X = text_embedding.reshape(1, dimension)
-            target_X_pca = pca.transform(target_X)
 
-            y_pred = pretrained_model.predict(target_X_pca)
+            y_pred = pretrained_model.predict(target_X)
             class_map = {0: "Real-Time", 1: "Delayed", 2: "Other"}
             pred_class = class_map.get(y_pred[0])
             return pred_class
@@ -77,14 +84,11 @@ class DeliveryClassificationAgent(BaseAgent):
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
-    def load_saved_model(self) -> Tuple[Any, Any]:
+    def load_saved_model(self) -> Any:
         pretrained_model_name = self.model_config.pretrained_model
         # load model pickle file
         model_file_path = (
             self.config.base_dir / "resources" / FILTER_FOLDER / pretrained_model_name
         )
         trained_model = load_from_file(model_file_path.with_suffix(".pkl"))
-
-        # load pca pickle file
-        pca = load_from_file(model_file_path.with_suffix(".pca.pkl"))
-        return trained_model, pca
+        return trained_model
