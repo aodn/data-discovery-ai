@@ -62,12 +62,10 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
         self.assertEqual(out["id"].iloc[0], "1")
         self.assertEqual(out["abstract"].iloc[0], "abstract 1")
 
-        # the expected format of keyword is a dict like {"vocab_type": vocab_type, "value": value,"url": url}
+        # the expected format of keyword is a list of int
         kw0 = out["keywords"].iloc[0]
         self.assertIsInstance(kw0, list)
-        self.assertEqual(kw0[0]["vocab_type"], "A")
-        self.assertEqual(kw0[0]["value"], "1")
-        self.assertTrue(kw0[0]["url"].startswith("http"))
+        self.assertEqual(kw0, [0])
 
 
 class TestDeliveryPreprocessorPostFilter(unittest.TestCase):

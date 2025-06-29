@@ -16,6 +16,7 @@ from data_discovery_ai import logger
 import data_discovery_ai.utils.es_connector as es_connector
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding
+from transformers import AutoTokenizer, TFBertModel
 
 
 class BasePreprocessor:
@@ -63,11 +64,16 @@ class BasePreprocessor:
         tqdm.pandas()
         text_columns = self.require_embedding
         try:
+            tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
+            embedding_model = TFBertModel.from_pretrained(
+                "google-bert/bert-base-uncased"
+            )
+
             ds[text_columns] = ds[text_columns].fillna("").astype(str)
             ds["combined_text"] = ds[text_columns].agg(seperator.join, axis=1)
 
             ds["embedding"] = ds["combined_text"].progress_apply(
-                lambda x: get_text_embedding(x)
+                lambda x: get_text_embedding(x, tokenizer, embedding_model)
             )
             return ds
         except Exception as e:
