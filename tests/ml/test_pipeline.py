@@ -98,7 +98,7 @@ class TestKeywordClassificationPipeline(unittest.TestCase):
         self.preprocessor.prepare_train_test_set.assert_called_once_with(
             raw_data="preprocessed_data_with_embedding"
         )
-        self.assertEqual(self.mock_save.call_count, 2)
+        self.assertEqual(self.mock_save.call_count, 1)
         self.mock_train.assert_called_once_with("development", self.preprocessor)
 
 
