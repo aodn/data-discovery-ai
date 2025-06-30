@@ -9,6 +9,7 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
+from data_discovery_ai.ml.preprocessor import Concept, ConceptTheme
 
 
 def replace_with_column_names(
@@ -39,8 +40,48 @@ def get_predicted_keywords(prediction: np.ndarray, labels: Dict):
         lambda row: replace_with_column_names(row, labels), axis=1
     )
     if len(predicted_keywords) == 1:
-        predicted_keywords = [item.to_json() for item in predicted_keywords[0]]
+        predicted_keywords = [item for item in predicted_keywords[0]]
     return predicted_keywords
+
+
+def reformat_response(response: Dict) -> Dict:
+    theme_map = {}
+
+    for item in response.get("themes", []):
+        theme_info = item.get("theme", {})
+        theme_key = (
+            theme_info.get("title"),
+            theme_info.get("scheme"),
+            theme_info.get("description", ""),
+        )
+
+        if theme_key not in theme_map:
+            theme = ConceptTheme(
+                title=theme_key[0],
+                scheme=theme_key[1],
+                description=theme_key[2],
+            )
+            theme.set_as_ai_prediction("ai:description", "")
+            theme_map[theme_key] = theme
+        else:
+            theme = theme_map[theme_key]
+
+        concept = Concept(value=item["id"], url=item["url"])
+        concept.set_theme(theme)
+        theme.add_concept(concept)
+
+    formatted = {
+        "themes": [
+            {
+                "concepts": [{"id": c.value, "url": c.url} for c in theme.concepts],
+                **theme.to_json(),
+                "ai:description": "This is the prediction provided by AI model",
+            }
+            for theme in theme_map.values()
+        ]
+    }
+
+    return formatted
 
 
 class KeywordClassificationAgent(BaseAgent):
@@ -82,6 +123,7 @@ class KeywordClassificationAgent(BaseAgent):
             abstract = request["abstract"]
             prediction = self.take_action(title, abstract)
             self.response = {self.model_config.response_key: prediction}
+            self.response = reformat_response(self.response)
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def take_action(self, title, abstract) -> List[Any]:
