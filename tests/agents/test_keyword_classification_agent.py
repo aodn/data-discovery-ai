@@ -4,7 +4,6 @@ from data_discovery_ai.agents.keywordClassificationAgent import (
     KeywordClassificationAgent,
     reformat_response,
 )
-from data_discovery_ai.ml.preprocessor import ConceptTheme, Concept
 
 
 class TestKeywordClassificationAgent(unittest.TestCase):
@@ -15,7 +14,7 @@ class TestKeywordClassificationAgent(unittest.TestCase):
 
         self.invalid_request = {"title": "Test Title"}
 
-        self.prediciton = {
+        self.prediction = {
             "themes": [
                 {
                     "id": "Concept1",
@@ -54,10 +53,10 @@ class TestKeywordClassificationAgent(unittest.TestCase):
         self.assertFalse(self.agent.make_decision(self.invalid_request))
 
     def test_reformat_response(self):
-        formated_response = reformat_response(self.prediciton)
+        formated_response = reformat_response(self.prediction)
         self.assertIn("themes", formated_response)
         # expected to have two themes A and B
-        self.assertEqual(len(formated_response["themes"]), 2)  # Two themes expected
+        self.assertEqual(len(formated_response["themes"]), 2)
 
         for theme in formated_response["themes"]:
             self.assertIn("concepts", theme)
