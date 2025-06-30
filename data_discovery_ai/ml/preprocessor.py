@@ -8,7 +8,6 @@ import tempfile
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
-from pandas import DataFrame
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
 from tqdm import tqdm
@@ -17,6 +16,7 @@ from data_discovery_ai import logger
 import data_discovery_ai.utils.es_connector as es_connector
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding
+from transformers import AutoTokenizer, TFBertModel
 
 
 class BasePreprocessor:
@@ -64,11 +64,16 @@ class BasePreprocessor:
         tqdm.pandas()
         text_columns = self.require_embedding
         try:
+            tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
+            embedding_model = TFBertModel.from_pretrained(
+                "google-bert/bert-base-uncased"
+            )
+
             ds[text_columns] = ds[text_columns].fillna("").astype(str)
             ds["combined_text"] = ds[text_columns].agg(seperator.join, axis=1)
 
             ds["embedding"] = ds["combined_text"].progress_apply(
-                lambda x: get_text_embedding(x)
+                lambda x: get_text_embedding(x, tokenizer, embedding_model)
             )
             return ds
         except Exception as e:
@@ -139,6 +144,73 @@ def resampling(
     return X_train_resampled, Y_train_resampled
 
 
+class ConceptTheme:
+    def __init__(self, title: str, scheme: str, description: str) -> None:
+        self.title = title
+        self.scheme = scheme
+        self.description = description
+        self.concepts = set()
+
+    def add_concept(self, concept):
+        self.concepts.add(concept)
+
+    def set_as_ai_prediction(self, key, value):
+        if key == "ai:description":
+            object.__setattr__(
+                self, "ai_description", "This is the prediction provided by AI model."
+            )
+        else:
+            super().__setattr__(key, value)
+
+    def to_json(self) -> Dict[str, Any]:
+        return {
+            "scheme": self.scheme,
+            "title": self.title,
+            "description": self.description,
+        }
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ConceptTheme):
+            return NotImplemented
+
+        return (
+            self.title == other.title
+            and self.scheme == other.scheme
+            and self.description == other.description
+        )
+
+    def __hash__(self):
+        return hash((self.title, self.scheme, self.description))
+
+    def __str__(self) -> str:
+        return f"ConceptTheme(title={self.title}, scheme={self.scheme}, description={self.description})"
+
+
+class Concept:
+    def __init__(self, value: str, url: str) -> None:
+        self.value = value
+        self.url = url
+        self.theme = None
+
+    def to_json(self) -> Dict[str, Any]:
+        return {"id": self.value, "url": self.url, "theme": self.theme.to_json()}
+
+    def set_theme(self, theme: ConceptTheme) -> None:
+        self.theme = theme
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Concept):
+            return NotImplemented
+
+        return self.value == other.value and self.url == other.url
+
+    def __hash__(self):
+        return hash((self.value, self.url))
+
+    def __str__(self):
+        return f"Concept(value={self.value}, url='{self.url}')"
+
+
 class KeywordPreprocessor(BasePreprocessor):
     def __init__(self):
         super().__init__()
@@ -156,12 +228,18 @@ class KeywordPreprocessor(BasePreprocessor):
         self.rare_labels = []
         self.data = None
         self.train_test_data = None
+        self.concepts = set()
+        self.concept_to_index: Dict[int, Dict] = {}
+        self.themes = set()
 
     def set_preprocessed_data(self, df: pd.DataFrame) -> None:
-        Y_df, labels = prepare_Y_matrix(df)
+        Y_df = prepare_Y_matrix(df)
         Y = Y_df.to_numpy()
         self.data = KMData(
-            X=np.array(df["embedding"].tolist()), Y=Y, Y_df=Y_df, labels=labels
+            X=np.array(df["embedding"].tolist()),
+            Y=Y,
+            Y_df=Y_df,
+            labels=self.concept_to_index,
         )
 
     def set_rare_labels(self):
@@ -188,8 +266,9 @@ class KeywordPreprocessor(BasePreprocessor):
             )
         ]
         # format keyword values into Concept object
+        # preprocessor set up themes and concepts used in the dataset, and set up the concept-index mapping in this step
         watched_df["keywords"] = watched_df["keywords"].apply(
-            lambda x: keywords_formatter(x, watched_vocabs)
+            lambda x: self.keywords_formatter(x, watched_vocabs)
         )
 
         # clean rows with empty keywords
@@ -265,74 +344,81 @@ class KeywordPreprocessor(BasePreprocessor):
             label_weight_dict=label_weight_dict,
         )
 
+    def keywords_formatter(
+        self, text: Union[str, List[dict]], vocabs: List[str]
+    ) -> List[int]:
+        """
+        Formats a list of keywords based on specified vocabulary terms. This function processes a list of keywords to identify those matching the specified `vocabs` list. For each matching keyword, it constructs a formatted string of the form `id` and removes any duplicates.
+        If `text` is a string, it will be evaluated as a list before processing.
+        This is a loop function to update concept and theme sets of a keyword preprocessor.
 
-class Concept:
-    def __init__(self, value: str, url: str, vocab_type: str) -> None:
-        self.value = value
-        self.url = url
-        self.vocab_type = vocab_type
+        Input:
+            text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
+            vocabs: List[str]. A list of vocabulary names to match against keyword titles.
+        Output:
+            List[int]: the unique numeric mapping of a concept to a int.
+        """
+        concept_indices = []
+        if type(text) is list:
+            themes = text
+        else:
+            themes = ast.literal_eval(text)
+        for theme in themes:
+            try:
+                theme_title = theme.get("title", "")
+                theme_scheme = theme.get("scheme", "")
+                theme_description = theme.get("description", "")
+                concepts = theme.get("concepts", [])
 
-    def to_json(self) -> Dict[str, Any]:
-        return {
-            "vocab_type": self.vocab_type,
-            "value": self.value,
-            "url": self.url,
-        }
+                if theme_title in vocabs and concepts:
+                    current_theme = ConceptTheme(
+                        title=theme_title,
+                        scheme=theme_scheme,
+                        description=theme_description,
+                    )
+                    self.themes.add(current_theme)
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Concept):
-            return NotImplemented
+                    for concept in concepts:
+                        concept_id = concept.get("id", "")
+                        concept_url = concept.get("url", "")
 
-        return (
-            self.value == other.value
-            and self.url == other.url
-            and self.vocab_type == other.vocab_type
-        )
+                        if concept_id == "" or not concept_url.startswith("http"):
+                            continue
 
-    def __hash__(self):
-        return hash((self.value, self.url, self.vocab_type))
+                        concept_obj = Concept(value=concept_id, url=concept_url)
+                        concept_obj.set_theme(current_theme)
+                        current_theme.add_concept(concept_obj)
 
-    def __str__(self):
-        return f"Concept(value={self.value}, url='{self.url}', vocab_type='{self.vocab_type}')"
+                        if concept_obj not in self.concepts:
+                            concept_index = len(self.concepts)
+                            self.concepts.add(concept_obj)
+                            self.concept_to_index[concept_index] = concept_obj.to_json()
+                        else:
+                            concept_index = next(
+                                (
+                                    k
+                                    for k, v in self.concept_to_index.items()
+                                    if v == concept_obj
+                                ),
+                                None,
+                            )
+                        concept_indices.append(concept_index)
+            except Exception as e:
+                logger.error("Error in keywords_formatter: %s", e)
+
+        return concept_indices
 
 
-def keywords_formatter(text: Union[str, List[dict]], vocabs: List[str]) -> List[str]:
-    """
-    Formats a list of keywords based on specified vocabulary terms. This function processes a list of keywords to identify those matching the specified `vocabs` list. For each matching keyword, it constructs a formatted string of the form `title:id` and removes any duplicates.
-    If `text` is a string, it will be evaluated as a list before processing.
-
-    Input:
-        text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
-        vocabs: List[str]. A list of vocabulary names to match against keyword titles.
-    Output:
-        A list of formatted keywords, with duplicates removed, in the form `title;id`.
-    """
-    if type(text) is list:
-        keywords = text
+def clean_keywords(x):
+    if isinstance(x, list):
+        return [i for i in x if i is not None]
+    elif pd.isna(x):
+        return []
     else:
-        keywords = ast.literal_eval(text)
-    k_list = []
-    for keyword in keywords:
-        try:
-            if keyword.get("concepts") is not None:
-                for concept in keyword.get("concepts"):
-                    if keyword.get("title") in vocabs and concept.get("id") != "":
-                        # check if the url is valid: start with http and not None or empty
-                        if concept.get("url") is not None and concept.get("url") != "":
-                            concept_url = concept.get("url")
-                            if concept_url.startswith("http"):
-                                conceptObj = Concept(
-                                    value=concept.get("id").lower(),
-                                    url=concept_url,
-                                    vocab_type=keyword.get("title"),
-                                )
-                                k_list.append(conceptObj.to_json())
-        except Exception as e:
-            logger.error(e)
-    return list(k_list)
+        return []
 
 
-def prepare_Y_matrix(ds: pd.DataFrame) -> tuple[DataFrame, dict[int, Any]]:
+def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
     """
     Prepares the target matrix (Y) by applying multi-label binarization on keywords. This function uses `MultiLabelBinarizer` to transform the `keywords` column of the dataset into a binary matrix format,
     where each unique keyword is represented as a binary feature. The output DataFrame has one column per keyword, with values indicating the presence (1) or absence (0) of each keyword for each record.
@@ -342,38 +428,15 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> tuple[DataFrame, dict[int, Any]]:
         ds: pd.DataFrame. The dataset containing a `keywords` column, where each entry is expected to be a list of keywords.
     Output:
         K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword.
-        keywordMap: A dict represents the predefined keyword set. The key is the index of the keyword, and the value is a keyword defined as a Concept object.
     """
-    keywordSet = set()
-    for keyword_list in ds["keywords"]:
-        for keyword_dict in keyword_list:
-            keyword_obj = Concept(
-                vocab_type=keyword_dict.get("vocab_type"),
-                value=keyword_dict.get("value"),
-                url=keyword_dict.get("url"),
-            )
-            keywordSet.add(keyword_obj)
-    keywordMap = {index: keyword for index, keyword in enumerate(keywordSet)}
-
-    ds["keywordsMap"] = ds["keywords"].apply(
-        lambda kl: [
-            next(
-                idx
-                for idx, kw in keywordMap.items()
-                if kw.vocab_type == d.get("vocab_type")
-                and kw.value == d.get("value")
-                and kw.url == d.get("url")
-            )
-            for d in kl
-        ]
-    )
+    ds["keywords"] = ds["keywords"].apply(clean_keywords)
     mlb = MultiLabelBinarizer()
-    Y = mlb.fit_transform(ds["keywordsMap"])
+    Y = mlb.fit_transform(ds["keywords"])
     K = pd.DataFrame(Y, columns=mlb.classes_)
 
     if "" in K.columns:
         K.drop(columns=[""], inplace=True)
-    return K, keywordMap
+    return K
 
 
 def get_class_weights(Y_train: np.ndarray) -> Dict[int, float]:
