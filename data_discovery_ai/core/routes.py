@@ -115,12 +115,16 @@ async def process_record(request: Request) -> JSONResponse:
                 decompressed_data = f.read()
             body = json.loads(decompressed_data)
         except Exception as e:
-            raise HTTPException(status_code=400, detail="Invalid gzip format")
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid gzip format"
+            )
     else:
         try:
             body = await request.json()
         except Exception as e:
-            raise HTTPException(status_code=400, detail="Invalid JSON format")
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid JSON format"
+            )
 
     logger.info("Request details: %s", body)
 
