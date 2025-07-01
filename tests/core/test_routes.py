@@ -2,8 +2,10 @@ import gzip
 import json
 from io import BytesIO
 from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from data_discovery_ai.server import app
+from data_discovery_ai.utils.api_utils import api_key_auth
 
 client = TestClient(app)
 
@@ -13,10 +15,10 @@ def setup_app_state_mocks():
     app.state.embedding_model = MagicMock()
 
 
-def test_process_record_with_compressed_request(monkeypatch):
-    monkeypatch.setenv("API_KEY", "test-api-key")
-
+def test_process_record_with_compressed_request():
     setup_app_state_mocks()
+
+    app.dependency_overrides[api_key_auth] = AsyncMock(return_value="test-api-key")
 
     payload = {
         "selected_model": ["link_grouping"],
@@ -48,3 +50,6 @@ def test_process_record_with_compressed_request(monkeypatch):
     )
 
     assert response.status_code == 200
+
+    #     clean up
+    app.dependency_overrides = {}
