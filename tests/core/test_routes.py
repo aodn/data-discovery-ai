@@ -13,7 +13,9 @@ def setup_app_state_mocks():
     app.state.embedding_model = MagicMock()
 
 
-def test_process_record_with_compressed_request():
+def test_process_record_with_compressed_request(monkeypatch):
+    monkeypatch.setenv("API_KEY", "test-api-key")
+
     setup_app_state_mocks()
 
     payload = {
@@ -40,7 +42,7 @@ def test_process_record_with_compressed_request():
         headers={
             "Content-Type": "application/json",
             "Content-Encoding": "gzip",
-            "X-API-Key": "your_actual_api_key_here",
+            "X-API-Key": "test-api-key",
         },
         data=compressed_body.getvalue(),
     )
