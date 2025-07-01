@@ -1,3 +1,6 @@
+import gzip
+import json
+
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -5,9 +8,6 @@ from http import HTTPStatus
 from dotenv import load_dotenv
 import os
 import httpx
-import gzip
-from io import BytesIO
-import json
 
 from data_discovery_ai.config.constants import (
     API_PREFIX,
@@ -108,11 +108,11 @@ async def process_record(request: Request) -> JSONResponse:
     Process a record through the SupervisorAgent.
     Requires a valid API key and that the service is ready.
     """
-    if request.headers.get("Content-Encoding") == "gzip":
+    content_encoding = request.headers.get("Content-Encoding", "").lower()
+    if "gzip" in content_encoding:
         raw_body = await request.body()
         try:
-            with gzip.GzipFile(fileobj=BytesIO(raw_body)) as f:
-                decompressed_data = f.read()
+            decompressed_data = gzip.decompress(raw_body)
             body = json.loads(decompressed_data)
         except Exception as e:
             raise HTTPException(
