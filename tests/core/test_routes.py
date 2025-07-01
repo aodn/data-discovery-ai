@@ -3,7 +3,9 @@ import gzip
 import json
 from io import BytesIO
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
+from data_discovery_ai.core.routes import ensure_ready
 from data_discovery_ai.server import app
 from data_discovery_ai.utils.api_utils import api_key_auth
 
@@ -11,16 +13,20 @@ client = TestClient(app)
 
 
 async def override_dependency():
-    return {"x_api_key": "test-api-key"}
+    return "test-api-key"
 
 
-app.dependency_overrides[api_key_auth] = override_dependency
+async def override_ensure_ready():
+    pass
 
 
 class TestRoutes(unittest.TestCase):
     def setUp(self):
         app.state.tokenizer = MagicMock()
         app.state.embedding_model = MagicMock()
+
+        app.dependency_overrides[api_key_auth] = override_dependency
+        app.dependency_overrides[ensure_ready] = override_ensure_ready
 
     def tearDown(self):
         app.dependency_overrides = {}
