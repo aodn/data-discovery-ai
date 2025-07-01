@@ -1,55 +1,57 @@
+import unittest
 import gzip
 import json
 from io import BytesIO
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from data_discovery_ai.server import app
 from data_discovery_ai.utils.api_utils import api_key_auth
 
 client = TestClient(app)
 
 
-def setup_app_state_mocks():
-    app.state.tokenizer = MagicMock()
-    app.state.embedding_model = MagicMock()
+async def override_dependency():
+    return {"x_api_key": "test-api-key"}
 
 
-def test_process_record_with_compressed_request():
-    setup_app_state_mocks()
+app.dependency_overrides[api_key_auth] = override_dependency
 
-    app.dependency_overrides[api_key_auth] = AsyncMock(return_value="test-api-key")
 
-    payload = {
-        "selected_model": ["link_grouping"],
-        "uuid": "test-uuid",
-        "links": [
-            {
-                "href": "https://example.com",
-                "title": "Example Link",
-                "rel": "related",
-                "type": "text/html",
-            }
-        ],
-    }
+class TestRoutes(unittest.TestCase):
+    def setUp(self):
+        app.state.tokenizer = MagicMock()
+        app.state.embedding_model = MagicMock()
 
-    # Compress payload
-    compressed_body = BytesIO()
-    with gzip.GzipFile(fileobj=compressed_body, mode="wb") as f:
-        f.write(json.dumps(payload).encode("utf-8"))
+    def tearDown(self):
+        app.dependency_overrides = {}
 
-    # Send request
-    response = client.post(
-        "/api/v1/ml/process_record",
-        headers={
-            "Content-Type": "application/json",
-            "Content-Encoding": "gzip",
-            "X-API-Key": "test-api-key",
-        },
-        data=compressed_body.getvalue(),
-    )
+    def test_process_record_with_compressed_request(self):
+        payload = {
+            "selected_model": ["link_grouping"],
+            "uuid": "test-uuid",
+            "links": [
+                {
+                    "href": "https://example.com",
+                    "title": "Example Link",
+                    "rel": "related",
+                    "type": "text/html",
+                }
+            ],
+        }
 
-    assert response.status_code == 200
+        # Compress the payload
+        compressed_body = BytesIO()
+        with gzip.GzipFile(fileobj=compressed_body, mode="wb") as f:
+            f.write(json.dumps(payload).encode("utf-8"))
 
-    #     clean up
-    app.dependency_overrides = {}
+        response = client.post(
+            "/api/v1/ml/process_record",
+            headers={
+                "Content-Type": "application/json",
+                "Content-Encoding": "gzip",
+                "X-API-Key": "test-api-key",
+            },
+            data=compressed_body.getvalue(),
+        )
+
+        self.assertEqual(response.status_code, 200)
