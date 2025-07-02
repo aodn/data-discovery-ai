@@ -1,3 +1,6 @@
+import gzip
+import json
+
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -105,11 +108,27 @@ async def process_record(request: Request) -> JSONResponse:
     Process a record through the SupervisorAgent.
     Requires a valid API key and that the service is ready.
     """
-    body = await request.json()
+    content_encoding = request.headers.get("Content-Encoding", "").lower()
+    if "gzip" in content_encoding:
+        raw_body = await request.body()
+        try:
+            decompressed_data = gzip.decompress(raw_body)
+            body = json.loads(decompressed_data)
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid gzip format"
+            )
+    else:
+        try:
+            body = await request.json()
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid JSON format"
+            )
+
     logger.info("Request details: %s", body)
 
     supervisor = SupervisorAgent()
-
     supervisor.set_tokenizer(request.app.state.tokenizer)
     supervisor.set_embedding_model(request.app.state.embedding_model)
 
