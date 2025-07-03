@@ -5,7 +5,10 @@ from pandas import DataFrame
 import time
 import os
 from dotenv import load_dotenv
+import json
 
+from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.config.constants import RECORDS_ENHANCED_SCHEMA
 from data_discovery_ai import logger
 
 
@@ -154,3 +157,31 @@ def search_es(
     except Exception as e:
         logger.error(f"Elasticsearch Search Failed: {e}")
         return None
+
+
+def create_es_index():
+    """
+    Create Elasticsearch index to store documents with AI-generated data. No action applied if the index already exists.
+    """
+    config = ConfigUtil()
+    es_config = config.get_es_config()
+    index = es_config.es_ai_index_name
+    client = connect_es()
+
+    if client is None:
+        return
+
+    schema_path = config.base_dir / "config" / RECORDS_ENHANCED_SCHEMA
+    if not os.path.exists(schema_path):
+        logger.error(f"Schema file '{schema_path}' not found.")
+        raise FileNotFoundError(f"Schema file '{schema_path}' not found.")
+
+    with open(schema_path, "r") as f:
+        mapping = json.load(f)
+
+    if client.indices.exists(index=index):
+        logger.info(f"Elasticsearch index '{index}' already exists.")
+        return
+
+    client.indices.create(index=index, body=mapping)
+    logger.info(f"Elasticsearch index '{index}' created.")

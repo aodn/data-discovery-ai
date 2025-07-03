@@ -1,0 +1,102 @@
+{
+  "mappings": {
+    "dynamic": true,
+    "properties": {
+      "id": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        },
+        "analyzer": "keyword"
+      },
+      "title": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "description": {
+        "type": "text"
+      },
+      "themes": {
+        "type": "nested",
+        "properties": {
+          "concepts": {
+            "type": "nested",
+            "properties": {
+              "id": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "url": {
+                "type": "text"
+              }
+            }
+          },
+          "scheme": {
+            "type": "keyword"
+          },
+          "title": {
+            "type": "text"
+          },
+          "description": {
+            "type": "text"
+          },
+          "ai:description": {
+            "type": "text"
+          }
+        }
+      },
+      "links": {
+        "type": "nested",
+        "properties": {
+          "link": {
+            "type": "nested",
+            "properties": {
+              "href": {
+                "type": "text"
+              },
+              "rel": {
+                "type": "text"
+              },
+              "type": {
+                "type": "text"
+              },
+              "title": {
+                "type": "text"
+              },
+              "description": {
+                "type": "text"
+              },
+              "ai:group": {
+                "type": "text"
+              }
+            }
+          }
+        }
+      },
+      "summaries": {
+        "properties": {
+          "statement": {
+            "type": "text"
+          },
+          "ai:description": {
+            "type": "text"
+          },
+          "ai:update_frequency": {
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}

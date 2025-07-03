@@ -19,6 +19,7 @@ class ElasticsearchConfig:
     batch_size: int
     sleep_time: int
     es_index_name: str
+    es_ai_index_name: str
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,7 @@ class ConfigUtil:
     DEFAULTS: Dict[str, Any] = {
         "elasticsearch": {
             "es_index_name": "default_index",
+            "es_ai_index_name": "default_index",
             "batch_size": 100,
             "sleep_time": 5,
         },
@@ -188,6 +190,9 @@ class ConfigUtil:
             ),
             es_index_name=self._get_value(
                 f"{sub}.es_index_name", self.DEFAULTS[sub]["es_index_name"]
+            ),
+            es_ai_index_name=self._get_value(
+                f"{sub}.es_ai_index_name", self.DEFAULTS[sub]["es_ai_index_name"]
             ),
         )
 
