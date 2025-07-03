@@ -180,8 +180,12 @@ def create_es_index():
         mapping = json.load(f)
 
     if client.indices.exists(index=index):
-        logger.info(f"Elasticsearch index '{index}' already exists.")
+        logger.warning(f"Elasticsearch index '{index}' already exists.")
         return
 
-    client.indices.create(index=index, body=mapping)
-    logger.info(f"Elasticsearch index '{index}' created.")
+    try:
+        client.indices.create(index=index, body=mapping)
+        logger.info(f"Elasticsearch index '{index}' created.")
+    except Exception as e:
+        logger.error(f"Failed to create Elasticsearch index '{index}': {e}")
+        return
