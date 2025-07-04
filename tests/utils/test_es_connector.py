@@ -1,9 +1,10 @@
 # unit test for es_connector.py
 import unittest
 import pandas as pd
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch, mock_open
 
-from data_discovery_ai.utils.es_connector import connect_es, search_es
+from data_discovery_ai.utils.es_connector import connect_es, search_es, create_es_index
 
 
 class TestESConnector(unittest.TestCase):
@@ -73,6 +74,28 @@ class TestESConnector(unittest.TestCase):
         self.assertIsInstance(result, pd.DataFrame)
         self.assertEqual(mock_client.search.call_count, 2)
         self.assertEqual(mock_pd.concat.call_count, 1)
+
+    @patch("data_discovery_ai.utils.es_connector.connect_es")
+    @patch("data_discovery_ai.utils.es_connector.ConfigUtil")
+    @patch("builtins.open", new_callable=mock_open, read_data='{"mappings": {}}')
+    @patch("os.path.exists", return_value=True)
+    def test_create_es_index_success(
+        self, mock_exists, mock_open_file, mock_configutil, mock_connect_es
+    ):
+        mock_config = MagicMock()
+        mock_config.get_es_config.return_value.es_ai_index_name = "test-index"
+        mock_config.base_dir = Path("/tmp")
+        mock_configutil.return_value = mock_config
+
+        mock_client = MagicMock()
+        mock_client.indices.exists.return_value = False
+        mock_connect_es.return_value = mock_client
+
+        create_es_index()
+
+        mock_client.indices.exists.assert_called_once_with(index="test-index")
+        mock_client.indices.create.assert_called_once()
+        mock_open_file.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 elasticsearch:
   batch_size: 100
   sleep_time: 5
-  es_index_name: es-indexer-staging
+  es_index_name: es-indexer-edge
+  es_ai_index_name: es-indexer-edge-ai
 mlflow:
   port: 53000
   gateway: "http://127.0.0.1:53001"

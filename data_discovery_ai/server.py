@@ -1,6 +1,6 @@
 from fastapi import FastAPI
+from data_discovery_ai.utils.es_connector import create_es_index
 from data_discovery_ai.core.routes import router as api_router
-
 from transformers import AutoTokenizer, TFBertModel
 from contextlib import asynccontextmanager
 
@@ -19,6 +19,9 @@ async def lifespan(app: FastAPI):
     tokenizer, embedding_model = load_tokenizer_model()
     app.state.tokenizer = tokenizer
     app.state.embedding_model = embedding_model
+
+    # create Elasticsearch index
+    create_es_index()
     yield
 
 
