@@ -1,3 +1,5 @@
+from pathlib import Path
+import uvicorn
 from fastapi import FastAPI
 from data_discovery_ai.utils.es_connector import create_es_index
 from data_discovery_ai.core.routes import router as api_router
@@ -27,3 +29,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(api_router)
+
+if __name__ == "__main__":
+    log_config_path = str(Path(__file__).parent.parent / "log_config.yaml")
+    uvicorn.run(
+        "data_discovery_ai.server:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_config=log_config_path,
+        timeout_keep_alive=900,
+    )

@@ -100,8 +100,9 @@ To use the Llama3 model locally without OpenAI:
 #### Run the FastAPI Server
 Simply run:
    ```shell
-   poetry run uvicorn data_discovery_ai.server:app --reload --log-config=log_config.yaml
+   python -m data_discovery_ai.server
    ```
+Host will be run at http://localhost:8000.
 #### Running Tests
 Run all tests with:
 ```shell
