@@ -2,6 +2,7 @@ from multiprocessing import Pool
 from typing import Dict, Union, Any
 
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.utils.es_connector import store_ai_generated_data
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.agents.descriptionFormattingAgent import (
@@ -146,3 +147,29 @@ class SupervisorAgent(BaseAgent):
                 )
                 return False
         return True
+
+    def process_request_response(self, request: Dict) -> Dict | None:
+        """
+        Convert JSON request and response into dictionary, so that their combination can be stored in allowed data schema.
+        :param request: Dict. The request to call API
+        :return: Dict. The combined request and the responses from all task agents. Follows the mapping with required data schema.
+        """
+        data = {}
+        if request is None:
+            return None
+
+        data["id"] = request.get("uuid")
+        data["title"] = request.get("title", None)
+        data["description"] = request.get("description", None)
+        data["summaries"] = {"statement": request.get("lineage", None)}
+
+        response = self.response
+        if response:
+            if "themes" in response:
+                data["themes"] = response["themes"]
+            if "links" in response:
+                data["links"] = response["links"]
+            if "summaries" in response:
+                data["summaries"].update(response["summaries"])
+
+        return data

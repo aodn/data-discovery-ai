@@ -1,7 +1,7 @@
 import gzip
 import json
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from http import HTTPStatus
@@ -18,6 +18,7 @@ from data_discovery_ai.config.constants import (
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai import logger
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.utils.es_connector import store_ai_generated_data
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
@@ -103,7 +104,9 @@ async def health_check() -> HealthCheckResponse:
 @router.post(
     "/process_record", dependencies=[Depends(api_key_auth), Depends(ensure_ready)]
 )
-async def process_record(request: Request) -> JSONResponse:
+async def process_record(
+    request: Request, background_tasks: BackgroundTasks
+) -> JSONResponse:
     """
     Process a record through the SupervisorAgent.
     Requires a valid API key and that the service is ready.
@@ -138,4 +141,13 @@ async def process_record(request: Request) -> JSONResponse:
         )
 
     supervisor.execute(body)
+
+    # store to Elasticsearch
+    doc = supervisor.process_request_response(body)
+    client = request.app.state.client
+    index = request.app.state.index
+    background_tasks.add_task(
+        func=store_ai_generated_data, data=doc, client=client, index=index
+    )
+
     return JSONResponse(content=supervisor.response, status_code=HTTPStatus.OK)
