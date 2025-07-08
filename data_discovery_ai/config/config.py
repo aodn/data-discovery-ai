@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import yaml
 
-import data_discovery_ai.config.constants as constants
+from data_discovery_ai.config.constants import PARAMETER_FILE
 
 
 class EnvType(Enum):
@@ -20,6 +20,12 @@ class EnvType(Enum):
 class MlflowConfig:
     port: int
     gateway: str
+
+
+@dataclass(frozen=True)
+class ApplicationConfig:
+    port: int
+    reload: bool
 
 
 @dataclass(frozen=True)
@@ -122,20 +128,17 @@ class ConfigUtil:
 
     LOGLEVEL = "DEBUG"
 
-    # Default parameters overridable via environment vars
-    ENV_VARS: Dict[str, str] = {
-        # environment selection
-        "environment": "PROFILE"
-    }
-
     def __init__(self, config_file: str) -> None:
         """Load YAML config, determine environment, and initialize logging."""
         self.base_dir = Path(__file__).resolve().parent.parent
         self.config_file = self.base_dir / "config" / config_file
         self._config_data = self._load_yaml(self.config_file)
 
+        self.config_file = self.base_dir / "config" / PARAMETER_FILE
+        self._parameter_data = self._load_yaml(self.config_file)
+
         # determine environment (default to 'development')
-        env_val = os.getenv(self.ENV_VARS["environment"])
+        env_val = os.getenv("PROFILE")
         self.env = env_val.lower() if env_val else "development"
 
         # setup logging level
@@ -184,7 +187,7 @@ class ConfigUtil:
                     return default
 
         parts = path.split(".")
-        data: Any = self._config_data
+        data: Any = self._parameter_data
         for part in parts:
             if isinstance(data, dict) and part in data:
                 data = data[part]
@@ -204,11 +207,11 @@ class ConfigUtil:
 
     def get_supervisor_config(self) -> SupervisorConfig:
         return SupervisorConfig(
-            settings=self._config_data.get("model", {}).get("supervisor", {})
+            settings=self._parameter_data.get("model", {}).get("supervisor", {})
         )
 
     def get_keyword_classification_config(self) -> KeywordClassificationConfig:
-        m = self._config_data.get("model", {}).get("keyword_classification", {})
+        m = self._parameter_data.get("model", {}).get("keyword_classification", {})
         return KeywordClassificationConfig(
             confidence=m.get("confidence", 0.0),
             top_N=m.get("top_N", 0),
@@ -227,7 +230,7 @@ class ConfigUtil:
         )
 
     def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
-        m = self._config_data.get("model", {}).get("delivery_classification", {})
+        m = self._parameter_data.get("model", {}).get("delivery_classification", {})
         return DeliveryClassificationConfig(
             pretrained_model=m.get("pretrained_model", ""),
             separator=m.get("separator", ""),
@@ -235,19 +238,26 @@ class ConfigUtil:
         )
 
     def get_link_grouping_config(self) -> Dict[str, Any]:
-        return self._config_data.get("model", {}).get("link_grouping", {})
+        return self._parameter_data.get("model", {}).get("link_grouping", {})
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
-        tr = self._config_data.get("trainer", {}).get("keyword_classification", {})
+        tr = self._parameter_data.get("trainer", {}).get("keyword_classification", {})
         return KeywordClassificationTrainerConfig(**tr)
 
     def get_delivery_trainer_config(self) -> DeliveryClassificationTrainerConfig:
-        tr = self._config_data.get("trainer", {}).get("delivery_classification", {})
+        tr = self._parameter_data.get("trainer", {}).get("delivery_classification", {})
         return DeliveryClassificationTrainerConfig(**tr)
 
     def get_mlflow_config(self) -> MlflowConfig:
         c = self._config_data.get("mlflow", {})
         return MlflowConfig(port=c.get("port", 53000), gateway=c.get("gateway", ""))
+
+    def get_application_config(self) -> ApplicationConfig:
+        c = self._config_data.get("application", {})
+        port = c.get("port", 8000)
+        reload_val = c.get("reload", False)
+        is_reload = str(reload_val).lower() == "true"
+        return ApplicationConfig(port=port, reload=is_reload)
 
 
 class DevConfig(ConfigUtil):
