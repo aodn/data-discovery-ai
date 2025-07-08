@@ -32,7 +32,7 @@ async def ensure_ready():
       - Ollama server is running in development.
     Raises HTTPException(503) if any check fails.
     """
-    config = ConfigUtil()
+    config = ConfigUtil.get_config()
     base_path = config.base_dir / "resources"
 
     # Paths for keyword classification

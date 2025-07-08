@@ -78,7 +78,7 @@ class DescriptionFormattingAgent(BaseAgent):
         # load api key from .env file
         load_dotenv()
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.model_config = ConfigUtil().get_description_formatting_config()
+        self.model_config = ConfigUtil.get_config().get_description_formatting_config()
 
         self.supervisor = None
 

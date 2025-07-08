@@ -1,0 +1,135 @@
+elasticsearch:
+  batch_size: 100
+  sleep_time: 5
+  es_index_name: es-indexer-staging
+  es_ai_index_name: es-indexer-staging-ai
+mlflow:
+  port: 53000
+  gateway: "http://127.0.0.1:53001"
+model:
+  supervisor:
+    response_key: result
+    task_agents:
+      keyword_classification:
+        required_fields:
+          - title
+          - abstract
+      delivery_classification:
+        required_fields:
+          - title
+          - abstract
+          - lineage
+      description_formatting:
+        required_fields:
+          - title
+          - abstract
+      link_grouping:
+        required_fields:
+          - links
+  keyword_classification:
+    confidence: 0.5
+    top_N: 2
+    separator: " [SEP] "
+    pretrained_model: development
+    response_key: "themes"
+  description_formatting:
+    model: gpt-4o-mini
+    temperature: 0.01
+    max_tokens: 10000
+    response_key: "summaries.ai:description"
+  delivery_classification:
+    pretrained_model: development
+    separator: " [SEP] "
+    response_key: "summaries.ai:update_frequency"
+  link_grouping:
+    response_key: "links"
+    exclude_rules:
+      rel:
+        - child
+        - icon
+        - license
+        - parent
+        - preview
+        - self
+        - sibling
+        - summary
+        - thumbnail
+        - describedby
+        - OGC:WPS--gogoduck
+        - IMOS:AGGREGATION--bodaac
+      title:
+        - "View and download data though the AODN Portal"
+        - "GoGoDuck help documentation"
+        - "ncUrlList help documentation"
+    grouping_rules:
+      Python Notebook:
+        href:
+          - ipynb
+      Document:
+        href:
+          - pdf
+          - doc
+        title:
+          - document
+          - documentation
+          - manual
+          - guide
+          - help
+          - report
+          - article
+      Data Access:
+        href:
+          - access
+          - download
+          - csv
+          - xlsx
+          - json
+          - nc
+          - zip
+          - wfs
+          - wms
+          - ows
+          - wps
+          - thredds
+          - trawler
+          - data_type
+          - format
+          - registry.opendata.aws
+        title:
+          - data access
+          - data download
+          - download data
+          - access data
+          - get data
+          - direct download
+        content:
+          - [data, dataset]
+          - [download]
+#  for training the pre-trained classification models
+
+trainer:
+  keyword_classification:
+    vocabs:
+      - AODN Discovery Parameter Vocabulary
+      - AODN Platform Vocabulary
+    separator: " [SEP] "
+    test_size: 0.2
+    n_splits: 5
+    dropout: 0.3
+    learning_rate: 0.0005
+    fl_gamma: 2
+    fl_alpha: 0.8
+    epoch: 100
+    batch_size: 32
+    early_stopping_patience: 5
+    reduce_lr_patience: 5
+    validation_split: 0.2
+    rare_label_threshold: 3
+  delivery_classification:
+    separator: " [SEP] "
+    test_size: 0.3
+    threshold: 0.75
+    max_depth: 20
+    max_leaf_nodes: 2
+    k_best: 5
+    max_iter: 10

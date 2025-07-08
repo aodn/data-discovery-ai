@@ -26,7 +26,7 @@ import socket
 
 class BasePipeline:
     def __init__(self):
-        self.config = ConfigUtil()
+        self.config = ConfigUtil.get_config()
         self.valid_model_name = [
             "development",
             "staging",
