@@ -145,14 +145,11 @@ class ConfigUtil:
         level_str = getattr(self, "LOGLEVEL", "DEBUG")
         numeric_level = getattr(logging, level_str.upper(), logging.INFO)
         logging.getLogger().setLevel(numeric_level)
-        logging.info(f"[ConfigUtil] Logging initialized with level: {level_str}")
 
     @staticmethod
     def get_config(profile: EnvType = None):
         if profile is None:
             profile = EnvType(os.getenv("PROFILE", EnvType.DEV))
-
-        print(f"Env profile is : {profile}")
 
         match profile:
             case EnvType.PRODUCTION:
