@@ -1,5 +1,6 @@
 from multiprocessing import Pool
 from typing import Dict, Union, Any
+from elasticsearch import Elasticsearch
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.es_connector import store_ai_generated_data
@@ -173,3 +174,12 @@ class SupervisorAgent(BaseAgent):
                 data["summaries"].update(response["summaries"])
 
         return data
+
+    def fetch_stored_data(self, request: Dict, client: Elaticsearch) -> Dict:
+        """
+        Get data by uuid from Elasticsearch. If requests are same, return AI enhanced data.
+        :param request:
+        :return:
+        """
+        # TODO
+        pass
