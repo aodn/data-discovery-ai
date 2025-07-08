@@ -76,7 +76,7 @@ class TestESConnector(unittest.TestCase):
         self.assertEqual(mock_pd.concat.call_count, 1)
 
     @patch("data_discovery_ai.utils.es_connector.connect_es")
-    @patch("data_discovery_ai.utils.es_connector.ConfigUtil")
+    @patch("data_discovery_ai.utils.es_connector.ConfigUtil.get_config")
     @patch("builtins.open", new_callable=mock_open, read_data='{"mappings": {}}')
     @patch("os.path.exists", return_value=True)
     def test_create_es_index_success(

@@ -1,17 +1,31 @@
 import os
 import logging
 from pathlib import Path
-from typing import Any, Dict, TypedDict, List
+from enum import Enum
+from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import yaml
 
-import data_discovery_ai.config.constants as constants
+from data_discovery_ai.config.constants import PARAMETER_FILE
+
+
+class EnvType(Enum):
+    DEV = "development"
+    EDGE = "edge"
+    STAGING = "staging"
+    PRODUCTION = "production"
 
 
 @dataclass(frozen=True)
 class MlflowConfig:
     port: int
     gateway: str
+
+
+@dataclass(frozen=True)
+class ApplicationConfig:
+    port: int
+    reload: bool
 
 
 @dataclass(frozen=True)
@@ -112,49 +126,51 @@ class ConfigUtil:
     Also sets up logging according to configuration.
     """
 
-    DEFAULTS: Dict[str, Any] = {
-        "elasticsearch": {
-            "es_index_name": "default_index",
-            "es_ai_index_name": "default_index",
-            "batch_size": 100,
-            "sleep_time": 5,
-        },
-        "logging": {"level": "INFO"},
-    }
+    LOGLEVEL = "DEBUG"
 
-    # Default parameters overridable via environment vars
-    ENV_VARS: Dict[str, str] = {
-        "elasticsearch.batch_size": "ES_BATCH_SIZE",
-        "elasticsearch.sleep_time": "ES_SLEEP_TIME",
-        "elasticsearch.es_index_name": "ES_INDEX_NAME",
-        "model.description_formatting.model": "DESCRIPTION_MODEL",
-        # environment selection
-        "environment": "PROFILE",
-        # logging level
-        "logging.level": "LOG_LEVEL",
-    }
-
-    def __init__(self, config_file: str = constants.PARAMETER_FILE) -> None:
+    def __init__(self, config_file: str) -> None:
         """Load YAML config, determine environment, and initialize logging."""
         self.base_dir = Path(__file__).resolve().parent.parent
-        self.config_path = self.base_dir / "config" / config_file
-        self._config_data: Dict[str, Any] = self._load_yaml()
+        self.config_file = self.base_dir / "config" / config_file
+        self._config_data = self._load_yaml(self.config_file)
+
+        self.config_file = self.base_dir / "config" / PARAMETER_FILE
+        self._parameter_data = self._load_yaml(self.config_file)
 
         # determine environment (default to 'development')
-        env_val = os.getenv(self.ENV_VARS["environment"])
+        env_val = os.getenv("PROFILE")
         self.env = env_val.lower() if env_val else "development"
 
         # setup logging level
-        level_str = self._get_value("logging.level", self.DEFAULTS["logging"]["level"])
-        numeric_level = getattr(logging, level_str.upper(), logging.INFO)
-        logger = logging.getLogger()
-        logger.setLevel(numeric_level)
+        self.init_logging()
 
-    def _load_yaml(self) -> Dict[str, Any]:
-        """Read and parse the YAML configuration file."""
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"YAML config file not found: {self.config_path}")
-        with open(self.config_path, "r") as f:
+    def init_logging(self):
+        level_str = getattr(self, "LOGLEVEL", "DEBUG")
+        numeric_level = getattr(logging, level_str.upper(), logging.INFO)
+        logging.getLogger().setLevel(numeric_level)
+
+    @staticmethod
+    def get_config(profile: EnvType = None):
+        if profile is None:
+            profile = EnvType(os.getenv("PROFILE", EnvType.DEV))
+
+        match profile:
+            case EnvType.PRODUCTION:
+                return ProdConfig()
+
+            case EnvType.EDGE:
+                return EdgeConfig()
+
+            case EnvType.STAGING:
+                return StagingConfig()
+
+            case _:
+                return DevConfig()
+
+    def _load_yaml(self, config_file: Path) -> Dict[str, Any]:
+        if not config_file.exists():
+            raise FileNotFoundError(f"Config file not found: {config_file}")
+        with open(config_file, "r") as f:
             return yaml.safe_load(f) or {}
 
     def _get_value(self, path: str, default: Any) -> Any:
@@ -171,7 +187,7 @@ class ConfigUtil:
                     return default
 
         parts = path.split(".")
-        data: Any = self._config_data
+        data: Any = self._parameter_data
         for part in parts:
             if isinstance(data, dict) and part in data:
                 data = data[part]
@@ -181,28 +197,21 @@ class ConfigUtil:
 
     def get_es_config(self) -> ElasticsearchConfig:
         sub = "elasticsearch"
+        es_config = self._config_data.get(sub)
         return ElasticsearchConfig(
-            batch_size=self._get_value(
-                f"{sub}.batch_size", self.DEFAULTS[sub]["batch_size"]
-            ),
-            sleep_time=self._get_value(
-                f"{sub}.sleep_time", self.DEFAULTS[sub]["sleep_time"]
-            ),
-            es_index_name=self._get_value(
-                f"{sub}.es_index_name", self.DEFAULTS[sub]["es_index_name"]
-            ),
-            es_ai_index_name=self._get_value(
-                f"{sub}.es_ai_index_name", self.DEFAULTS[sub]["es_ai_index_name"]
-            ),
+            batch_size=es_config.get("batch_size", 100),
+            sleep_time=es_config.get("sleep_time", 1),
+            es_index_name=es_config.get("es_index_name", ""),
+            es_ai_index_name=es_config.get("es_ai_index_name", ""),
         )
 
     def get_supervisor_config(self) -> SupervisorConfig:
         return SupervisorConfig(
-            settings=self._config_data.get("model", {}).get("supervisor", {})
+            settings=self._parameter_data.get("model", {}).get("supervisor", {})
         )
 
     def get_keyword_classification_config(self) -> KeywordClassificationConfig:
-        m = self._config_data.get("model", {}).get("keyword_classification", {})
+        m = self._parameter_data.get("model", {}).get("keyword_classification", {})
         return KeywordClassificationConfig(
             confidence=m.get("confidence", 0.0),
             top_N=m.get("top_N", 0),
@@ -212,32 +221,16 @@ class ConfigUtil:
         )
 
     def get_description_formatting_config(self) -> DescriptionFormattingConfig:
-        if self.env == "development":
-            defaults = {
-                "model": "llama3",
-                "temperature": 0.0,
-                "max_tokens": 4000,
-                "response_key": "summaries.ai:description",
-            }
-        else:
-            defaults = {
-                "model": "gpt-4o-mini",
-                "temperature": 0.1,
-                "max_tokens": 10000,
-                "response_key": "summaries.ai:description",
-            }
-        model = os.getenv(
-            self.ENV_VARS["model.description_formatting.model"], defaults["model"]
-        )
+        m = self._config_data.get("model", {}).get("description_formatting", {})
         return DescriptionFormattingConfig(
-            model=model,
-            temperature=defaults["temperature"],
-            max_tokens=defaults["max_tokens"],
-            response_key=defaults["response_key"],
+            model=m.get("model", "llama3"),
+            temperature=m.get("temperature", 0.0),
+            max_tokens=m.get("max_tokens", 4000),
+            response_key=m.get("response_key", "summaries.ai:description"),
         )
 
     def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
-        m = self._config_data.get("model", {}).get("delivery_classification", {})
+        m = self._parameter_data.get("model", {}).get("delivery_classification", {})
         return DeliveryClassificationConfig(
             pretrained_model=m.get("pretrained_model", ""),
             separator=m.get("separator", ""),
@@ -245,16 +238,55 @@ class ConfigUtil:
         )
 
     def get_link_grouping_config(self) -> Dict[str, Any]:
-        return self._config_data.get("model", {}).get("link_grouping", {})
+        return self._parameter_data.get("model", {}).get("link_grouping", {})
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
-        tr = self._config_data.get("trainer", {}).get("keyword_classification", {})
+        tr = self._parameter_data.get("trainer", {}).get("keyword_classification", {})
         return KeywordClassificationTrainerConfig(**tr)
 
     def get_delivery_trainer_config(self) -> DeliveryClassificationTrainerConfig:
-        tr = self._config_data.get("trainer", {}).get("delivery_classification", {})
+        tr = self._parameter_data.get("trainer", {}).get("delivery_classification", {})
         return DeliveryClassificationTrainerConfig(**tr)
 
     def get_mlflow_config(self) -> MlflowConfig:
         c = self._config_data.get("mlflow", {})
         return MlflowConfig(port=c.get("port", 53000), gateway=c.get("gateway", ""))
+
+    def get_application_config(self) -> ApplicationConfig:
+        c = self._config_data.get("application", {})
+        port = c.get("port", 8000)
+        reload_val = c.get("reload", False)
+        is_reload = str(reload_val).lower() == "true"
+        return ApplicationConfig(port=port, reload=is_reload)
+
+
+class DevConfig(ConfigUtil):
+    LOGLEVEL = "DEBUG"
+
+    def __init__(self):
+        config_file = "config-dev.yaml"
+        super().__init__(config_file)
+
+
+class EdgeConfig(ConfigUtil):
+    LOGLEVEL = "INFO"
+
+    def __init__(self):
+        config_file = "config-edge.yaml"
+        super().__init__(config_file)
+
+
+class StagingConfig(ConfigUtil):
+    LOGLEVEL = "INFO"
+
+    def __init__(self):
+        config_file = "config-staging.yaml"
+        super().__init__(config_file)
+
+
+class ProdConfig(ConfigUtil):
+    LOGLEVEL = "WARNING"
+
+    def __init__(self):
+        config_file = "config-prod.yaml"
+        super().__init__(config_file)

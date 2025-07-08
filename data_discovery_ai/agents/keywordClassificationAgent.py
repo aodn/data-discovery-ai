@@ -88,7 +88,7 @@ class KeywordClassificationAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.type = "keyword_classification"
-        self.config = ConfigUtil()
+        self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_keyword_classification_config()
 
         self.pretrained_model_name = self.model_config.pretrained_model

@@ -23,7 +23,7 @@ class TestConfigUtil(unittest.TestCase):
     @patch("data_discovery_ai.config.config.Path.exists", return_value=True)
     @patch("builtins.open", new_callable=mock_open, read_data=MOCK_YAML_CONTENT)
     def setUp(self, mock_file, mock_exists):
-        self.config_util = ConfigUtil()
+        self.config_util = ConfigUtil.get_config()
 
     def test_get_es_config(self):
         es_config = self.config_util.get_es_config()

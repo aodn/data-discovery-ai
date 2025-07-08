@@ -163,7 +163,7 @@ def create_es_index():
     """
     Create Elasticsearch index to store documents with AI-generated data. No action applied if the index already exists.
     """
-    config = ConfigUtil()
+    config = ConfigUtil.get_config()
     es_config = config.get_es_config()
     index = es_config.es_ai_index_name
     client = connect_es()

@@ -12,7 +12,7 @@ class LinkGroupingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.type = "link_grouping"
-        self.config = ConfigUtil()
+        self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_link_grouping_config()
         self.supervisor = None
 
