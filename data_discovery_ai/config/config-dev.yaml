@@ -1,0 +1,17 @@
+elasticsearch:
+  batch_size: 100
+  sleep_time: 5
+  es_index_name: sample-index
+  es_ai_index_name: sample-index-ai
+mlflow:
+  port: 53000
+  gateway: "http://127.0.0.1:53001"
+application:
+  port: 8000
+  reload: True
+model:
+  description_formatting:
+    model: llama3
+    temperature: 0.0
+    max_tokens: 4000
+    response_key: "summaries.ai:description"

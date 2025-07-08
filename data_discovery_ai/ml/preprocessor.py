@@ -21,7 +21,7 @@ from transformers import AutoTokenizer, TFBertModel
 
 class BasePreprocessor:
     def __init__(self):
-        self.config = ConfigUtil()
+        self.config = ConfigUtil.get_config()
         self.temp_dir = tempfile.mkdtemp()
         self.watched_columns = []
         self.replaced_column_names = []

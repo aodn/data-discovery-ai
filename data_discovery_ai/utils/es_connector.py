@@ -166,7 +166,7 @@ def create_es_index() -> Tuple[None, None] | Tuple[Elasticsearch, str]:
     Output:
         Tuple[Elasticsearch, str]: Elasticsearch client and index if connected successfully. None otherwise.
     """
-    config = ConfigUtil()
+    config = ConfigUtil.get_config()
     es_config = config.get_es_config()
     index = es_config.es_ai_index_name
     client = connect_es()

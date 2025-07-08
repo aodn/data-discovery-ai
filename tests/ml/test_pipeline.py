@@ -31,7 +31,7 @@ from data_discovery_ai.config.config import (
 
 class TestKeywordClassificationPipeline(unittest.TestCase):
     def setUp(self):
-        configUtil = patch("data_discovery_ai.ml.pipeline.ConfigUtil")
+        configUtil = patch("data_discovery_ai.ml.pipeline.ConfigUtil.get_config")
         preprocessor = patch("data_discovery_ai.ml.pipeline.KeywordPreprocessor")
         self.addCleanup(configUtil.stop)
         self.addCleanup(preprocessor.stop)

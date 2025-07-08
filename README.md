@@ -264,7 +264,7 @@ Each model name reflects a stage in the model lifecycle:
     - Monitored continuously, supports user feedback and live data updates
 
 #### Model Usage
-In the configuration file `data_discovery_ai/common/parameters.yaml`, you can specify which model version each task should use. For example:
+In the configuration file `data_discovery_ai/common/config-*.yaml`, while `*` specify the environment for use. You can specify which model version each task should use. For example:
 ```yaml
 model:
   delivery_classification:
@@ -280,10 +280,11 @@ It is automatically started at the beginning of the pipeline. Once a pipeline st
 You can change the model's training settings (like how long it trains or how fast it learns) by editing the trainer section in the file: `data_discovery_ai/config/parameters.yaml`
 
 ## 🛠️ Required Configuration Files
-| **File**                                   | **Description**                                       |
-|--------------------------------------------|-------------------------------------------------------|
-| `data_discovery_ai/common/constants.py`    | 	Shared constants                                     |
-| `data_discovery_ai/commom/parameters.yaml` | Store parameter settings for ML models and AI agents. |
+| **File**                                   | **Description**                                           |
+|--------------------------------------------|-----------------------------------------------------------|
+| `data_discovery_ai/common/constants.py`    | 	Shared constants                                         |
+| `data_discovery_ai/commom/parameters.yaml` | Store parameter settings for ML models and AI agents.     |
+| `data_discovery_ai/commom/config-*.yaml`   | Store parameter configuration for different environments. |
 
 ## 📁 Project Structure
 ```

@@ -17,7 +17,7 @@ class DeliveryClassificationAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.type = "delivery_classification"
-        self.config = ConfigUtil()
+        self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_delivery_classification_config()
         self.supervisor = None
 
