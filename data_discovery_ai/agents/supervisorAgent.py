@@ -159,7 +159,7 @@ class SupervisorAgent(BaseAgent):
 
         data["id"] = request.get("uuid")
         data["title"] = request.get("title", None)
-        data["description"] = request.get("description", None)
+        data["description"] = request.get("abstract", None)
         data["summaries"] = {"statement": request.get("lineage", None)}
 
         response = self.response
@@ -228,7 +228,6 @@ class SupervisorAgent(BaseAgent):
 
         partial_response = {}
 
-        # TODO: debug why link field missing when reloading the stored response
         old_links = existing_doc["links"]
         logger.debug(f"link field: {old_links}")
         if "link_grouping" in matched_models and "links" in existing_doc:
