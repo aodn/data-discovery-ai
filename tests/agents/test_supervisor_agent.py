@@ -33,6 +33,42 @@ class TestSupervisorAgent(unittest.TestCase):
             "links": ["https://example.com"],
         }
 
+        self.response = {
+            "links": [
+                {
+                    "href": "https://www.example.com/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Example Data Download Link",
+                    "ai:group": "Data Access",
+                }
+            ],
+            "summaries": {
+                "ai:update_frequency": "delayed",
+                "ai:description": "ai generated description",
+            },
+            "themes": [
+                {
+                    "scheme": "Scheme A",
+                    "title": "Theme A",
+                    "description": "Desc A",
+                    "ai:description": "AI theme summary",
+                    "concepts": [
+                        {"id": "Concept1", "url": "http://example.com/concept1"}
+                    ],
+                }
+            ],
+        }
+
+        self.model_config = {
+            "task_agents": {
+                "link_grouping": {"required_fields": ["title"]},
+                "description_formatting": {"required_fields": ["description"]},
+                "delivery_classification": {"required_fields": ["description"]},
+                "keyword_classification": {"required_fields": ["title"]},
+            }
+        }
+
         self.non_dict_request = "this is a non dict request"
 
     @patch("data_discovery_ai.agents.supervisorAgent.logger")
@@ -67,6 +103,86 @@ class TestSupervisorAgent(unittest.TestCase):
         self.assertEqual(
             self.agent.response,
             {"summaries": {"ai:description": "Example abstract"}},
+        )
+
+    def test_process_request_response_valid(self):
+        # mock response
+        self.agent.response = self.response
+
+        request = {
+            "uuid": "Example uuid",
+            "title": "Example title",
+            "abstract": "Example description",
+            "lineage": "Example lineage",
+            "links": [],
+        }
+        result = self.agent.process_request_response(request)
+
+        self.assertEqual(result["id"], "Example uuid")
+        self.assertEqual(result["title"], "Example title")
+        self.assertEqual(result["description"], "Example description")
+        self.assertEqual(result["summaries"]["statement"], "Example lineage")
+        self.assertEqual(
+            result["summaries"]["ai:description"], "ai generated description"
+        )
+        self.assertEqual(result["themes"][0]["title"], "Theme A")
+        self.assertEqual(result["themes"][0]["concepts"][0]["id"], "Concept1")
+        self.assertEqual(result["links"][0]["ai:group"], "Data Access")
+
+    def test_search_stored_data_hit(self):
+        mock_es_client = MagicMock()
+        mock_es_client.search.return_value = {
+            "hits": {
+                "hits": [
+                    {
+                        "_source": {
+                            "id": "Example uuid",
+                            "ai:request_raw": {
+                                "uuid": "Example uuid",
+                                "selected_model": [
+                                    "description_formatting",
+                                    "keyword_classification",
+                                    "delivery_classification",
+                                    "link_grouping",
+                                ],
+                                "title": "Example title",
+                                "abstract": "Example description",
+                                "lineage": "Example lineage",
+                                "links": [],
+                            },
+                            "links": self.response["links"],
+                            "summaries": self.response["summaries"],
+                            "themes": self.response["themes"],
+                        }
+                    }
+                ]
+            }
+        }
+
+        request = {
+            "uuid": "Example uuid",
+            "selected_model": ["link_grouping", "description_formatting"],
+            "title": "Example title",
+            "abstract": "Example description",
+            "links": [
+                {
+                    "href": "https://www.example.com/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Example Data Download Link",
+                }
+            ],
+        }
+
+        self.agent.model_config = self.model_config
+
+        result = self.agent.search_stored_data(
+            request, mock_es_client, index="test_index"
+        )
+
+        self.assertIn("links", result)
+        self.assertEqual(
+            result["summaries"]["ai:description"], "ai generated description"
         )
 
 

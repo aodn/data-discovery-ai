@@ -1,4 +1,4 @@
-from multiprocessing import Pool
+from elasticsearch import Elasticsearch
 from typing import Dict, Union, Any
 
 from data_discovery_ai.config.config import ConfigUtil
@@ -146,3 +146,102 @@ class SupervisorAgent(BaseAgent):
                 )
                 return False
         return True
+
+    def process_request_response(self, request: Dict) -> Dict | None:
+        """
+        Convert JSON request and response into dictionary, so that their combination can be stored in allowed data schema.
+        :param request: Dict. The request to call API
+        :return: Dict. The combined request and the responses from all task agents. Follows the mapping with required data schema.
+        """
+        data = {}
+        if request is None:
+            return None
+
+        data["id"] = request.get("uuid")
+        data["title"] = request.get("title", None)
+        data["description"] = request.get("abstract", None)
+        data["summaries"] = {"statement": request.get("lineage", None)}
+
+        response = self.response
+        if response:
+            if "themes" in response:
+                data["themes"] = response["themes"]
+            if "links" in response:
+                data["links"] = response["links"]
+            if "summaries" in response:
+                data["summaries"].update(response["summaries"])
+
+        request_raw = request
+        data["ai:request_raw"] = request_raw
+
+        return data
+
+    def search_stored_data(
+        self, request: Dict, client: Elasticsearch, index: str
+    ) -> Dict[str, Any]:
+
+        uuid = request.get("uuid", None)
+
+        query = {"query": {"term": {"id.keyword": uuid}}}
+        resp = client.search(index=index, body=query)
+        hits = resp.get("hits", {}).get("hits", [])
+        if not hits:
+            return {}
+
+        # return the first hit
+        existing_doc = hits[0]["_source"]
+        old_request = existing_doc.get("ai:request_raw", {})
+        old_models = set(old_request.get("selected_model", []))
+        current_models = set(request.get("selected_model", []))
+        if not current_models.issubset(old_models):
+            return {}
+
+        model_fields = {
+            "link_grouping": self.model_config.get("task_agents")
+            .get("link_grouping")
+            .get("required_fields"),
+            "description_formatting": self.model_config.get("task_agents")
+            .get("description_formatting")
+            .get("required_fields"),
+            "delivery_classification": self.model_config.get("task_agents")
+            .get("delivery_classification")
+            .get("required_fields"),
+            "keyword_classification": self.model_config.get("task_agents")
+            .get("keyword_classification")
+            .get("required_fields"),
+        }
+
+        matched_models = []
+
+        for model in current_models:
+            if model not in old_models:
+                continue
+            required_fields = model_fields.get(model, [])
+            if all(request.get(f) == old_request.get(f) for f in required_fields):
+                matched_models.append(model)
+
+        if not matched_models:
+            return {}
+
+        partial_response = {}
+
+        old_links = existing_doc["links"]
+        if "link_grouping" in matched_models and "links" in existing_doc:
+            partial_response["links"] = existing_doc["links"]
+
+        if "description_formatting" in matched_models:
+            desc = existing_doc.get("summaries", {}).get("ai:description")
+            if desc:
+                partial_response.setdefault("summaries", {})["ai:description"] = desc
+
+        if "delivery_classification" in matched_models:
+            freq = existing_doc.get("summaries", {}).get("ai:update_frequency")
+            if freq:
+                partial_response.setdefault("summaries", {})[
+                    "ai:update_frequency"
+                ] = freq
+
+        if "keyword_classification" in matched_models and "themes" in existing_doc:
+            partial_response["themes"] = existing_doc["themes"]
+
+        return partial_response

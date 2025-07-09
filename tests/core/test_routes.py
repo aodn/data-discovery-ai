@@ -25,6 +25,9 @@ class TestRoutes(unittest.TestCase):
         app.state.tokenizer = MagicMock()
         app.state.embedding_model = MagicMock()
 
+        app.state.client = MagicMock()
+        app.state.index = MagicMock()
+
         app.dependency_overrides[api_key_auth] = override_dependency
         app.dependency_overrides[ensure_ready] = override_ensure_ready
 

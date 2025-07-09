@@ -25,7 +25,9 @@ async def lifespan(app: FastAPI):
     app.state.embedding_model = embedding_model
 
     # create Elasticsearch index
-    create_es_index()
+    client, index = create_es_index()
+    app.state.client = client
+    app.state.index = index
     yield
 
 

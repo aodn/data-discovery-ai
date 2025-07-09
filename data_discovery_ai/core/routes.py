@@ -1,13 +1,14 @@
 import gzip
 import json
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from http import HTTPStatus
 from dotenv import load_dotenv
 import os
 import httpx
+import copy
 
 from data_discovery_ai.config.constants import (
     API_PREFIX,
@@ -16,8 +17,8 @@ from data_discovery_ai.config.constants import (
     KEYWORD_LABEL_FILE,
 )
 from data_discovery_ai.utils.api_utils import api_key_auth
-from data_discovery_ai import logger
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.utils.es_connector import store_ai_generated_data
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
@@ -103,30 +104,35 @@ async def health_check() -> HealthCheckResponse:
 @router.post(
     "/process_record", dependencies=[Depends(api_key_auth), Depends(ensure_ready)]
 )
-async def process_record(request: Request) -> JSONResponse:
+async def process_record(
+    request: Request, background_tasks: BackgroundTasks
+) -> JSONResponse:
     """
-    Process a record through the SupervisorAgent.
+    Process a record through the SupervisorAgent with the following logic:
+        1. unzip the request if it was compressed
+        2. initialise a supervisor agent to execute processing tasks
+        3. return BAD_REQUEST if the request is not valid such as missing required fields
+        4. search the request in Elasticsearch to see if this record was processed previously
+        5. return the processed record if the request are the same
+        6. execute processing tasks if the request content changed
+        7. return the agent's response as the API call response
     Requires a valid API key and that the service is ready.
     """
     content_encoding = request.headers.get("Content-Encoding", "").lower()
-    if "gzip" in content_encoding:
-        raw_body = await request.body()
-        try:
-            decompressed_data = gzip.decompress(raw_body)
-            body = json.loads(decompressed_data)
-        except Exception as e:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid gzip format"
-            )
-    else:
-        try:
+    try:
+        if "gzip" in content_encoding:
+            raw_body = await request.body()
+            body = json.loads(gzip.decompress(raw_body))
+        else:
             body = await request.json()
-        except Exception as e:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST, detail="Invalid JSON format"
-            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Invalid JSON format"
+        )
 
-    logger.info("Request details: %s", body)
+    original_request = copy.deepcopy(body)
+    client = request.app.state.client
+    index = request.app.state.index
 
     supervisor = SupervisorAgent()
     supervisor.set_tokenizer(request.app.state.tokenizer)
@@ -137,5 +143,14 @@ async def process_record(request: Request) -> JSONResponse:
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid request format."
         )
 
-    supervisor.execute(body)
-    return JSONResponse(content=supervisor.response, status_code=HTTPStatus.OK)
+    stored_body = supervisor.search_stored_data(body, client=client, index=index)
+
+    if not stored_body:
+        supervisor.execute(body)
+        doc = supervisor.process_request_response(original_request)
+        background_tasks.add_task(
+            store_ai_generated_data, data=doc, client=client, index=index
+        )
+        return JSONResponse(content=supervisor.response, status_code=HTTPStatus.OK)
+
+    return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
