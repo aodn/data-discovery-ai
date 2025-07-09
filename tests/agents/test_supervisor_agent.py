@@ -1,7 +1,6 @@
 # unit test for agent.py
 import unittest
 from unittest.mock import patch, MagicMock
-from elasticsearch import Elasticsearch
 
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 from data_discovery_ai.agents.descriptionFormattingAgent import (

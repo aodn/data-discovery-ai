@@ -173,7 +173,6 @@ class SupervisorAgent(BaseAgent):
 
         request_raw = request
         data["ai:request_raw"] = request_raw
-        logger.info(request_raw["links"])
 
         return data
 
@@ -224,12 +223,9 @@ class SupervisorAgent(BaseAgent):
         if not matched_models:
             return {}
 
-        logger.info(f"Partial cache hit for UUID: {uuid} on models: {matched_models}")
-
         partial_response = {}
 
         old_links = existing_doc["links"]
-        logger.debug(f"link field: {old_links}")
         if "link_grouping" in matched_models and "links" in existing_doc:
             partial_response["links"] = existing_doc["links"]
 
