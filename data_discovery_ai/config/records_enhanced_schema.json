@@ -96,6 +96,10 @@
             "type": "text"
           }
         }
+      },
+      "ai:request_raw": {
+        "type": "object",
+        "enabled": true
       }
     }
   }

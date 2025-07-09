@@ -1,9 +1,7 @@
-from multiprocessing import Pool
-from typing import Dict, Union, Any
 from elasticsearch import Elasticsearch
+from typing import Dict, Union, Any
 
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai.utils.es_connector import store_ai_generated_data
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.agents.descriptionFormattingAgent import (
@@ -173,13 +171,82 @@ class SupervisorAgent(BaseAgent):
             if "summaries" in response:
                 data["summaries"].update(response["summaries"])
 
+        request_raw = request
+        data["ai:request_raw"] = request_raw
+        logger.info(request_raw["links"])
+
         return data
 
-    def fetch_stored_data(self, request: Dict, client: Elaticsearch) -> Dict:
-        """
-        Get data by uuid from Elasticsearch. If requests are same, return AI enhanced data.
-        :param request:
-        :return:
-        """
-        # TODO
-        pass
+    def search_stored_data(
+        self, request: Dict, client: Elasticsearch, index: str
+    ) -> Dict[str, Any]:
+
+        uuid = request.get("uuid", None)
+
+        query = {"query": {"term": {"id.keyword": uuid}}}
+        resp = client.search(index=index, body=query)
+        hits = resp.get("hits", {}).get("hits", [])
+        if not hits:
+            return {}
+
+        # return the first hit
+        existing_doc = hits[0]["_source"]
+        old_request = existing_doc.get("ai:request_raw", {})
+        old_models = set(old_request.get("selected_model", []))
+        current_models = set(request.get("selected_model", []))
+        if not current_models.issubset(old_models):
+            return {}
+
+        model_fields = {
+            "link_grouping": self.model_config.get("task_agents")
+            .get("link_grouping")
+            .get("required_fields"),
+            "description_formatting": self.model_config.get("task_agents")
+            .get("description_formatting")
+            .get("required_fields"),
+            "delivery_classification": self.model_config.get("task_agents")
+            .get("delivery_classification")
+            .get("required_fields"),
+            "keyword_classification": self.model_config.get("task_agents")
+            .get("keyword_classification")
+            .get("required_fields"),
+        }
+
+        matched_models = []
+
+        for model in current_models:
+            if model not in old_models:
+                continue
+            required_fields = model_fields.get(model, [])
+            if all(request.get(f) == old_request.get(f) for f in required_fields):
+                matched_models.append(model)
+
+        if not matched_models:
+            return {}
+
+        logger.info(f"Partial cache hit for UUID: {uuid} on models: {matched_models}")
+
+        partial_response = {}
+
+        # TODO: debug why link field missing when reloading the stored response
+        old_links = existing_doc["links"]
+        logger.debug(f"link field: {old_links}")
+        if "link_grouping" in matched_models and "links" in existing_doc:
+            partial_response["links"] = existing_doc["links"]
+
+        if "description_formatting" in matched_models:
+            desc = existing_doc.get("summaries", {}).get("ai:description")
+            if desc:
+                partial_response.setdefault("summaries", {})["ai:description"] = desc
+
+        if "delivery_classification" in matched_models:
+            freq = existing_doc.get("summaries", {}).get("ai:update_frequency")
+            if freq:
+                partial_response.setdefault("summaries", {})[
+                    "ai:update_frequency"
+                ] = freq
+
+        if "keyword_classification" in matched_models and "themes" in existing_doc:
+            partial_response["themes"] = existing_doc["themes"]
+
+        return partial_response
