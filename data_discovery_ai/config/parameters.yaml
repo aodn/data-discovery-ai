@@ -89,6 +89,8 @@ model:
           - wms
           - ows
           - wps
+          - tif
+          - mp4
           - thredds
           - trawler
           - data_type

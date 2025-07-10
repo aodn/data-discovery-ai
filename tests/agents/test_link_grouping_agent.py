@@ -50,6 +50,12 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": "1989_01_12.zip",
                 },
+                {
+                    "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
+                    "rel": "data",
+                    "type": "",
+                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD]",
+                },
             ]
         }
 
@@ -143,6 +149,13 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "rel": "data",
                     "type": "",
                     "title": "1989_01_12.zip",
+                    "ai:group": "Data Access",
+                },
+                {
+                    "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
+                    "rel": "data",
+                    "type": "",
+                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD]",
                     "ai:group": "Data Access",
                 },
             ],

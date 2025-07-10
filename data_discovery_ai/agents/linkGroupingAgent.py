@@ -117,35 +117,38 @@ class LinkGroupingAgent(BaseAgent):
         Output:
             str. The group of the link. It can be 'Data Access'/'Document'/'Python Notebook'/ 'Other'.
         """
-        href = link["href"].lower()
-        title = link["title"].lower()
+        href = link.get("href", "").lower()
+        title = link.get("title", "").lower()
+        rel = link.get("rel", "").lower()
 
         for group, conditions in self.model_config["grouping_rules"].items():
             if "href" in conditions and any(
-                keyword in href.lower() for keyword in conditions["href"]
+                keyword in href for keyword in conditions["href"]
             ):
                 return group
 
             if "title" in conditions and any(
-                keyword in title.lower() for keyword in conditions["title"]
+                keyword in title for keyword in conditions["title"]
             ):
                 return group
 
             if "rel" in conditions and any(
-                keyword in title.lower() for keyword in conditions["rel"]
+                keyword in rel for keyword in conditions["rel"]
             ):
                 return group
 
         # if no condition met, crawl the content to check if keywords are present
         try:
-            resp = requests.get(link["href"], timeout=(3, 10))
-            if resp.status_code == 200:
-                logger.info(f"Crawling the link: {link['href']}")
-                content = resp.text.lower()
-                if any(keyword in content for keyword in page_content_keywords):
-                    return "Data Access"
+            if rel == "data" and not href.endswith(".html"):
+                return "Data Access"
+            if href.endswith(".html"):
+                resp = requests.get(href, timeout=(3, 5))
+                if resp.status_code == 200:
+                    content = resp.text.lower()
+                    if any(keyword in content for keyword in page_content_keywords):
+                        return "Data Access"
         except requests.exceptions.RequestException:
-            logger.info(f"Failed to crawl the link: {link['href']}")
+            logger.warning(f"Failed to crawl the link: {link['href']}")
             return "Other"
 
         return "Other"
