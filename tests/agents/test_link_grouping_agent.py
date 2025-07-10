@@ -1,5 +1,8 @@
 # unit test for the link grouping agent in model/linkGroupingAgent.py
 import unittest
+from unittest.mock import patch, MagicMock
+import requests
+
 from data_discovery_ai.agents.linkGroupingAgent import LinkGroupingAgent
 from data_discovery_ai.config.config import ConfigUtil
 
@@ -50,6 +53,12 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": "1989_01_12.zip",
                 },
+                {
+                    "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
+                    "rel": "data",
+                    "type": "",
+                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD]",
+                },
             ]
         }
 
@@ -99,6 +108,43 @@ class TestLinkGroupingAgent(unittest.TestCase):
             ]
         }
 
+    @patch("data_discovery_ai.agents.linkGroupingAgent.requests.get")
+    def test_ungrouped_links_with_fallback(self, mock_get):
+        valid_data_link = {
+            "href": "https://example.tif",
+            "rel": "data",
+            "type": "",
+            "title": "Example Image Data Link",
+        }
+
+        grouped_valid_data_link = self.agent.grouping(valid_data_link, [])
+        self.assertEqual(grouped_valid_data_link, "Data Access")
+
+        valid_crawl_link = {
+            "href": "https://data.org/page.html",
+            "rel": "related",
+            "title": "some title",
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = "This page has dataset access"
+        mock_get.return_value = mock_resp
+
+        keywords = ["dataset access"]
+        grouped_valid_crawl_link = self.agent.grouping(valid_crawl_link, keywords)
+        self.assertEqual(grouped_valid_crawl_link, "Data Access")
+
+        invalid_crawl_link = {
+            "href": "https://data.org/page.html",
+            "rel": "related",
+            "title": "some title",
+        }
+        mock_get.side_effect = requests.exceptions.Timeout
+
+        keywords = ["dataset access"]
+        grouped_invalid_crawl_link = self.agent.grouping(invalid_crawl_link, keywords)
+        self.assertEqual(grouped_invalid_crawl_link, "Other")
+
     def test_make_decision(self):
         result = self.agent.make_decision(self.valid_request)
         # expect to skip the first irrelated link
@@ -143,6 +189,13 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "rel": "data",
                     "type": "",
                     "title": "1989_01_12.zip",
+                    "ai:group": "Data Access",
+                },
+                {
+                    "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
+                    "rel": "data",
+                    "type": "",
+                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD]",
                     "ai:group": "Data Access",
                 },
             ],
