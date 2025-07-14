@@ -225,7 +225,6 @@ class SupervisorAgent(BaseAgent):
 
         partial_response = {}
 
-        old_links = existing_doc["links"]
         if "link_grouping" in matched_models and "links" in existing_doc:
             partial_response["links"] = existing_doc["links"]
 

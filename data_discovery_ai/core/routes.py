@@ -18,7 +18,10 @@ from data_discovery_ai.config.constants import (
 )
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai.utils.es_connector import store_ai_generated_data
+from data_discovery_ai.utils.es_connector import (
+    store_ai_generated_data,
+    delete_es_document,
+)
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
@@ -99,6 +102,32 @@ async def health_check() -> HealthCheckResponse:
     except HTTPException as e:
         # Return HealthCheckResponse with appropriate code and message
         return HealthCheckResponse(status_code=e.status_code, status=str(e.detail))
+
+
+@router.get("/delete_doc", dependencies=[Depends(api_key_auth), Depends(ensure_ready)])
+async def delete_doc(request: Request, doc_id: str):
+    """
+    To delete a document stored in the AI-related Elasticsearch index.
+    Input:
+        doc_id: the id of the document to delete.
+    Output:
+        JSONResponse(status_code=HTTPStatus.OK) if deleted successfully.
+        JSONResponse(status_code=404) if not deleted successfully.
+    """
+    client = request.app.state.client
+    index = request.app.state.index
+
+    is_deleted = delete_es_document(doc_id, client, index)
+    if is_deleted:
+        return JSONResponse(
+            status_code=HTTPStatus.OK,
+            content={"message": f"Document {doc_id} deleted."},
+        )
+    else:
+        return JSONResponse(
+            status_code=HTTPStatus.NOT_FOUND,
+            content={"message": f"Document {doc_id} not found."},
+        )
 
 
 @router.post(
