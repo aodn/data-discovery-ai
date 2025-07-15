@@ -220,8 +220,12 @@ class SupervisorAgent(BaseAgent):
             if all(request.get(f) == old_request.get(f) for f in required_fields):
                 matched_models.append(model)
 
-        if not matched_models:
-            return {}
+        matched_models = []
+        for model in current_models:
+            if model in old_models:
+                required_fields = model_fields.get(model, [])
+                if all(request.get(f) == old_request.get(f) for f in required_fields):
+                    matched_models.append(model)
 
         partial_response = {}
 

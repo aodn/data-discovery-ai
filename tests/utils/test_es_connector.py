@@ -3,6 +3,7 @@ import unittest
 import pandas as pd
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
+from pytest_elasticsearch import factories
 
 from data_discovery_ai.utils.es_connector import connect_es, search_es, create_es_index
 

@@ -100,7 +100,6 @@ async def health_check() -> HealthCheckResponse:
         await ensure_ready()
         return HealthCheckResponse(status_code=HTTPStatus.OK, status="healthy")
     except HTTPException as e:
-        # Return HealthCheckResponse with appropriate code and message
         return HealthCheckResponse(status_code=e.status_code, status=str(e.detail))
 
 
@@ -112,7 +111,7 @@ async def delete_doc(request: Request, doc_id: str):
         doc_id: the id of the document to delete.
     Output:
         JSONResponse(status_code=HTTPStatus.OK) if deleted successfully.
-        JSONResponse(status_code=404) if not deleted successfully.
+        JSONResponse(status_code=NOT_FOUND) if not deleted successfully.
     """
     client = request.app.state.client
     index = request.app.state.index
