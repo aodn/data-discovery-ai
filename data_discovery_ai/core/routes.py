@@ -171,24 +171,34 @@ async def process_record(
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid request format."
         )
 
-    stored_body, matched_models, _ = supervisor.search_stored_data(
+    stored_body, matched_models = supervisor.search_stored_data(
         body, client=client, index=index
     )
 
-    unmatched_models = [
-        model for model in body["selected_model"] if model not in matched_models
-    ]
+    body_selected_models = set(body.get("selected_model", []))
+    remaining_models = list(body_selected_models - set(matched_models))
 
-    if unmatched_models:
-        body["selected_model"] = unmatched_models
-        supervisor.execute(body)
-        combined = stored_body.copy()
-        combined.update(supervisor.response)
+    if not remaining_models:
+        return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
 
-        doc = supervisor.process_request_response(original_request)
-        background_tasks.add_task(
-            store_ai_generated_data, data=doc, client=client, index=index
-        )
+    body["selected_model"] = remaining_models
+    supervisor.execute(body)
 
-        return JSONResponse(content=combined, status_code=HTTPStatus.OK)
-    return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
+    full_response = copy.deepcopy(stored_body)
+    new_response = supervisor.response
+
+    if "summaries" in new_response:
+        full_response.setdefault("summaries", {}).update(new_response["summaries"])
+
+    for key in ["links", "themes"]:
+        if key in new_response:
+            full_response[key] = new_response[key]
+
+    supervisor.response = full_response
+
+    doc = supervisor.process_request_response(original_request)
+    background_tasks.add_task(
+        store_ai_generated_data, data=doc, client=client, index=index
+    )
+
+    return JSONResponse(content=full_response, status_code=HTTPStatus.OK)

@@ -21,6 +21,7 @@ class SupervisorAgent(BaseAgent):
         super().__init__()
         self.type = "supervisor"
         self.task_agents = []
+        self.task_agents_map = {}
         self.model_config = ConfigUtil.get_config().get_supervisor_config().settings
 
         # add name-task agent map here if more models added in
@@ -176,48 +177,9 @@ class SupervisorAgent(BaseAgent):
 
         return data
 
-    def get_matched_model(self, new_request: Dict, old_request: Dict) -> List[str]:
-        """
-        Compare new and old requests to identify which selected models can be reused with the stored data
-        A model is considered matched if:
-          1. It existed in the old request's selected_model list, and
-          2. Its required input fields are unchanged.
-
-        Input:
-            new_request (Dict): The new request send to process_record API endpoint.
-            old_request (Dict): The old request stored in Elasticsearch.
-        Returns:
-            List[str]: Models whose input data has not changed and can be reused.
-        """
-        old_models = set(old_request.get("selected_model", []))
-        current_models = set(new_request.get("selected_model", []))
-
-        matched_models = []
-        task_agents = self.model_config.get("task_agents", {})
-
-        for model in current_models:
-            if model not in old_models:
-                continue
-            required_fields = task_agents.get(model, {}).get("required_fields", [])
-            if all(new_request.get(f) == old_request.get(f) for f in required_fields):
-                matched_models.append(model)
-
-        return matched_models
-
     def search_stored_data(
         self, request: Dict, client: Elasticsearch, index: str
-    ) -> Tuple[Dict[str, Any], List[str], Dict]:
-        """
-        Search Elasticsearch with uuid, return the stored data, including AI-enhanced data and the raw request data.
-        Input:
-            request (Dict): The request send to process_record API endpoint.
-            client (Elasticsearch): Elasticsearch client.
-            index (str): Index name.
-        Output:
-            Dict[str, Any]: The cached partial response from Elasticsearch than reused by the supervisor agent
-            List[str]: The matched model list that can be reused.
-            Dict: The raw request data.
-        """
+    ) -> Tuple[Dict[str, Any], List[str]]:
 
         uuid = request.get("uuid", None)
 
@@ -225,12 +187,40 @@ class SupervisorAgent(BaseAgent):
         resp = client.search(index=index, body=query)
         hits = resp.get("hits", {}).get("hits", [])
         if not hits:
-            return {}, [], {}
+            return {}, []
 
         # return the first hit
         existing_doc = hits[0]["_source"]
         old_request = existing_doc.get("ai:request_raw", {})
-        matched_models = self.get_matched_model(request, old_request)
+        old_models = set(old_request.get("selected_model", []))
+        current_models = set(request.get("selected_model", []))
+
+        model_fields = {
+            "link_grouping": self.model_config.get("task_agents")
+            .get("link_grouping")
+            .get("required_fields"),
+            "description_formatting": self.model_config.get("task_agents")
+            .get("description_formatting")
+            .get("required_fields"),
+            "delivery_classification": self.model_config.get("task_agents")
+            .get("delivery_classification")
+            .get("required_fields"),
+            "keyword_classification": self.model_config.get("task_agents")
+            .get("keyword_classification")
+            .get("required_fields"),
+        }
+
+        matched_models = []
+
+        for model in current_models:
+            if model not in old_models:
+                continue
+            required_fields = model_fields.get(model, [])
+            if all(request.get(f) == old_request.get(f) for f in required_fields):
+                matched_models.append(model)
+
+        if not matched_models:
+            return {}, []
 
         partial_response = {}
 
@@ -252,4 +242,4 @@ class SupervisorAgent(BaseAgent):
         if "keyword_classification" in matched_models and "themes" in existing_doc:
             partial_response["themes"] = existing_doc["themes"]
 
-        return partial_response, matched_models, old_request
+        return partial_response, matched_models
