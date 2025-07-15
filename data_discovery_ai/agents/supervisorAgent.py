@@ -21,7 +21,6 @@ class SupervisorAgent(BaseAgent):
         super().__init__()
         self.type = "supervisor"
         self.task_agents = []
-        self.task_agents_map = {}
         self.model_config = ConfigUtil.get_config().get_supervisor_config().settings
 
         # add name-task agent map here if more models added in
