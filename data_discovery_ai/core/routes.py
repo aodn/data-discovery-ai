@@ -171,14 +171,24 @@ async def process_record(
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid request format."
         )
 
-    stored_body = supervisor.search_stored_data(body, client=client, index=index)
+    stored_body, matched_models, _ = supervisor.search_stored_data(
+        body, client=client, index=index
+    )
 
-    if not stored_body:
+    unmatched_models = [
+        model for model in body["selected_model"] if model not in matched_models
+    ]
+
+    if unmatched_models:
+        body["selected_model"] = unmatched_models
         supervisor.execute(body)
+        combined = stored_body.copy()
+        combined.update(supervisor.response)
+
         doc = supervisor.process_request_response(original_request)
         background_tasks.add_task(
             store_ai_generated_data, data=doc, client=client, index=index
         )
-        return JSONResponse(content=supervisor.response, status_code=HTTPStatus.OK)
 
+        return JSONResponse(content=combined, status_code=HTTPStatus.OK)
     return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
