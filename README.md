@@ -159,6 +159,7 @@ Once the app is running, two routes are available:
 ```JSON
 {
     "selected_model":["description_formatting"],
+    "uuid": "test",
     "title": "test title",
     "abstract": "test abstract"
 }
