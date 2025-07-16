@@ -180,6 +180,8 @@ class TestSupervisorAgent(unittest.TestCase):
             request, mock_es_client, index="test_index"
         )
 
+        self.assertEqual(matched_model, ["description_formatting", "link_grouping"])
+
         self.assertIn("links", result)
         self.assertEqual(
             result["summaries"]["ai:description"], "ai generated description"
