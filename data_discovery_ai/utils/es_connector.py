@@ -227,7 +227,7 @@ def delete_es_document(uuid: str, client: Elasticsearch, index: str) -> bool:
         bool, True if the document was deleted. False otherwise.
     """
     if client is None:
-        logger.error(f"Elasticsearch index '{index}' connected failed.")
+        logger.error(f"Failed to connect to Elasticsearch index '{index}'.")
         return False
     try:
         resp = client.delete(index=index, id=uuid)

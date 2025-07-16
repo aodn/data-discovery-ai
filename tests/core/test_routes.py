@@ -66,10 +66,9 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_delete_doc_success(self):
-        app.state.client = MagicMock()
         with patch("data_discovery_ai.core.routes.delete_es_document") as mock_delete:
             mock_delete.return_value = True
-            response = client.get(
+            response = client.delete(
                 "/api/v1/ml/delete_doc",
                 params={"doc_id": "test_doc_id"},
                 headers={"X-API-Key": "test-api-key"},
@@ -78,10 +77,9 @@ class TestRoutes(unittest.TestCase):
             self.assertIn("deleted", response.json()["message"])
 
     def test_delete_doc_not_found(self):
-        app.state.client = MagicMock()
         with patch("data_discovery_ai.core.routes.delete_es_document") as mock_delete:
             mock_delete.return_value = False
-            response = client.get(
+            response = client.delete(
                 "/api/v1/ml/delete_doc",
                 params={"doc_id": "test_doc_id"},
                 headers={"X-API-Key": "test-api-key"},

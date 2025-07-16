@@ -103,7 +103,9 @@ async def health_check() -> HealthCheckResponse:
         return HealthCheckResponse(status_code=e.status_code, status=str(e.detail))
 
 
-@router.get("/delete_doc", dependencies=[Depends(api_key_auth), Depends(ensure_ready)])
+@router.delete(
+    "/delete_doc", dependencies=[Depends(api_key_auth), Depends(ensure_ready)]
+)
 async def delete_doc(request: Request, doc_id: str):
     """
     To delete a document stored in the AI-related Elasticsearch index.
