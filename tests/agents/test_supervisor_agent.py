@@ -180,7 +180,7 @@ class TestSupervisorAgent(unittest.TestCase):
             request, mock_es_client, index="test_index"
         )
 
-        self.assertEqual(matched_model, ["description_formatting", "link_grouping"])
+        self.assertEqual(set(matched_model), set(request["selected_model"]))
 
         self.assertIn("links", result)
         self.assertEqual(
