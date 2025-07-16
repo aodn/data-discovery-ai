@@ -150,14 +150,16 @@ Example of use:
 ## ▶️ Using the API
 Once the app is running, two routes are available:
 
-| **Route**                        | **Description**                                                   |
-|----------------------------------|-------------------------------------------------------------------|
-| `GET /api/v1/ml/health`          | Health check                                                      |
-| `POST /api/v1/ml/process_record` | One single point for calling AI models to process metadata record |
+| **Route**                        | **Description**                                                                                |
+|----------------------------------|------------------------------------------------------------------------------------------------|
+| `GET /api/v1/ml/health`          | Health check                                                                                   |
+| `POST /api/v1/ml/process_record` | One single point for calling AI models to process metadata record                              |
+| `DELETE /api/v1/ml/delete_doc`   | Deletes a document from the AI-related Elasticsearch index. Requires query parameter `doc_id`. |
 ### Example Request Body
 ```JSON
 {
     "selected_model":["description_formatting"],
+    "uuid": "test",
     "title": "test title",
     "abstract": "test abstract"
 }

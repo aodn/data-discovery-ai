@@ -18,7 +18,10 @@ from data_discovery_ai.config.constants import (
 )
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai.utils.es_connector import store_ai_generated_data
+from data_discovery_ai.utils.es_connector import (
+    store_ai_generated_data,
+    delete_es_document,
+)
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
@@ -97,8 +100,35 @@ async def health_check() -> HealthCheckResponse:
         await ensure_ready()
         return HealthCheckResponse(status_code=HTTPStatus.OK, status="healthy")
     except HTTPException as e:
-        # Return HealthCheckResponse with appropriate code and message
         return HealthCheckResponse(status_code=e.status_code, status=str(e.detail))
+
+
+@router.delete(
+    "/delete_doc", dependencies=[Depends(api_key_auth), Depends(ensure_ready)]
+)
+async def delete_doc(request: Request, doc_id: str):
+    """
+    To delete a document stored in the AI-related Elasticsearch index.
+    Input:
+        doc_id: the id of the document to delete.
+    Output:
+        JSONResponse(status_code=HTTPStatus.OK) if deleted successfully.
+        JSONResponse(status_code=NOT_FOUND) if not deleted successfully.
+    """
+    client = request.app.state.client
+    index = request.app.state.index
+
+    is_deleted = delete_es_document(doc_id, client, index)
+    if is_deleted:
+        return JSONResponse(
+            status_code=HTTPStatus.OK,
+            content={"message": f"Document {doc_id} deleted."},
+        )
+    else:
+        return JSONResponse(
+            status_code=HTTPStatus.NOT_FOUND,
+            content={"message": f"Document {doc_id} not found."},
+        )
 
 
 @router.post(
@@ -143,14 +173,34 @@ async def process_record(
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid request format."
         )
 
-    stored_body = supervisor.search_stored_data(body, client=client, index=index)
+    stored_body, matched_models = supervisor.search_stored_data(
+        body, client=client, index=index
+    )
 
-    if not stored_body:
-        supervisor.execute(body)
-        doc = supervisor.process_request_response(original_request)
-        background_tasks.add_task(
-            store_ai_generated_data, data=doc, client=client, index=index
-        )
-        return JSONResponse(content=supervisor.response, status_code=HTTPStatus.OK)
+    body_selected_models = set(body.get("selected_model", []))
+    remaining_models = list(body_selected_models - set(matched_models))
 
-    return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
+    if not remaining_models:
+        return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
+
+    body["selected_model"] = remaining_models
+    supervisor.execute(body)
+
+    full_response = copy.deepcopy(stored_body)
+    new_response = supervisor.response
+
+    if "summaries" in new_response:
+        full_response.setdefault("summaries", {}).update(new_response["summaries"])
+
+    for key in ["links", "themes"]:
+        if key in new_response:
+            full_response[key] = new_response[key]
+
+    supervisor.response = full_response
+
+    doc = supervisor.process_request_response(original_request)
+    background_tasks.add_task(
+        store_ai_generated_data, data=doc, client=client, index=index
+    )
+
+    return JSONResponse(content=full_response, status_code=HTTPStatus.OK)

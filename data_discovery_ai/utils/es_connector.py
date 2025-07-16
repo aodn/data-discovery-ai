@@ -214,3 +214,24 @@ def store_ai_generated_data(
     logger.info(
         f"Elasticsearch document with uuid '{doc_id}' stored in index '{index}'."
     )
+
+
+def delete_es_document(uuid: str, client: Elasticsearch, index: str) -> bool:
+    """
+    Delete a document from an Elasticsearch index with the document id.
+    Input:
+        uuid: str, the document id.
+        client: Elasticsearch client.
+        index: str, the index name.
+    Output:
+        bool, True if the document was deleted. False otherwise.
+    """
+    if client is None:
+        logger.error(f"Failed to connect to Elasticsearch index '{index}'.")
+        return False
+    try:
+        resp = client.delete(index=index, id=uuid)
+        return True if resp.get("result") == "deleted" else False
+    except Exception as e:
+        logger.error(f"Error deleting document: {e}")
+        return False

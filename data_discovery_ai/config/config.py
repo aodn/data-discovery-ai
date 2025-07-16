@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import yaml
+from dotenv import load_dotenv
 
 from data_discovery_ai.config.constants import PARAMETER_FILE
 
@@ -129,13 +130,14 @@ class ConfigUtil:
     LOGLEVEL = "DEBUG"
 
     def __init__(self, config_file: str) -> None:
+        load_dotenv()
         """Load YAML config, determine environment, and initialize logging."""
         self.base_dir = Path(__file__).resolve().parent.parent
         self.config_file = self.base_dir / "config" / config_file
         self._config_data = self._load_yaml(self.config_file)
 
-        self.config_file = self.base_dir / "config" / PARAMETER_FILE
-        self._parameter_data = self._load_yaml(self.config_file)
+        self.parameter_file = self.base_dir / "config" / PARAMETER_FILE
+        self._parameter_data = self._load_yaml(self.parameter_file)
 
         # determine environment (default to 'development')
         env_val = os.getenv("PROFILE")
@@ -153,7 +155,6 @@ class ConfigUtil:
     def get_config(profile: EnvType = None):
         if profile is None:
             profile = EnvType(os.getenv("PROFILE", EnvType.DEV))
-
         match profile:
             case EnvType.PRODUCTION:
                 return ProdConfig()

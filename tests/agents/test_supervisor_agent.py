@@ -176,9 +176,11 @@ class TestSupervisorAgent(unittest.TestCase):
 
         self.agent.model_config = self.model_config
 
-        result = self.agent.search_stored_data(
+        result, matched_model = self.agent.search_stored_data(
             request, mock_es_client, index="test_index"
         )
+
+        self.assertEqual(set(matched_model), set(request["selected_model"]))
 
         self.assertIn("links", result)
         self.assertEqual(

@@ -1,5 +1,5 @@
 from elasticsearch import Elasticsearch
-from typing import Dict, Union, Any
+from typing import Dict, Union, Any, List, Tuple
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai import logger
@@ -178,7 +178,7 @@ class SupervisorAgent(BaseAgent):
 
     def search_stored_data(
         self, request: Dict, client: Elasticsearch, index: str
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any], List[str]]:
 
         uuid = request.get("uuid", None)
 
@@ -186,15 +186,13 @@ class SupervisorAgent(BaseAgent):
         resp = client.search(index=index, body=query)
         hits = resp.get("hits", {}).get("hits", [])
         if not hits:
-            return {}
+            return {}, []
 
         # return the first hit
         existing_doc = hits[0]["_source"]
         old_request = existing_doc.get("ai:request_raw", {})
         old_models = set(old_request.get("selected_model", []))
         current_models = set(request.get("selected_model", []))
-        if not current_models.issubset(old_models):
-            return {}
 
         model_fields = {
             "link_grouping": self.model_config.get("task_agents")
@@ -221,11 +219,10 @@ class SupervisorAgent(BaseAgent):
                 matched_models.append(model)
 
         if not matched_models:
-            return {}
+            return {}, []
 
         partial_response = {}
 
-        old_links = existing_doc["links"]
         if "link_grouping" in matched_models and "links" in existing_doc:
             partial_response["links"] = existing_doc["links"]
 
@@ -244,4 +241,4 @@ class SupervisorAgent(BaseAgent):
         if "keyword_classification" in matched_models and "themes" in existing_doc:
             partial_response["themes"] = existing_doc["themes"]
 
-        return partial_response
+        return partial_response, matched_models

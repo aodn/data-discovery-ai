@@ -3,7 +3,7 @@ import gzip
 import json
 from io import BytesIO
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from data_discovery_ai.core.routes import ensure_ready
 from data_discovery_ai.server import app
@@ -64,3 +64,24 @@ class TestRoutes(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+
+    def test_delete_doc_success(self):
+        with patch("data_discovery_ai.core.routes.delete_es_document") as mock_delete:
+            mock_delete.return_value = True
+            response = client.delete(
+                "/api/v1/ml/delete_doc",
+                params={"doc_id": "test_doc_id"},
+                headers={"X-API-Key": "test-api-key"},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("deleted", response.json()["message"])
+
+    def test_delete_doc_not_found(self):
+        with patch("data_discovery_ai.core.routes.delete_es_document") as mock_delete:
+            mock_delete.return_value = False
+            response = client.delete(
+                "/api/v1/ml/delete_doc",
+                params={"doc_id": "test_doc_id"},
+                headers={"X-API-Key": "test-api-key"},
+            )
+            self.assertEqual(response.status_code, 404)
