@@ -2,13 +2,15 @@ import gzip
 import json
 
 from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from http import HTTPStatus
 from dotenv import load_dotenv
 import os
 import httpx
 import copy
+import asyncio
+import time
 
 from data_discovery_ai.config.constants import (
     API_PREFIX,
@@ -136,7 +138,7 @@ async def delete_doc(request: Request, doc_id: str):
 )
 async def process_record(
     request: Request, background_tasks: BackgroundTasks
-) -> JSONResponse:
+) -> StreamingResponse:
     """
     Process a record through the SupervisorAgent with the following logic:
         1. unzip the request if it was compressed
@@ -148,6 +150,10 @@ async def process_record(
         7. return the agent's response as the API call response
     Requires a valid API key and that the service is ready.
     """
+    app_config = ConfigUtil.get_config().get_application_config()
+    max_timeout = app_config.max_timeout
+    sse_interval = app_config.sse_interval
+
     content_encoding = request.headers.get("Content-Encoding", "").lower()
     try:
         if "gzip" in content_encoding:
@@ -156,10 +162,14 @@ async def process_record(
         else:
             body = await request.json()
     except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="Invalid JSON format"
-        )
+        error_msg = str(e)
 
+        def error_stream():
+            yield f"event: error\ndata: Invalid JSON format. Error {error_msg}\n\n"
+
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    uuid = body.get("uuid", "")
     original_request = copy.deepcopy(body)
     client = request.app.state.client
     index = request.app.state.index
@@ -169,38 +179,54 @@ async def process_record(
     supervisor.set_embedding_model(request.app.state.embedding_model)
 
     if not supervisor.is_valid_request(body):
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="Invalid request format."
+
+        def error_stream():
+            yield "event: error\ndata: Invalid request format\n"
+
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    async def event_stream():
+        stored_body, matched_models = supervisor.search_stored_data(
+            body, client=client, index=index
         )
 
-    stored_body, matched_models = supervisor.search_stored_data(
-        body, client=client, index=index
-    )
+        body_selected_models = set(body.get("selected_model", []))
+        remaining_models = list(body_selected_models - set(matched_models))
 
-    body_selected_models = set(body.get("selected_model", []))
-    remaining_models = list(body_selected_models - set(matched_models))
+        if not remaining_models:
+            yield f"event: done\ndata: {json.dumps(stored_body)}"
+            return
 
-    if not remaining_models:
-        return JSONResponse(content=stored_body, status_code=HTTPStatus.OK)
+        body["selected_model"] = remaining_models
+        start_time = time.time()
+        task = asyncio.create_task(asyncio.to_thread(supervisor.execute, body))
 
-    body["selected_model"] = remaining_models
-    supervisor.execute(body)
+        while not task.done():
+            elapsed = time.time() - start_time
+            if elapsed > max_timeout:
+                yield f"event: error\ndata: Processing timeout after {max_timeout} seconds.\n\n"
+                return
+            yield f"event: processing\ndata: Processing started with record UUID {uuid}... elapsed {int(elapsed)}s\n\n"
+            await asyncio.sleep(sse_interval)
 
-    full_response = copy.deepcopy(stored_body)
-    new_response = supervisor.response
+        await task
 
-    if "summaries" in new_response:
-        full_response.setdefault("summaries", {}).update(new_response["summaries"])
+        full_response = copy.deepcopy(stored_body)
+        new_response = supervisor.response
 
-    for key in ["links", "themes"]:
-        if key in new_response:
-            full_response[key] = new_response[key]
+        if "summaries" in new_response:
+            full_response.setdefault("summaries", {}).update(new_response["summaries"])
+        for key in ["links", "themes"]:
+            if key in new_response:
+                full_response[key] = new_response[key]
 
-    supervisor.response = full_response
+        supervisor.response = full_response
 
-    doc = supervisor.process_request_response(original_request)
-    background_tasks.add_task(
-        store_ai_generated_data, data=doc, client=client, index=index
-    )
+        doc = supervisor.process_request_response(original_request)
+        background_tasks.add_task(
+            store_ai_generated_data, data=doc, client=client, index=index
+        )
 
-    return JSONResponse(content=full_response, status_code=HTTPStatus.OK)
+        yield f"event: done\ndata: {json.dumps(full_response)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

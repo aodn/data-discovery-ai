@@ -38,6 +38,14 @@ class ElasticsearchConfig:
 
 
 @dataclass(frozen=True)
+class ApplicationConfig:
+    port: int
+    reload: bool
+    max_timeout: int
+    sse_interval: int
+
+
+@dataclass(frozen=True)
 class KeywordClassificationTrainerConfig:
     vocabs: List[str]
     test_size: float
@@ -258,7 +266,14 @@ class ConfigUtil:
         port = c.get("port", 8000)
         reload_val = c.get("reload", False)
         is_reload = str(reload_val).lower() == "true"
-        return ApplicationConfig(port=port, reload=is_reload)
+        max_timeout = c.get("max_timeout", 60)
+        sse_interval = c.get("sse_interval", 10)
+        return ApplicationConfig(
+            port=port,
+            reload=is_reload,
+            max_timeout=max_timeout,
+            sse_interval=sse_interval,
+        )
 
 
 class DevConfig(ConfigUtil):
