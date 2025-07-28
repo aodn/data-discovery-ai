@@ -11,6 +11,7 @@ import httpx
 import copy
 import asyncio
 import time
+import random
 
 from data_discovery_ai.config.constants import (
     API_PREFIX,
@@ -194,20 +195,27 @@ async def process_record(
         remaining_models = list(body_selected_models - set(matched_models))
 
         if not remaining_models:
-            yield f"event: done\ndata: {json.dumps(stored_body)}"
+            yield f"event: done\ndata: {json.dumps(stored_body)}\n\n"
             return
 
         body["selected_model"] = remaining_models
         start_time = time.time()
         task = asyncio.create_task(asyncio.to_thread(supervisor.execute, body))
 
+        last_sent_sse = 0
+        yield f"event: processing\ndata: Start processing record UUID {uuid}...\n\n"
+
         while not task.done():
             elapsed = time.time() - start_time
             if elapsed > max_timeout:
                 yield f"event: error\ndata: Processing timeout after {max_timeout} seconds.\n\n"
                 return
-            yield f"event: processing\ndata: Processing started with record UUID {uuid}... elapsed {int(elapsed)}s\n\n"
-            await asyncio.sleep(sse_interval)
+
+            if elapsed - last_sent_sse >= sse_interval:
+                yield f"event: processing\ndata: Processing record UUID {uuid}... elapsed {int(elapsed)}s\n\n"
+                last_sent_sse = elapsed
+
+            await asyncio.sleep(random.uniform(0.1, 0.5))
 
         await task
 
