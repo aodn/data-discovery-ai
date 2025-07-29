@@ -137,6 +137,8 @@ class TestRoutes(unittest.TestCase):
         lines = list(response.iter_lines())
 
         # Check if heartbeat and final message exist
+        self.assertEqual("event: processing", lines[0])
+        self.assertEqual("data: Start processing record UUID test-uuid...", lines[1])
         self.assertTrue(any("event: processing" in line for line in lines))
         self.assertTrue(any("event: done" in line for line in lines))
 
