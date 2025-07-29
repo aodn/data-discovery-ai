@@ -155,6 +155,7 @@ async def process_record(
     max_timeout = app_config.max_timeout
     sse_interval = app_config.sse_interval
 
+    # receive gzip or json format request, unzip request if it is gzip format
     content_encoding = request.headers.get("Content-Encoding", "").lower()
     try:
         if "gzip" in content_encoding:
@@ -170,6 +171,7 @@ async def process_record(
 
         return StreamingResponse(error_stream(), media_type="text/event-stream")
 
+    # initialise a supervisor agent to execute request
     uuid = body.get("uuid", "")
     original_request = copy.deepcopy(body)
     client = request.app.state.client
@@ -207,18 +209,20 @@ async def process_record(
 
         while not task.done():
             elapsed = time.time() - start_time
+            # send timeout error and exit if reach maximum timeout duration
             if elapsed > max_timeout:
                 yield f"event: error\ndata: Processing timeout after {max_timeout} seconds.\n\n"
                 return
-
+            # send sse message at each interval to keep connection alive
             if elapsed - last_sent_sse >= sse_interval:
                 yield f"event: processing\ndata: Processing record UUID {uuid}... elapsed {int(elapsed)}s\n\n"
                 last_sent_sse = elapsed
-
+            # add random delay to prevent busy waiting
             await asyncio.sleep(random.uniform(0.1, 0.5))
 
         await task
 
+        # formatting response to align with data schema
         full_response = copy.deepcopy(stored_body)
         new_response = supervisor.response
 
@@ -231,6 +235,7 @@ async def process_record(
         supervisor.response = full_response
 
         doc = supervisor.process_request_response(original_request)
+        # store the raw request and response to AI-related Elasticsearch index
         background_tasks.add_task(
             store_ai_generated_data, data=doc, client=client, index=index
         )
