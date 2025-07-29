@@ -9,6 +9,8 @@ mlflow:
 application:
   port: 8000
   reload: True
+  max_timeout: 180
+  sse_interval: 10
 model:
   description_formatting:
     model: llama3

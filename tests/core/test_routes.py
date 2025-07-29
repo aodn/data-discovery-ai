@@ -85,3 +85,61 @@ class TestRoutes(unittest.TestCase):
                 headers={"X-API-Key": "test-api-key"},
             )
             self.assertEqual(response.status_code, 404)
+
+    @patch("data_discovery_ai.core.routes.store_ai_generated_data")
+    @patch("data_discovery_ai.core.routes.SupervisorAgent")
+    def test_process_record_streaming_response(self, mock_agent, mock_store):
+        mock_agent.is_valid_request.return_value = True
+        mock_agent.response = {
+            "links": [
+                {
+                    "href": "https://example.com",
+                    "title": "Example Link",
+                    "rel": "related",
+                    "type": "text/html",
+                    "ai:group": "Others",
+                }
+            ]
+        }
+        mock_agent.return_value.search_stored_data.return_value = ({}, [])
+        mock_agent.process_request_response.return_value = {
+            "id": "test-uuid",
+            "stored": "data",
+        }
+
+        payload = {
+            "selected_model": ["link_grouping"],
+            "uuid": "test-uuid",
+            "links": [
+                {
+                    "href": "https://example.com",
+                    "title": "Example Link",
+                    "rel": "related",
+                    "type": "text/html",
+                }
+            ],
+        }
+
+        compressed_body = BytesIO()
+        with gzip.GzipFile(fileobj=compressed_body, mode="wb") as f:
+            f.write(json.dumps(payload).encode("utf-8"))
+
+        response = client.post(
+            "/api/v1/ml/process_record",
+            headers={
+                "Content-Type": "application/json",
+                "Content-Encoding": "gzip",
+                "X-API-Key": "test-api-key",
+            },
+            data=compressed_body.getvalue(),
+        )
+
+        lines = list(response.iter_lines())
+
+        # Check if heartbeat and final message exist
+        self.assertEqual("event: processing", lines[0])
+        self.assertEqual("data: Start processing record UUID test-uuid...", lines[1])
+        self.assertTrue(any("event: processing" in line for line in lines))
+        self.assertTrue(any("event: done" in line for line in lines))
+
+        mock_store.assert_called_once()

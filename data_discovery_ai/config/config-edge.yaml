@@ -9,6 +9,8 @@ mlflow:
 application:
   port: 8000
   reload: False
+  max_timeout: 60
+  sse_interval: 10
 model:
   description_formatting:
     model: gpt-4o-mini
