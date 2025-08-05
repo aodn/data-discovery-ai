@@ -32,12 +32,16 @@ class SupervisorAgent(BaseAgent):
         }
         self.tokenizer = None
         self.embedding_model = None
+        self.llm_client = None
 
     def set_tokenizer(self, tokenizer: Any):
         self.tokenizer = tokenizer
 
     def set_embedding_model(self, embedding_model: Any):
         self.embedding_model = embedding_model
+
+    def set_llm_client(self, llm_client: Any):
+        self.llm_client = llm_client
 
     def make_decision(self, request: Dict) -> bool:
         """
