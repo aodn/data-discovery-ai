@@ -41,13 +41,13 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
 
     def test_retrieve_json_valid(self):
         output = self.test_formatted_abstract
-        result = retrieve_json(output)
+        result = retrieve_json(model="llama3", output=output)
         self.assertEqual(result, "#title **Formatted abstract**")
 
     @patch("data_discovery_ai.agents.descriptionFormattingAgent.logger")
     def test_retrieve_json_invalid(self, mock_logger):
         test_no_json_output = "A test string with no JSON output"
-        result = retrieve_json(test_no_json_output)
+        result = retrieve_json(model="llama3", output=test_no_json_output)
         self.assertEqual(result, "A test string with no JSON output")
         mock_logger.error.assert_called_once_with("No JSON found in LLM response.")
 
