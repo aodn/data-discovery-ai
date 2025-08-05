@@ -1,6 +1,5 @@
 # The agent model for description formatting task
 import asyncio
-import time
 from ollama import chat
 
 from typing import Dict
@@ -74,8 +73,6 @@ def chunk_text(text: str, max_length: int = 1000) -> list[str]:
     """
     Splits text into chunks of max_length characters, at paragraph or sentence boundaries.
     """
-    import re
-
     paragraphs = re.split(r"\n{2,}", text)
     chunks = []
     current_chunk = ""

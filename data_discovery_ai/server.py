@@ -28,8 +28,8 @@ def load_llm_client():
         openai_api_key = os.getenv("OPENAI_API_KEY")
         llm_client = AsyncOpenAI(api_key=openai_api_key)
         return llm_client
-    except Exception as e:
-        logger.error(f"Failed to start server: OpenAI API key required: {e}")
+    except Exception:
+        logger.error("Failed to start server: OpenAI API key required")
         return None
 
 
