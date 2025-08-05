@@ -70,7 +70,7 @@ def retrieve_json(model: str, output: str) -> str:
         return output.strip()
 
 
-def chunk_text(text: str, max_length: int = 1200) -> list[str]:
+def chunk_text(text: str, max_length: int = 1000) -> list[str]:
     """
     Splits text into chunks of max_length characters, at paragraph or sentence boundaries.
     """
