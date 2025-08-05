@@ -5,8 +5,12 @@ from data_discovery_ai.utils.es_connector import create_es_index
 from data_discovery_ai.core.routes import router as api_router
 from transformers import AutoTokenizer, TFBertModel
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+import os
+from openai import AsyncOpenAI
 
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai import logger
 
 
 def load_tokenizer_model():
@@ -16,6 +20,17 @@ def load_tokenizer_model():
     embedding_model = TFBertModel.from_pretrained("google-bert/bert-base-uncased")
 
     return tokenizer, embedding_model
+
+
+def load_llm_client():
+    load_dotenv()
+    try:
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        llm_client = AsyncOpenAI(api_key=openai_api_key)
+        return llm_client
+    except Exception:
+        logger.error("Failed to start server: OpenAI API key required")
+        return None
 
 
 @asynccontextmanager
@@ -28,6 +43,9 @@ async def lifespan(app: FastAPI):
     client, index = create_es_index()
     app.state.client = client
     app.state.index = index
+
+    # create OpenAI client
+    app.state.llm_client = load_llm_client()
     yield
 
 

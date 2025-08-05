@@ -2,6 +2,7 @@ from elasticsearch import Elasticsearch
 from typing import Dict, Union, Any, List, Tuple
 
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.enum.agent_enums import AgentType
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.agents.descriptionFormattingAgent import (
@@ -19,25 +20,29 @@ from data_discovery_ai.agents.deliveryClassificationAgent import (
 class SupervisorAgent(BaseAgent):
     def __init__(self):
         super().__init__()
-        self.type = "supervisor"
+        self.type = AgentType.SUPERVISOR.value
         self.task_agents = []
         self.model_config = ConfigUtil.get_config().get_supervisor_config().settings
 
         # add name-task agent map here if more models added in
         self.model_name_class_map = {
-            "description_formatting": DescriptionFormattingAgent,
-            "keyword_classification": KeywordClassificationAgent,
-            "link_grouping": LinkGroupingAgent,
-            "delivery_classification": DeliveryClassificationAgent,
+            AgentType.DESCRIPTION_FORMATTING.value: DescriptionFormattingAgent,
+            AgentType.KEYWORD_CLASSIFICATION.value: KeywordClassificationAgent,
+            AgentType.LINK_GROUPING.value: LinkGroupingAgent,
+            AgentType.DELIVERY_CLASSIFICATION.value: DeliveryClassificationAgent,
         }
         self.tokenizer = None
         self.embedding_model = None
+        self.llm_client = None
 
     def set_tokenizer(self, tokenizer: Any):
         self.tokenizer = tokenizer
 
     def set_embedding_model(self, embedding_model: Any):
         self.embedding_model = embedding_model
+
+    def set_llm_client(self, llm_client: Any):
+        self.llm_client = llm_client
 
     def make_decision(self, request: Dict) -> bool:
         """
@@ -195,17 +200,19 @@ class SupervisorAgent(BaseAgent):
         current_models = set(request.get("selected_model", []))
 
         model_fields = {
-            "link_grouping": self.model_config.get("task_agents")
-            .get("link_grouping")
+            AgentType.LINK_GROUPING.value: self.model_config.get("task_agents")
+            .get(AgentType.LINK_GROUPING.value)
             .get("required_fields"),
-            "description_formatting": self.model_config.get("task_agents")
-            .get("description_formatting")
+            AgentType.DESCRIPTION_FORMATTING.value: self.model_config.get("task_agents")
+            .get(AgentType.DESCRIPTION_FORMATTING.value)
             .get("required_fields"),
-            "delivery_classification": self.model_config.get("task_agents")
-            .get("delivery_classification")
+            AgentType.DELIVERY_CLASSIFICATION.value: self.model_config.get(
+                "task_agents"
+            )
+            .get(AgentType.DELIVERY_CLASSIFICATION.value)
             .get("required_fields"),
-            "keyword_classification": self.model_config.get("task_agents")
-            .get("keyword_classification")
+            AgentType.KEYWORD_CLASSIFICATION.value: self.model_config.get("task_agents")
+            .get(AgentType.KEYWORD_CLASSIFICATION.value)
             .get("required_fields"),
         }
 
@@ -223,22 +230,25 @@ class SupervisorAgent(BaseAgent):
 
         partial_response = {}
 
-        if "link_grouping" in matched_models and "links" in existing_doc:
+        if AgentType.LINK_GROUPING.value in matched_models and "links" in existing_doc:
             partial_response["links"] = existing_doc["links"]
 
-        if "description_formatting" in matched_models:
+        if AgentType.DESCRIPTION_FORMATTING.value in matched_models:
             desc = existing_doc.get("summaries", {}).get("ai:description")
             if desc:
                 partial_response.setdefault("summaries", {})["ai:description"] = desc
 
-        if "delivery_classification" in matched_models:
+        if AgentType.DELIVERY_CLASSIFICATION.value in matched_models:
             freq = existing_doc.get("summaries", {}).get("ai:update_frequency")
             if freq:
                 partial_response.setdefault("summaries", {})[
                     "ai:update_frequency"
                 ] = freq
 
-        if "keyword_classification" in matched_models and "themes" in existing_doc:
+        if (
+            AgentType.KEYWORD_CLASSIFICATION.value in matched_models
+            and "themes" in existing_doc
+        ):
             partial_response["themes"] = existing_doc["themes"]
 
         return partial_response, matched_models

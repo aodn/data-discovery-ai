@@ -10,6 +10,7 @@ from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
 from data_discovery_ai.ml.preprocessor import Concept, ConceptTheme
+from data_discovery_ai.enum.agent_enums import AgentType
 
 
 def replace_with_column_names(
@@ -87,7 +88,7 @@ def reformat_response(response: Dict) -> Dict:
 class KeywordClassificationAgent(BaseAgent):
     def __init__(self):
         super().__init__()
-        self.type = "keyword_classification"
+        self.type = AgentType.KEYWORD_CLASSIFICATION.value
         self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_keyword_classification_config()
 

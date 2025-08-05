@@ -245,6 +245,7 @@ async def process_record(
     supervisor = SupervisorAgent()
     supervisor.set_tokenizer(request.app.state.tokenizer)
     supervisor.set_embedding_model(request.app.state.embedding_model)
+    supervisor.set_llm_client(request.app.state.llm_client)
 
     if not supervisor.is_valid_request(body):
 

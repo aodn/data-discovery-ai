@@ -8,6 +8,7 @@ import yaml
 from dotenv import load_dotenv
 
 from data_discovery_ai.config.constants import PARAMETER_FILE
+from data_discovery_ai.enum.agent_enums import LlmModels, AgentType
 
 
 class EnvType(Enum):
@@ -220,7 +221,9 @@ class ConfigUtil:
         )
 
     def get_keyword_classification_config(self) -> KeywordClassificationConfig:
-        m = self._parameter_data.get("model", {}).get("keyword_classification", {})
+        m = self._parameter_data.get("model", {}).get(
+            AgentType.KEYWORD_CLASSIFICATION.value, {}
+        )
         return KeywordClassificationConfig(
             confidence=m.get("confidence", 0.0),
             top_N=m.get("top_N", 0),
@@ -230,16 +233,20 @@ class ConfigUtil:
         )
 
     def get_description_formatting_config(self) -> DescriptionFormattingConfig:
-        m = self._config_data.get("model", {}).get("description_formatting", {})
+        m = self._config_data.get("model", {}).get(
+            AgentType.DESCRIPTION_FORMATTING.value, {}
+        )
         return DescriptionFormattingConfig(
-            model=m.get("model", "llama3"),
+            model=m.get("model", LlmModels.OLLAMA.value),
             temperature=m.get("temperature", 0.0),
             max_tokens=m.get("max_tokens", 4000),
             response_key=m.get("response_key", "summaries.ai:description"),
         )
 
     def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
-        m = self._parameter_data.get("model", {}).get("delivery_classification", {})
+        m = self._parameter_data.get("model", {}).get(
+            AgentType.DELIVERY_CLASSIFICATION.value, {}
+        )
         return DeliveryClassificationConfig(
             pretrained_model=m.get("pretrained_model", ""),
             separator=m.get("separator", ""),
@@ -247,14 +254,20 @@ class ConfigUtil:
         )
 
     def get_link_grouping_config(self) -> Dict[str, Any]:
-        return self._parameter_data.get("model", {}).get("link_grouping", {})
+        return self._parameter_data.get("model", {}).get(
+            AgentType.LINK_GROUPING.value, {}
+        )
 
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
-        tr = self._parameter_data.get("trainer", {}).get("keyword_classification", {})
+        tr = self._parameter_data.get("trainer", {}).get(
+            AgentType.KEYWORD_CLASSIFICATION.value, {}
+        )
         return KeywordClassificationTrainerConfig(**tr)
 
     def get_delivery_trainer_config(self) -> DeliveryClassificationTrainerConfig:
-        tr = self._parameter_data.get("trainer", {}).get("delivery_classification", {})
+        tr = self._parameter_data.get("trainer", {}).get(
+            AgentType.DELIVERY_CLASSIFICATION.value, {}
+        )
         return DeliveryClassificationTrainerConfig(**tr)
 
     def get_mlflow_config(self) -> MlflowConfig:
