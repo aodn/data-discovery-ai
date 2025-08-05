@@ -4,8 +4,9 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.config.constants import FILTER_FOLDER
+from data_discovery_ai.enum.agent_enums import AgentType
 
-from typing import Any, Tuple, Dict
+from typing import Any, Dict
 
 
 class DeliveryClassificationAgent(BaseAgent):
@@ -16,7 +17,7 @@ class DeliveryClassificationAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.type = "delivery_classification"
+        self.type = AgentType.DELIVERY_CLASSIFICATION.value
         self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_delivery_classification_config()
         self.supervisor = None

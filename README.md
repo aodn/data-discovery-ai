@@ -291,7 +291,8 @@ You can change the model's training settings (like how long it trains or how fas
 ## 📁 Project Structure
 ```
 data_discovery_ai/
-├── config/             # Common utilities and shared configurations/constants used across modules│
+├── config/             # Common utilities and shared configurations/constants used across modules
+├── enum/               # Enums to use
 ├── core/               # Core logic of the application such as API routes
 ├── agents/             # Task-specific agent modules using ML/AI/rule-based tools
 ├── ml/                 # Machine learning models: training, inference, evaluation logic

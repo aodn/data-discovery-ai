@@ -9,6 +9,7 @@ import json
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.enum.agent_enums import LlmModels, AgentType
 
 
 def needs_formatting(abstract: str) -> bool:
@@ -23,11 +24,11 @@ def retrieve_json(model: str, output: str) -> str:
         "formatted_abstract": "[Markdown-formatted text]"
     }
     Input:
-        output: str. The output text from the LLM model (GPT-4o-mini).
+        output: str. The output text from the LLM model (GPT or OLLAMA).
     Output:
         parsed_json_str: str. The parsed json string from the output text, which is the value of "formatted_abstract" key. If parsed json string is not found or failed, return None.
     """
-    if model == "gpt-4o-mini":
+    if model == LlmModels.GPT.value:
         return output.strip()
 
     # try directly parsing the JSON-like block first, it should be applied for all GPT-4o-mini model outputs
@@ -88,10 +89,8 @@ def chunk_text(text: str, max_length: int = 1000) -> list[str]:
     return chunks
 
 
-async def format_chunk_async(
-    client, system_prompt, title, chunk, model, temp, max_tokens
-):
-    input_text = f"Title: \n{title} \nAbstract:\n{chunk}"
+async def format_chunk_async(client, system_prompt, chunk, model, temp, max_tokens):
+    input_text = chunk
     completion = await client.chat.completions.create(
         model=model,
         messages=[
@@ -110,7 +109,7 @@ async def format_chunk_async(
 class DescriptionFormattingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
-        self.type = "description_formatting"
+        self.type = AgentType.DESCRIPTION_FORMATTING.value
 
         # load api key from .env file
         self.model_config = ConfigUtil.get_config().get_description_formatting_config()
@@ -166,7 +165,7 @@ class DescriptionFormattingAgent(BaseAgent):
         Processes long abstracts in parallel chunks for faster LLM formatting.
         """
         system_prompt = """
-        Process a metadata record's title and abstract. Reformat the abstract using Markdown format with these requirements: 1. keeping original text. 2. Markdown format: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https).
+        Process a metadata record's abstract. Reformat the abstract using Markdown format while keeping the original text.
         Your response should in the following JSON format:
         {
         "formatted_abstract": "[Markdown-formatted text]"
@@ -178,11 +177,11 @@ class DescriptionFormattingAgent(BaseAgent):
             temp = self.model_config.temperature
             max_tokens = self.model_config.max_tokens
 
-            chunks = chunk_text(abstract, max_length=2000)
+            chunks = chunk_text(abstract, max_length=1000)
 
             tasks = [
                 format_chunk_async(
-                    client, system_prompt, title, chunk, model, temp, max_tokens
+                    client, system_prompt, chunk, model, temp, max_tokens
                 )
                 for chunk in chunks
             ]
@@ -212,9 +211,9 @@ class DescriptionFormattingAgent(BaseAgent):
         model = self.model_config.model
         try:
             # if you use OpenAI model in production or staging
-            if model == "gpt-4o-mini":
+            if model == LlmModels.GPT.value:
                 response = asyncio.run(self.take_action_async(title, abstract))
-            elif model == "llama3":
+            elif model == LlmModels.OLLAMA.value:
                 # in dev use free llama 3 model
                 system_prompt = """
             Process a metadata record's title and abstract. Reformat the abstract, keeping original text, using Markdown: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https).

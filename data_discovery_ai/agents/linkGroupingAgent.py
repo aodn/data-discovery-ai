@@ -6,12 +6,13 @@ import requests
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.enum.agent_enums import AgentType
 
 
 class LinkGroupingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
-        self.type = "link_grouping"
+        self.type = AgentType.LINK_GROUPING.value
         self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_link_grouping_config()
         self.supervisor = None

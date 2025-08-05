@@ -6,6 +6,7 @@ from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 from data_discovery_ai.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
 )
+from data_discovery_ai.enum.agent_enums import AgentType
 
 
 class TestSupervisorAgent(unittest.TestCase):
@@ -62,10 +63,14 @@ class TestSupervisorAgent(unittest.TestCase):
 
         self.model_config = {
             "task_agents": {
-                "link_grouping": {"required_fields": ["title"]},
-                "description_formatting": {"required_fields": ["description"]},
-                "delivery_classification": {"required_fields": ["description"]},
-                "keyword_classification": {"required_fields": ["title"]},
+                AgentType.LINK_GROUPING.value: {"required_fields": ["title"]},
+                AgentType.DESCRIPTION_FORMATTING.value: {
+                    "required_fields": ["description"]
+                },
+                AgentType.DELIVERY_CLASSIFICATION.value: {
+                    "required_fields": ["description"]
+                },
+                AgentType.KEYWORD_CLASSIFICATION.value: {"required_fields": ["title"]},
             }
         }
 

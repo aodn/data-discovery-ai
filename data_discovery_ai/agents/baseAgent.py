@@ -1,9 +1,10 @@
 from typing import Dict, List, Any
+from data_discovery_ai.enum.agent_enums import AgentType
 
 
 class BaseAgent:
     def __init__(self):
-        self.type = "base"
+        self.type = AgentType.BASE.value
         self.response = {}
         self.required_fields = []
 
