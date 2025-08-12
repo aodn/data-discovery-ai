@@ -46,43 +46,54 @@ def get_predicted_keywords(prediction: np.ndarray, labels: Dict):
 
 
 def reformat_response(response: Dict) -> Dict:
-    theme_map = {}
+    """
+    Reformatting the response to align with data schema in Elasticsearch. The original response is a dict like {"themes": [Concept Dict]}, whose value is a list of dict that are Concept objects. The output is the formatted response which should follow the data schema defined in records_enhanced_schema.json
+    Input:
+        response: Dict. The original response from stored keyword_label.pkl file, which is stored as a concept-index map.
+    Output:
+        Dict. The reformatted response.
+    """
+
+    def norm(v: Any) -> str:
+        # Normalize strings and None -> ""; leave non-strings as-is if needed
+        if v is None:
+            return ""
+        return v.strip() if isinstance(v, str) else str(v)
+
+    grouped = {}
 
     for item in response.get("themes", []):
-        theme_info = item.get("theme", {})
-        theme_key = (
-            theme_info.get("title"),
-            theme_info.get("scheme"),
-            theme_info.get("description", ""),
-        )
+        theme_info = item.get("theme") or {}
+        theme_title = norm(theme_info.get("title"))
+        theme_scheme = norm(theme_info.get("scheme"))
+        theme_desc = norm(theme_info.get("description"))
+        tkey = (theme_title, theme_scheme, theme_desc)
 
-        if theme_key not in theme_map:
-            theme = ConceptTheme(
-                title=theme_key[0],
-                scheme=theme_key[1],
-                description=theme_key[2],
-            )
-            theme.set_as_ai_prediction("ai:description", "")
-            theme_map[theme_key] = theme
-        else:
-            theme = theme_map[theme_key]
+        bucket = grouped.get(tkey)
+        if bucket is None:
+            bucket = {"scheme": theme_scheme, "concepts": [], "_seen": set()}
+            grouped[tkey] = bucket
 
-        concept = Concept(value=item["id"], url=item["url"])
-        concept.set_theme(theme)
-        theme.add_concept(concept)
+        concept = Concept(value=item.get("id"), url=item.get("url"))
+        concept.set_title(item.get("title"))
+        concept.set_description(item.get("description"))
+        concept.set_as_ai_prediction("ai_description", "")
 
-    formatted = {
+        if not concept.value or not concept.url:
+            continue
+
+        sig = (concept.value, concept.url)
+        if sig in bucket["_seen"]:
+            continue
+        bucket["_seen"].add(sig)
+
+        bucket["concepts"].append(concept.json_to_response())
+
+    return {
         "themes": [
-            {
-                "concepts": [{"id": c.value, "url": c.url} for c in theme.concepts],
-                **theme.to_json(),
-                "ai:description": "This is the prediction provided by AI model",
-            }
-            for theme in theme_map.values()
+            {"scheme": b["scheme"], "concepts": b["concepts"]} for b in grouped.values()
         ]
     }
-
-    return formatted
 
 
 class KeywordClassificationAgent(BaseAgent):
@@ -124,7 +135,7 @@ class KeywordClassificationAgent(BaseAgent):
             abstract = request["abstract"]
             prediction = self.take_action(title, abstract)
             self.response = {self.model_config.response_key: prediction}
-            self.response = reformat_response(self.response)
+            # self.response = reformat_response(self.response)
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def take_action(self, title, abstract) -> List[Any]:

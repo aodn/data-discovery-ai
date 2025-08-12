@@ -154,19 +154,11 @@ class ConceptTheme:
     def add_concept(self, concept):
         self.concepts.add(concept)
 
-    def set_as_ai_prediction(self, key, value):
-        if key == "ai:description":
-            object.__setattr__(
-                self, "ai_description", "This is the prediction provided by AI model."
-            )
-        else:
-            super().__setattr__(key, value)
-
     def to_json(self) -> Dict[str, Any]:
         return {
-            "scheme": self.scheme,
-            "title": self.title,
-            "description": self.description,
+            "scheme": self.scheme
+            # "title": self.title,
+            # "description": self.description,
         }
 
     def __eq__(self, other: object) -> bool:
@@ -190,25 +182,63 @@ class Concept:
     def __init__(self, value: str, url: str) -> None:
         self.value = value
         self.url = url
+        self.title = None
+        self.description = None
         self.theme = None
+        self.ai_description = None
 
     def to_json(self) -> Dict[str, Any]:
-        return {"id": self.value, "url": self.url, "theme": self.theme.to_json()}
+        return {
+            "id": self.value,
+            "url": self.url,
+            "title": self.title,
+            "description": self.description,
+            "ai:description": self.ai_description,
+            "theme": self.theme.to_json(),
+        }
+
+    def json_to_response(self) -> Dict[str, Any]:
+        return {
+            "id": self.value,
+            "url": self.url,
+            "title": self.title,
+            "description": self.description,
+            "ai:description": self.ai_description,
+        }
 
     def set_theme(self, theme: ConceptTheme) -> None:
         self.theme = theme
+
+    def set_title(self, title: str) -> None:
+        self.title = title
+
+    def set_description(self, description: str) -> None:
+        self.description = description
+
+    def set_as_ai_prediction(self, key, value):
+        if key == "ai:description":
+            object.__setattr__(
+                self, "ai_description", "This is the prediction provided by AI model."
+            )
+        else:
+            super().__setattr__(key, value)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Concept):
             return NotImplemented
 
-        return self.value == other.value and self.url == other.url
+        return (
+            self.value == other.value
+            and self.url == other.url
+            and self.title == other.title
+            and self.description == other.description
+        )
 
     def __hash__(self):
-        return hash((self.value, self.url))
+        return hash((self.value, self.url, self.title, self.description))
 
     def __str__(self):
-        return f"Concept(value={self.value}, url='{self.url}')"
+        return f"Concept(value={self.value}, url='{self.url}', title={self.title}, description={self.description})')"
 
 
 class KeywordPreprocessor(BasePreprocessor):
@@ -228,7 +258,7 @@ class KeywordPreprocessor(BasePreprocessor):
         self.rare_labels = []
         self.data = None
         self.train_test_data = None
-        self.concepts = set()
+        self.concepts_map: Dict[Tuple[str, str], Concept] = {}
         self.concept_to_index: Dict[int, Dict] = {}
         self.themes = set()
 
@@ -260,8 +290,18 @@ class KeywordPreprocessor(BasePreprocessor):
         # only keep rows with vocabs in selected vocabs
         watched_df = df[
             df["keywords"].apply(
-                lambda terms: any(
-                    any(vocab in k["title"] for vocab in watched_vocabs) for k in terms
+                lambda theme_list: isinstance(theme_list, list)
+                and any(
+                    isinstance(theme, dict)
+                    and any(
+                        isinstance(concept, dict)
+                        and any(
+                            vocab in str(concept.get("title", ""))
+                            for vocab in watched_vocabs
+                        )
+                        for concept in theme.get("concepts", [])
+                    )
+                    for theme in theme_list
                 )
             )
         ]
@@ -356,53 +396,84 @@ class KeywordPreprocessor(BasePreprocessor):
             text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
             vocabs: List[str]. A list of vocabulary names to match against keyword titles.
         Output:
-            List[int]: the unique numeric mapping of a concept to a int.
+            List[int]: the unique numeric mapping of a concept to an int.
         """
         concept_indices = []
         if type(text) is list:
             themes = text
         else:
-            themes = ast.literal_eval(text)
+            try:
+                themes = ast.literal_eval(text)
+            except Exception as e:
+                logger.error(e)
+                return concept_indices
+
+        if type(themes) is not list:
+            return concept_indices
+
         for theme in themes:
             try:
-                theme_title = theme.get("title", "")
                 theme_scheme = theme.get("scheme", "")
-                theme_description = theme.get("description", "")
                 concepts = theme.get("concepts", [])
 
-                if theme_title in vocabs and concepts:
+                for concept in concepts:
+                    concept_title = (concept.get("title") or "").strip()
+                    concept_description = (concept.get("description") or "").strip()
+                    concept_id = (concept.get("id") or "").strip()
+                    concept_url = (concept.get("url") or "").strip()
+
+                    if concept_title not in vocabs:
+                        continue
+
                     current_theme = ConceptTheme(
-                        title=theme_title,
+                        title=concept_title,
                         scheme=theme_scheme,
-                        description=theme_description,
+                        description=concept_description,
                     )
                     self.themes.add(current_theme)
 
-                    for concept in concepts:
-                        concept_id = concept.get("id", "")
-                        concept_url = concept.get("url", "")
+                    if (
+                        not concept_id
+                        or not isinstance(concept_url, str)
+                        or not concept_url.startswith("http")
+                    ):
+                        continue
 
-                        if concept_id == "" or not concept_url.startswith("http"):
-                            continue
-
+                    key = (concept_id, concept_url)
+                    if key not in self.concepts_map:
                         concept_obj = Concept(value=concept_id, url=concept_url)
                         concept_obj.set_theme(current_theme)
+                        concept_obj.set_title(concept_title)
+                        concept_obj.set_description(concept_description)
                         current_theme.add_concept(concept_obj)
 
-                        if concept_obj not in self.concepts:
-                            concept_index = len(self.concepts)
-                            self.concepts.add(concept_obj)
-                            self.concept_to_index[concept_index] = concept_obj.to_json()
-                        else:
-                            concept_index = next(
-                                (
-                                    k
-                                    for k, v in self.concept_to_index.items()
-                                    if v == concept_obj
-                                ),
-                                None,
-                            )
+                        concept_index = len(self.concepts_map)
+                        self.concepts_map[key] = concept_obj
+                        self.concept_to_index[concept_index] = concept_obj.to_json()
+
+                    else:
+                        concept_obj = self.concepts_map[key]
+                        if concept_obj.title in (None, "") and concept_title:
+                            concept_obj.set_title(concept_title)
+                        if (
+                            concept_obj.description in (None, "")
+                            and concept_description
+                        ):
+                            concept_obj.set_description(concept_description)
+
+                        concept_json = concept_obj.to_json()
+                        concept_index = next(
+                            (
+                                k
+                                for k, v in self.concept_to_index.items()
+                                if v == concept_json
+                            ),
+                            None,
+                        )
+
+                    if concept_index is not None:
                         concept_indices.append(concept_index)
+
             except Exception as e:
                 logger.error("Error in keywords_formatter: %s", e)
 
