@@ -234,7 +234,7 @@ class Concept:
         return hash((self.value, self.url, self.title, self.description))
 
     def __str__(self):
-        return f"Concept(value={self.value}, url='{self.url}', title={self.title}, description={self.description})')"
+        return f"Concept(value={self.value}, url={self.url}, title={self.title}, description={self.description}))"
 
 
 class KeywordPreprocessor(BasePreprocessor):
@@ -389,7 +389,7 @@ class KeywordPreprocessor(BasePreprocessor):
         This is a loop function to update concept and theme sets of a keyword preprocessor.
 
         Input:
-            text: Union[str, List[dict]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
+            text: Union[str, List[dict]]. The input keywords, expected to be a list of dictionaries, can be passed as a string representation of the list.
             vocabs: List[str]. A list of vocabulary names to match against keyword titles.
         Output:
             List[int]: the unique numeric mapping of a concept to an int.
