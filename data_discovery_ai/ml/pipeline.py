@@ -131,12 +131,12 @@ class KeywordClassificationPipeline(BasePipeline):
 
         if start_from_preprocess:
             # fetch raw data
-            # raw_data = self.preprocessor.fetch_raw_data()
+            raw_data = self.preprocessor.fetch_raw_data()
 
             # for test only because it has more data
-            raw_data = load_from_file(
-                self.config.base_dir / "resources" / "raw_data.pkl"
-            )
+            # raw_data = load_from_file(
+            #     self.config.base_dir / "resources" / "raw_data.pkl"
+            # )
 
             # preprocess raw data
             filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)

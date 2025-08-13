@@ -16,6 +16,7 @@ from data_discovery_ai import logger
 import data_discovery_ai.utils.es_connector as es_connector
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding
+from data_discovery_ai.config.constants import CONCEPT_AI_DESCRIPTION
 from transformers import AutoTokenizer, TFBertModel
 
 
@@ -215,13 +216,8 @@ class Concept:
     def set_description(self, description: str) -> None:
         self.description = description
 
-    def set_as_ai_prediction(self, key, value):
-        if key == "ai:description":
-            object.__setattr__(
-                self, "ai_description", "This is the prediction provided by AI model."
-            )
-        else:
-            super().__setattr__(key, value)
+    def set_ai_description(self, ai_description: str = CONCEPT_AI_DESCRIPTION) -> None:
+        self.ai_description = ai_description
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Concept):

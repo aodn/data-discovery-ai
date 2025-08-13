@@ -33,18 +33,28 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
 
         themes_1 = [
             {
-                "concepts": [{"id": "1", "url": "https://vocabs.ardc.edu.au/1"}],
-                "scheme": "",
-                "description": "",
-                "title": "A",
+                "concepts": [
+                    {
+                        "id": "1",
+                        "url": "https://vocabs.ardc.edu.au/1",
+                        "title": "A",
+                        "description": "",
+                    }
+                ],
+                "scheme": "platform",
             }
         ]
         themes_2 = [
             {
-                "concepts": [{"id": "2", "url": "https://vocabs.ardc.edu.au/2"}],
-                "scheme": "",
-                "description": "",
-                "title": "B",
+                "concepts": [
+                    {
+                        "id": "2",
+                        "url": "https://vocabs.ardc.edu.au/2",
+                        "title": "A",
+                        "description": "",
+                    }
+                ],
+                "scheme": "theme",
             }
         ]
         df = pd.DataFrame(

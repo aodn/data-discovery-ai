@@ -9,7 +9,7 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
-from data_discovery_ai.ml.preprocessor import Concept, ConceptTheme
+from data_discovery_ai.ml.preprocessor import Concept
 from data_discovery_ai.enum.agent_enums import AgentType
 
 
@@ -77,7 +77,7 @@ def reformat_response(response: Dict) -> Dict:
         concept = Concept(value=item.get("id"), url=item.get("url"))
         concept.set_title(item.get("title"))
         concept.set_description(item.get("description"))
-        concept.set_as_ai_prediction("ai_description", "")
+        concept.set_ai_description()
 
         if not concept.value or not concept.url:
             continue
@@ -91,7 +91,7 @@ def reformat_response(response: Dict) -> Dict:
 
     return {
         "themes": [
-            {"scheme": b["scheme"], "concepts": b["concepts"]} for b in grouped.values()
+            {"concepts": b["concepts"], "scheme": b["scheme"]} for b in grouped.values()
         ]
     }
 
@@ -135,7 +135,7 @@ class KeywordClassificationAgent(BaseAgent):
             abstract = request["abstract"]
             prediction = self.take_action(title, abstract)
             self.response = {self.model_config.response_key: prediction}
-            # self.response = reformat_response(self.response)
+            self.response = reformat_response(self.response)
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def take_action(self, title, abstract) -> List[Any]:
