@@ -19,29 +19,23 @@ class TestKeywordClassificationAgent(unittest.TestCase):
                 {
                     "id": "Concept1",
                     "url": "http://example.com/concept1",
-                    "theme": {
-                        "title": "Theme A",
-                        "scheme": "Scheme A",
-                        "description": "Desc A",
-                    },
+                    "title": "Theme A",
+                    "description": "Desc A",
+                    "theme": {"scheme": "Scheme A"},
                 },
                 {
                     "id": "Concept2",
                     "url": "http://example.com/concept2",
-                    "theme": {
-                        "title": "Theme A",
-                        "scheme": "Scheme A",
-                        "description": "Desc A",
-                    },
+                    "title": "Theme A",
+                    "description": "Desc A",
+                    "theme": {"scheme": "Scheme A"},
                 },
                 {
                     "id": "Concept3",
                     "url": "http://example.com/concept3",
-                    "theme": {
-                        "title": "Theme B",
-                        "scheme": "Scheme B",
-                        "description": "Desc B",
-                    },
+                    "title": "Theme B",
+                    "description": "Desc B",
+                    "theme": {"scheme": "Scheme B"},
                 },
             ]
         }
@@ -53,23 +47,29 @@ class TestKeywordClassificationAgent(unittest.TestCase):
         self.assertFalse(self.agent.make_decision(self.invalid_request))
 
     def test_reformat_response(self):
-        formated_response = reformat_response(self.prediction)
-        self.assertIn("themes", formated_response)
-        # expected to have two themes A and B
-        self.assertEqual(len(formated_response["themes"]), 2)
+        formatted_response = reformat_response(self.prediction)
+        self.assertIn("themes", formatted_response)
 
-        for theme in formated_response["themes"]:
-            self.assertIn("concepts", theme)
-            self.assertIn("scheme", theme)
-            self.assertIn("title", theme)
-            self.assertIn("description", theme)
-            # test if AI prediction field tagged
-            self.assertEqual(
-                theme["ai:description"], "This is the prediction provided by AI model"
-            )
+        # expect two grouped themes: A and B
+        self.assertEqual(len(formatted_response["themes"]), 2)
+        self.assertIsInstance(formatted_response["themes"], list)
 
-        concepts_by_theme = {
-            t["title"]: t["concepts"] for t in formated_response["themes"]
-        }
-        self.assertEqual(len(concepts_by_theme["Theme A"]), 2)
-        self.assertEqual(len(concepts_by_theme["Theme B"]), 1)
+        for theme in formatted_response["themes"]:
+            with self.subTest(theme=theme):
+                self.assertIn("scheme", theme)
+                self.assertIsInstance(theme["concepts"], list)
+
+                for concept in theme["concepts"]:
+                    with self.subTest(concept=concept):
+                        # expected to have STAC fields
+                        self.assertIn("id", concept)
+                        self.assertIn("url", concept)
+                        self.assertIn("title", concept)
+                        self.assertIn("description", concept)
+
+                        # expected to have ai:description field
+                        self.assertIn("ai:description", concept)
+                        self.assertEqual(
+                            concept["ai:description"],
+                            "This is the prediction provided by AI model.",
+                        )

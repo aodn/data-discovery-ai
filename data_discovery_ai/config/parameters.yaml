@@ -122,8 +122,8 @@ trainer:
     fl_alpha: 0.8
     epoch: 100
     batch_size: 32
-    early_stopping_patience: 5
-    reduce_lr_patience: 5
+    early_stopping_patience: 10
+    reduce_lr_patience: 10
     validation_split: 0.2
     rare_label_threshold: 3
   delivery_classification:

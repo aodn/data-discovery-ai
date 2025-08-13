@@ -165,7 +165,11 @@ class SupervisorAgent(BaseAgent):
         data["id"] = request.get("uuid")
         data["title"] = request.get("title", None)
         data["description"] = request.get("abstract", None)
-        data["summaries"] = {"statement": request.get("lineage", None)}
+
+        data["summaries"] = {}
+        lineage = request.get("lineage", None)
+        if lineage:
+            data["summaries"]["statement"] = lineage
 
         response = self.response
         if response:

@@ -39,20 +39,20 @@
               },
               "url": {
                 "type": "text"
+              },
+              "title": {
+                "type": "text"
+              },
+              "description": {
+                "type": "text"
+              },
+              "ai:description": {
+                "type": "text"
               }
             }
           },
           "scheme": {
             "type": "keyword"
-          },
-          "title": {
-            "type": "text"
-          },
-          "description": {
-            "type": "text"
-          },
-          "ai:description": {
-            "type": "text"
           }
         }
       },
