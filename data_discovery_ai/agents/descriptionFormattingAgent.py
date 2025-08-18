@@ -165,7 +165,9 @@ class DescriptionFormattingAgent(BaseAgent):
         Processes long abstracts in parallel chunks for faster LLM formatting.
         """
         system_prompt = """
-        Process a metadata record's abstract. Reformat the abstract using Markdown format while keeping the original text.
+        Reformat this abstract using markdown. Convert text to headings ONLY if it's already a section label in the original (e.g. "Methods:", "Results:", or any standalone phrase less than 10 words). Don't add new headings.
+        Markdown rules: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4, end with \n. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https). Email: [email](mailto:email).
+        Keep original content unchanged.
         Your response should in the following JSON format:
         {
         "formatted_abstract": "[Markdown-formatted text]"
@@ -216,12 +218,14 @@ class DescriptionFormattingAgent(BaseAgent):
             elif model == LlmModels.OLLAMA.value:
                 # in dev use free llama 3 model
                 system_prompt = """
-            Process a metadata record's title and abstract. Reformat the abstract, keeping original text, using Markdown: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https).
-            Your response should in the following JSON format:
-            {
-            "formatted_abstract": "[Markdown-formatted text]"
-            }
-            """
+                Reformat this abstract using markdown. Convert text to headings ONLY if it's already a section label in the original (e.g. "Methods:", "Results:", or any standalone phrase less than 10 words). Don't add new headings.
+                Markdown rules: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4, end with \n. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https). Email: [email](mailto:email).
+                Keep original content unchanged.
+                Your response should in the following JSON format:
+                {
+                "formatted_abstract": "[Markdown-formatted text]"
+                }
+                """
                 response = chat(
                     model=model,
                     messages=[
