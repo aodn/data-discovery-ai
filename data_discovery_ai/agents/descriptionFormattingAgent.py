@@ -17,6 +17,56 @@ def needs_formatting(abstract: str) -> bool:
     return word_count > 200 and "\n" in abstract
 
 
+def _strip_trailing_punct(s: str) -> tuple[str, str]:
+    """
+    split punctation in the end of email or link, so that to avoid them in the converted email/link.
+    """
+    trail_punct = ".,!?:;"
+    trailing = ""
+    while s and s[-1] in trail_punct:
+        trailing = s[-1] + trailing
+        s = s[:-1]
+    if s.endswith(")") and s.count("(") < s.count(")"):
+        trailing = ")" + trailing
+        s = s[:-1]
+    return s, trailing
+
+
+def _wrap_url(m: re.Match) -> str:
+    url = m.group("url")
+    core, trailing = _strip_trailing_punct(url)
+    display = core
+    href = (
+        core if core.lower().startswith(("http://", "https://")) else f"https://{core}"
+    )
+    return f"[{display}]({href}){trailing}"
+
+
+def _wrap_email(m: re.Match) -> str:
+    email = m.group("email")
+    return f"[{email}](mailto:{email})"
+
+
+def formatting_short_description(abstract: str) -> str:
+    """
+    This is the customised function for processing short description (i.e., description that is not need to be formatted (return false from the `needs_formatting`) so that to add Markdown tag for links and emails in the description.
+    Input: abstract: str. The original description text.
+    Output: str. The enhanced description text.
+    """
+    url_re = re.compile(r"(?P<url>(?:https?://|www\.)[^\s<>()]+)", flags=re.IGNORECASE)
+    email_re = re.compile(
+        r"(?P<email>[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})",
+        flags=re.IGNORECASE,
+    )
+
+    # process link-like text -> [link](link)
+    abstract = url_re.sub(_wrap_url, abstract)
+
+    # process email-like text -> [email](mailto:email)
+    abstract = email_re.sub(_wrap_email, abstract)
+    return abstract
+
+
 def retrieve_json(model: str, output: str) -> str:
     """
     Retrieve json from the output text. The output is expected to contained text in the format of:
@@ -135,7 +185,8 @@ class DescriptionFormattingAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag and "abstract" in request:
-            self.response = {self.model_config.response_key: request["abstract"]}
+            result = formatting_short_description(request["abstract"])
+            self.response = {self.model_config.response_key: result}
         elif not flag and "abstract" not in request:
             self.response = {self.model_config.response_key: ""}
         else:
