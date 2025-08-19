@@ -19,7 +19,7 @@ def needs_formatting(abstract: str) -> bool:
 
 def _strip_trailing_punct(s: str) -> tuple[str, str]:
     """
-    split punctation in the end of email or link, so that to avoid them in the converted email/link.
+    split punctuation in the end of email or link, so that to avoid them in the converted email/link.
     """
     trail_punct = ".,!?:;"
     trailing = ""
@@ -49,7 +49,7 @@ def _wrap_email(m: re.Match) -> str:
 
 def formatting_short_description(abstract: str) -> str:
     """
-    This is the customised function for processing short description (i.e., description that is not need to be formatted (return false from the `needs_formatting`) so that to add Markdown tag for links and emails in the description.
+    This is the customized function for processing short descriptions (i.e., descriptions that do not need to be formatted—returns false from the `needs_formatting` function) to add Markdown tags for links and emails in the description.
     Input: abstract: str. The original description text.
     Output: str. The enhanced description text.
     """
