@@ -2,7 +2,7 @@
 import asyncio
 from ollama import chat
 
-from typing import Dict
+from typing import Dict, Optional
 import re
 import json
 
@@ -139,21 +139,133 @@ def chunk_text(text: str, max_length: int = 1000) -> list[str]:
     return chunks
 
 
-async def format_chunk_async(client, system_prompt, chunk, model, temp, max_tokens):
-    input_text = chunk
-    completion = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": input_text},
-        ],
-        temperature=temp,
-        max_tokens=max_tokens,
-        response_format={"type": "json_object"},  # Ensure JSON output
+async def format_chunk_async(
+    client,
+    system_prompt,
+    chunk,
+    model,
+    temp,
+    max_tokens,
+    chunk_index=None,
+    title=None,
+    previous_formatted_tail=None,
+):
+    """
+    Format a single chunk with context information
+
+    Args:
+        client: LLM client
+        system_prompt: Base system prompt
+        chunk: Text chunk to format
+        model: Model name
+        temp: Temperature
+        max_tokens: Max tokens
+        chunk_index: Current chunk number (0-indexed), None for first chunk
+        title: Title (only passed for first chunk)
+        previous_formatted_tail: the last sentence of the previous chunk, None for the first chunk
+    """
+    try:
+        if chunk_index is None or chunk_index == 0:
+            input_text = build_user_prompt(chunk_text=chunk, previous_tail=None)
+        else:
+            input_text = build_user_prompt(
+                chunk_text=chunk, previous_tail=previous_formatted_tail
+            )
+
+        completion = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": input_text},
+            ],
+            temperature=temp,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+
+        formatted = json.loads(completion.choices[0].message.content)
+
+        if "formatted_abstract" not in formatted:
+            raise KeyError("Response does not contain 'formatted_abstract' key")
+
+        return formatted["formatted_abstract"]
+
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON response: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Error formatting chunk: {e}")
+
+
+def build_system_prompt() -> str:
+    """
+    To create the system prompt used for llm
+    Output: str. the system prompt
+    """
+    return (
+        "Format the abstract in Markdown.\n"
+        "Only format text between <<<CHUNK_START>>> and <<<CHUNK_END>>>; ignore all else.\n"
+        "Rules:\n"
+        "- Preserve original wording; only fix obvious spacing/punctuation.\n"
+        "- Headings: use # to ####, only if source has a section label (≤10 words).\n"
+        "- Lists: use '-' per item; preserve nesting with 2 spaces.\n"
+        "- Inline: **bold**, *italic*, [text](url), [email](mailto:email).\n"
+        "- Keep one blank line between paragraphs.\n"
+        "- Continue lists/sections across chunks if ongoing.\n"
+        'Output JSON only: {"formatted_abstract": "<markdown>"}'
     )
 
-    formatted = json.loads(completion.choices[0].message.content)
-    return formatted["formatted_abstract"]
+
+def build_user_prompt(chunk_text: str, previous_tail: Optional[str]) -> str:
+    """
+    To create the user prompt used for llm to process abstract by chunks
+    Input:
+        chunk_index: int. Current chunk number (0-indexed), the index of the chunk in an abstract.
+        title: str. Title of the record, only for the first chunk, none otherwise.
+        chunk_text: str. Chunk text of the record.
+        previous_tail: str. Chunk text of the previous chunk, None for the first chunk
+    Output: str. the system prompt
+    """
+    if previous_tail is not None:
+        previous_tail_block = f"""Previous formatted tail (context only, do not repeat):
+<<<PREVIOUS_TAIL>>>
+{previous_tail}
+<<<END_PREVIOUS_TAIL>>>
+"""
+    else:
+        previous_tail_block = ""
+
+    chunk_block = f"""Below is the text to format. Process only content inside markers.
+
+    <<<CHUNK_START>>>
+    {chunk_text}
+    <<<CHUNK_END>>>"""
+
+    return chunk_block + previous_tail_block
+
+
+def extract_last_sentence(text: str) -> str:
+    """
+    Extract the last sentence from formatted text for context.
+    Input: text: Formatted text
+
+    Output: Last sentence of the text or last 100 characters if no sentence boundary found
+    """
+    if not text or not text.strip():
+        return ""
+
+    text = text.strip()
+    sentence_endings = [". ", "! ", "? ", ".\n", "!\n", "?\n"]
+
+    last_boundary = -1
+    for ending in sentence_endings:
+        pos = text.rfind(ending)
+        if pos > last_boundary:
+            last_boundary = pos
+
+    if last_boundary != -1:
+        return text[last_boundary + 2 :].strip()
+    else:
+        return text[-100:].strip() if len(text) > 100 else text
 
 
 class DescriptionFormattingAgent(BaseAgent):
@@ -215,15 +327,8 @@ class DescriptionFormattingAgent(BaseAgent):
         """
         Processes long abstracts in parallel chunks for faster LLM formatting.
         """
-        system_prompt = """
-        Reformat this abstract using markdown. Convert text to headings ONLY if it's already a section label in the original (e.g. "Methods:", "Results:", or any standalone phrase less than 10 words). Don't add new headings.
-        Markdown rules: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4, end with \n. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https). Email: [email](mailto:email).
-        Keep original content unchanged.
-        Your response should in the following JSON format:
-        {
-        "formatted_abstract": "[Markdown-formatted text]"
-        }
-        """
+        system_prompt = build_system_prompt()
+
         try:
             client = self.supervisor.llm_client
             model = self.model_config.model
@@ -232,20 +337,71 @@ class DescriptionFormattingAgent(BaseAgent):
 
             chunks = chunk_text(abstract, max_length=1000)
 
-            tasks = [
-                format_chunk_async(
-                    client, system_prompt, chunk, model, temp, max_tokens
+            if len(chunks) == 1:
+                result = await format_chunk_async(
+                    client,
+                    system_prompt,
+                    chunks[0],
+                    model,
+                    temp,
+                    max_tokens,
+                    chunk_index=0,
+                    title=title,
+                    previous_formatted_tail=None,
                 )
-                for chunk in chunks
-            ]
+                return result
 
-            logger.info(f"Submitting {len(tasks)} concurrent chunk formatting tasks...")
-            results = await asyncio.gather(*tasks)
+            results = []
+            previous_tail = None
+
+            logger.info(f"Processing {len(chunks)} chunks sequentially...")
+
+            for i, chunk in enumerate(chunks):
+                try:
+                    if i == 0:
+                        # First chunk - include title, no previous tail
+                        formatted = await format_chunk_async(
+                            client,
+                            system_prompt,
+                            chunk,
+                            model,
+                            temp,
+                            max_tokens,
+                            chunk_index=0,
+                            title=title,
+                            previous_formatted_tail=None,
+                        )
+                    else:
+                        # Subsequent chunks - no title, include previous tail
+                        formatted = await format_chunk_async(
+                            client,
+                            system_prompt,
+                            chunk,
+                            model,
+                            temp,
+                            max_tokens,
+                            chunk_index=i,
+                            title=None,
+                            previous_formatted_tail=previous_tail,
+                        )
+
+                    results.append(formatted)
+
+                    # Extract the last sentence for next chunk's context
+                    previous_tail = extract_last_sentence(formatted)
+
+                    logger.info(f"Successfully processed chunk {i + 1}/{len(chunks)}")
+
+                except Exception as e:
+                    logger.error(f"Error processing chunk {i + 1}: {e}")
+                    # On error, use original chunk text as fallback
+                    results.append(chunk)
+                    previous_tail = extract_last_sentence(chunk)
 
             return "\n\n".join(results).strip()
 
         except Exception as e:
-            logger.error(f"Error in calling LLM: {e}")
+            logger.error(f"Error in take_action_async: {e}")
             return abstract
 
     def take_action(self, title: str, abstract: str) -> str:
@@ -269,14 +425,20 @@ class DescriptionFormattingAgent(BaseAgent):
             elif model == LlmModels.OLLAMA.value:
                 # in dev use free llama 3 model
                 system_prompt = """
-                Reformat this abstract using markdown. Convert text to headings ONLY if it's already a section label in the original (e.g. "Methods:", "Results:", or any standalone phrase less than 10 words). Don't add new headings.
-                Markdown rules: Lists: Each item on new line, start with -. Headings: # H1, ## H2, ### H3, #### H4, end with \n. Bold: **text**. Italics: *text*. Links: URLs (www/http/https) as [text](www/http/https). Email: [email](mailto:email).
-                Keep original content unchanged.
-                Your response should in the following JSON format:
-                {
-                "formatted_abstract": "[Markdown-formatted text]"
-                }
+                    Format the abstract in Markdown.
+
+                    Rules:
+                    - Ignore labels like "Abstract (First part)" or "Abstract (Part x)" — they are metadata, not part of the original text.
+                    - Use headings only if the text already has a section label (e.g. "Methods:", "Results:").
+                    - Keep content unchanged otherwise.
+                    - Markdown rules: lists (-), headings (#, ##, ###, ####), bold (**text**), italic (*text*), links [text](url), emails [email](mailto:email).
+
+                    Return JSON:
+                    {
+                      "formatted_abstract": "[Markdown text]"
+                    }
                 """
+
                 response = chat(
                     model=model,
                     messages=[
