@@ -9,7 +9,7 @@ mlflow:
 application:
   port: 8000
   reload: False
-  max_timeout: 60
+  max_timeout: 150
   sse_interval: 10
 model:
   description_formatting:
