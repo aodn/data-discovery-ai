@@ -394,7 +394,6 @@ class DescriptionFormattingAgent(BaseAgent):
 
                 except Exception as e:
                     logger.error(f"Error processing chunk {i + 1}: {e}")
-                    # On error, use original chunk text as fallback
                     results.append(chunk)
                     previous_tail = extract_last_sentence(chunk)
 
