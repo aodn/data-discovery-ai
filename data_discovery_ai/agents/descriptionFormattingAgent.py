@@ -235,12 +235,11 @@ def build_user_prompt(chunk_text: str, previous_tail: Optional[str]) -> str:
         previous_tail_block = ""
 
     chunk_block = f"""Below is the text to format. Process only content inside markers.
+<<<CHUNK_START>>>
+{chunk_text}
+<<<CHUNK_END>>>"""
 
-    <<<CHUNK_START>>>
-    {chunk_text}
-    <<<CHUNK_END>>>"""
-
-    return chunk_block + previous_tail_block
+    return previous_tail_block + chunk_block
 
 
 def extract_last_sentence(text: str) -> str:
