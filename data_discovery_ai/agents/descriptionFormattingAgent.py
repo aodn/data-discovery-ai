@@ -53,7 +53,12 @@ def formatting_short_description(abstract: str) -> str:
     Input: abstract: str. The original description text.
     Output: str. The enhanced description text.
     """
-    url_re = re.compile(r"(?P<url>(?:https?://|www\.)[^\s<>()]+)", flags=re.IGNORECASE)
+    # mapping rule: detect urls with these rules: (1) Optional protocol prefix: http://, https://, or www; (2) Domain name format: must start and end with alphanumeric characters (a-z, A-Z, 0-9) within 61 characters max (to falls in DNS standard)
+    url_re = re.compile(
+        r"(?P<url>(?:https?://|www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(?:[^\s<>()]*)?)",
+        flags=re.IGNORECASE,
+    )
+    # mapping rule: detect emails like username@domain.top_domain
     email_re = re.compile(
         r"(?P<email>[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})",
         flags=re.IGNORECASE,
@@ -147,7 +152,6 @@ async def format_chunk_async(
     temp,
     max_tokens,
     chunk_index=None,
-    title=None,
     previous_formatted_tail=None,
 ):
     """
@@ -161,7 +165,6 @@ async def format_chunk_async(
         temp: Temperature
         max_tokens: Max tokens
         chunk_index: Current chunk number (0-indexed), None for first chunk
-        title: Title (only passed for first chunk)
         previous_formatted_tail: the last sentence of the previous chunk, None for the first chunk
     """
     try:
@@ -202,16 +205,16 @@ def build_system_prompt() -> str:
     Output: str. the system prompt
     """
     return (
-        "Format the abstract in Markdown.\n"
-        "Only format text between <<<CHUNK_START>>> and <<<CHUNK_END>>>; ignore all else.\n"
+        "Format text between <<<CHUNK_START>>> and <<<CHUNK_END>>> as plain markdown.\n"
         "Rules:\n"
-        "- Preserve original wording; only fix obvious spacing/punctuation.\n"
-        "- Headings: use # to ####, only if source has a section label (≤10 words).\n"
+        "- Preserve original wording.\n"
+        "- NO additional headers unless the source explicitly has section labels (≤10 words).\n"
+        "- NO emphasis: Do not use **bold**, *italic*, or any text emphasis unless the source explicitly has emphasis labels.\n"
         "- Lists: use '-' per item; preserve nesting with 2 spaces.\n"
-        "- Inline: **bold**, *italic*, [text](url), [email](mailto:email).\n"
+        "- Links only: [text](url), [email](mailto:email) for actual URLs/emails in source.\n"
         "- Keep one blank line between paragraphs.\n"
         "- Continue lists/sections across chunks if ongoing.\n"
-        'Output JSON only: {"formatted_abstract": "<markdown>"}'
+        'Return your response as a JSON object with this structure: {"formatted_abstract": "<markdown>"}'
     )
 
 
@@ -220,7 +223,6 @@ def build_user_prompt(chunk_text: str, previous_tail: Optional[str]) -> str:
     To create the user prompt used for llm to process abstract by chunks
     Input:
         chunk_index: int. Current chunk number (0-indexed), the index of the chunk in an abstract.
-        title: str. Title of the record, only for the first chunk, none otherwise.
         chunk_text: str. Chunk text of the record.
         previous_tail: str. Chunk text of the previous chunk, None for the first chunk
     Output: str. the system prompt
@@ -322,7 +324,7 @@ class DescriptionFormattingAgent(BaseAgent):
         """
         return self.is_valid_request(request) and needs_formatting(request["abstract"])
 
-    async def take_action_async(self, title: str, abstract: str) -> str:
+    async def take_action_async(self, abstract: str) -> str:
         """
         Processes long abstracts in parallel chunks for faster LLM formatting.
         """
@@ -345,7 +347,6 @@ class DescriptionFormattingAgent(BaseAgent):
                     temp,
                     max_tokens,
                     chunk_index=0,
-                    title=title,
                     previous_formatted_tail=None,
                 )
                 return result
@@ -353,12 +354,10 @@ class DescriptionFormattingAgent(BaseAgent):
             results = []
             previous_tail = None
 
-            logger.info(f"Processing {len(chunks)} chunks sequentially...")
-
             for i, chunk in enumerate(chunks):
                 try:
                     if i == 0:
-                        # First chunk - include title, no previous tail
+                        # First chunk - no previous tail
                         formatted = await format_chunk_async(
                             client,
                             system_prompt,
@@ -367,11 +366,10 @@ class DescriptionFormattingAgent(BaseAgent):
                             temp,
                             max_tokens,
                             chunk_index=0,
-                            title=title,
                             previous_formatted_tail=None,
                         )
                     else:
-                        # Subsequent chunks - no title, include previous tail
+                        # Subsequent chunks - include previous tail
                         formatted = await format_chunk_async(
                             client,
                             system_prompt,
@@ -380,16 +378,12 @@ class DescriptionFormattingAgent(BaseAgent):
                             temp,
                             max_tokens,
                             chunk_index=i,
-                            title=None,
                             previous_formatted_tail=previous_tail,
                         )
 
                     results.append(formatted)
-
                     # Extract the last sentence for next chunk's context
                     previous_tail = extract_last_sentence(formatted)
-
-                    logger.info(f"Successfully processed chunk {i + 1}/{len(chunks)}")
 
                 except Exception as e:
                     logger.error(f"Error processing chunk {i + 1}: {e}")
@@ -413,35 +407,21 @@ class DescriptionFormattingAgent(BaseAgent):
             If the agent does not take action, the output is the original abstract text.
         """
         logger.info(f"Description is being reformatted by {self.type} agent")
-        input_text = f"Title: \n{title} \nAbstract:\n{abstract}"
         response = None
         model = self.model_config.model
         try:
             # if you use OpenAI model in production or staging
             if model == LlmModels.GPT.value:
-                response = asyncio.run(self.take_action_async(title, abstract))
+                response = asyncio.run(self.take_action_async(abstract))
             elif model == LlmModels.OLLAMA.value:
                 # in dev use free llama 3 model
-                system_prompt = """
-                    Format the abstract in Markdown.
-
-                    Rules:
-                    - Ignore labels like "Abstract (First part)" or "Abstract (Part x)" — they are metadata, not part of the original text.
-                    - Use headings only if the text already has a section label (e.g. "Methods:", "Results:").
-                    - Keep content unchanged otherwise.
-                    - Markdown rules: lists (-), headings (#, ##, ###, ####), bold (**text**), italic (*text*), links [text](url), emails [email](mailto:email).
-
-                    Return JSON:
-                    {
-                      "formatted_abstract": "[Markdown text]"
-                    }
-                """
-
+                system_prompt = build_system_prompt()
+                user_prompt = build_user_prompt(abstract, title)
                 response = chat(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": input_text},
+                        {"role": "user", "content": user_prompt},
                     ],
                     options={
                         "temperature": self.model_config.temperature,
