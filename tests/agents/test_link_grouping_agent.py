@@ -3,7 +3,10 @@ import unittest
 from unittest.mock import patch, MagicMock
 import requests
 
-from data_discovery_ai.agents.linkGroupingAgent import LinkGroupingAgent
+from data_discovery_ai.agents.linkGroupingAgent import (
+    LinkGroupingAgent,
+    subgroup_access_link,
+)
 from data_discovery_ai.config.config import ConfigUtil
 
 
@@ -107,6 +110,58 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 }
             ]
         }
+
+    def test_subgroup_access_link(self):
+        data_access_links = [
+            # subgroup: thredds
+            {
+                "href": "http://thredds.aodn.org.au/thredds/catalog/IMOS/Argo/dac/catalog.html",
+                "rel": "related",
+                "type": "text/html",
+                "title": "NetCDF files via THREDDS catalog",
+                "ai:group": "Data Access",
+            },
+            # subgroup: wms
+            {
+                "href": "http://geoserver-123.aodn.org.au/geoserver/wms",
+                "rel": "wms",
+                "type": "",
+                "title": "imos:argo_profile_bio_map",
+                "ai:group": "Data Access",
+            },
+            # subgroup: aws
+            {
+                "href": "https://registry.opendata.aws/aodn_slocum_glider_delayed_qc/",
+                "rel": "related",
+                "type": "text/html",
+                "title": "Access To AWS Open Data Program registry for the Cloud Optimised version of this dataset",
+                "ai:group": "Data Access",
+            },
+            # wfs
+            {
+                "href": "http://geoserver-123.aodn.org.au/geoserver/ows",
+                "rel": "wfs",
+                "type": "",
+                "title": "anfog_dm_trajectory_data",
+                "ai:group": "Data Access",
+            },
+            # no specific subgroup
+            {
+                "href": "https://www.marine.csiro.au/data/trawler/dataset.cfm?survey=IN2015_V02&data_type=adcp",
+                "rel": "data",
+                "type": "",
+                "title": "Data available via Data Trawler",
+                "ai:group": "Data Access",
+            },
+        ]
+
+        result = [subgroup_access_link(link) for link in data_access_links]
+
+        self.assertEqual(result[0]["ai:group"], "Data Access > thredds")  # thredds
+        self.assertEqual(result[1]["ai:group"], "Data Access > wms")  # wms
+        self.assertEqual(result[2]["ai:group"], "Data Access > aws")  # aws
+        self.assertEqual(result[3]["ai:group"], "Data Access > wfs")  # wfs
+        self.assertEqual(result[4]["ai:group"], "Data Access")  # no specific subgroup
 
     @patch("data_discovery_ai.agents.linkGroupingAgent.requests.get")
     def test_ungrouped_links_with_fallback(self, mock_get):

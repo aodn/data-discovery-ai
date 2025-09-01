@@ -2,11 +2,60 @@
 from typing import Dict, Any, List
 from itertools import product, permutations
 import requests
+import re
 
 from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
+
+
+def subgroup_access_link(link: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Refine the `ai:group` classification for links tagged as "Data Access".
+
+    Inspects the link URL and adds a more specific subgroup in the format: "Data Access > [subgroup]". If no subgroup pattern is found, returns the link unchanged.
+    Applied subgroups:
+        - wfs (for WFS links)
+        - wms (for WMS links)
+        - thredds (for links pointing to THREDDS access)
+        - aws (for links pointing to AWS Open Data Program registry)
+    Input:
+        link (Dict[str, Any]): A single AI-classified link dictionary.
+    Output:
+        Dict[str, Any]: The same link dictionary, with `ai:group` modified to include the subgroup if a match is found; otherwise unchanged.
+    """
+    sep = " > "
+
+    if "wms" in link["rel"]:
+        link["ai:group"] = link["ai:group"] + sep + "wms"
+        return link
+    if "wfs" in link["rel"]:
+        link["ai:group"] = link["ai:group"] + sep + "wfs"
+        return link
+
+    subgroup_pattern = [
+        # identifier for aws open data program registry: "registry.opendata.aws" in href
+        ("aws", re.compile(r"\bregistry\.opendata\.aws\b", re.IGNORECASE)),
+        # identifier for thredds: "thredds" in href
+        ("thredds", re.compile(r"\bthredds\b", re.IGNORECASE)),
+        # identifier "wfs" in href
+        ("wfs", re.compile(r"(\bwfs\b|service\s*=\s*wfs\b)", re.IGNORECASE)),
+        # identifier "wms" in href
+        ("wms", re.compile(r"(\bwms\b|service\s*=\s*wms\b)", re.IGNORECASE)),
+    ]
+    href = link.get("href")
+    matches: List[str] = [name for name, pat in subgroup_pattern if pat.search(href)]
+    if not matches:
+        return link
+
+    parts = [p.strip() for p in (link.get("ai:group") or "Data Access").split(sep)]
+    for sg in matches:
+        if sg not in parts:
+            parts.append(sg)
+
+    link["ai:group"] = sep.join(parts)
+    return link
 
 
 class LinkGroupingAgent(BaseAgent):
@@ -86,6 +135,11 @@ class LinkGroupingAgent(BaseAgent):
                 continue
 
             link["ai:group"] = link_group
+
+            # Add subgroup for Data Access link. Inspects the link URL and adds a more specific subgroup in the format: "Data Access > [subgroup]".
+            if link_group == "Data Access":
+                link = subgroup_access_link(link)
+
             if link_group == "Python Notebook":
                 # make sure the python notebook type is as required
                 link["type"] = "application/x-ipynb+json"
