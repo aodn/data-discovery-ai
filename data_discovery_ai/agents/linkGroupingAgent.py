@@ -194,7 +194,17 @@ class LinkGroupingAgent(BaseAgent):
 
         # if no condition met, crawl the content to check if keywords are present
         try:
-            if rel == "data" and not href.endswith(".html"):
+            # sometimes rel is not 100% accurate, we use a more restrictive rule to detect a data link for rel=data links with exact data-like urls
+            # e.g. {
+            #             "href": "https://mnf.csiro.au/",
+            #             "rel": "data",
+            #             "type": "",
+            #             "title": "Marine National Facility"
+            #         }
+            data_path_keywords = ["data", "dataset", "download", "file", "api"]
+            is_data_url = any(keyword in href.lower() for keyword in data_path_keywords)
+
+            if rel == "data" and not href.endswith(".html") and is_data_url:
                 return "Data Access"
             if href.endswith(".html"):
                 resp = requests.get(href, timeout=(3, 5))

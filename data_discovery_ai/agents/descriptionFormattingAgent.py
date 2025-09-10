@@ -47,28 +47,30 @@ def _wrap_email(m: re.Match) -> str:
     return f"[{email}](mailto:{email})"
 
 
-def formatting_short_description(abstract: str) -> str:
+def manual_wrapper_description(abstract: str) -> str:
     """
     This is the customized function for processing short descriptions (i.e., descriptions that do not need to be formatted—returns false from the `needs_formatting` function) to add Markdown tags for links and emails in the description.
     Input: abstract: str. The original description text.
     Output: str. The enhanced description text.
     """
     # mapping rule: detect urls with these rules: (1) Optional protocol prefix: http://, https://, or www; (2) Domain name format: must start and end with alphanumeric characters (a-z, A-Z, 0-9) within 61 characters max (to falls in DNS standard)
-    url_re = re.compile(
-        r"(?P<url>(?:https?://|www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(?:[^\s<>()]*)?)",
-        flags=re.IGNORECASE,
-    )
-    # mapping rule: detect emails like username@domain.top_domain
-    email_re = re.compile(
-        r"(?P<email>[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})",
-        flags=re.IGNORECASE,
-    )
+    url_pattern = r"(?P<url>(?:https?://|www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(?:[^\s<>()]*)?)"
+    email_pattern = r"(?P<email>[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})"
 
-    # process link-like text -> [link](link)
-    abstract = url_re.sub(_wrap_url, abstract)
+    combined_pattern = f"({email_pattern})|({url_pattern})"
+    combined_re = re.compile(combined_pattern, flags=re.IGNORECASE)
 
-    # process email-like text -> [email](mailto:email)
-    abstract = email_re.sub(_wrap_email, abstract)
+    def combined_replacer(match):
+        if match.group(1):
+            email_match = re.match(email_pattern, match.group(1))
+            return _wrap_email(email_match)
+        elif match.group(2):
+            url_match = re.match(url_pattern, match.group(2))
+            return _wrap_url(url_match)
+        return match.group(0)
+
+    abstract = combined_re.sub(combined_replacer, abstract)
+
     return abstract
 
 
@@ -210,8 +212,9 @@ def build_system_prompt() -> str:
         "- Preserve original wording.\n"
         "- NO additional headers unless the source explicitly has section labels (≤10 words).\n"
         "- NO emphasis: Do not use **bold**, *italic*, or any text emphasis unless the source explicitly has emphasis labels.\n"
-        "- Lists: use '-' per item; preserve nesting with 2 spaces.\n"
-        "- Links only: [text](url), [email](mailto:email) for actual URLs/emails in source.\n"
+        "- Bullet lists: use '-' per item if item are pure text. preserve nesting with 2 spaces.\n"
+        "- Number lists: use numbered list '1' if item start with numbers like 1., (1), or 1)"
+        "- [text](url), [email](mailto:email) for actual URLs/emails in source.\n"
         "- Keep one blank line between paragraphs.\n"
         "- Continue lists/sections across chunks if ongoing.\n"
         'Return your response as a JSON object with this structure: {"formatted_abstract": "<markdown>"}'
@@ -298,15 +301,17 @@ class DescriptionFormattingAgent(BaseAgent):
         """
         flag = self.make_decision(request)
         if not flag and "abstract" in request:
-            result = formatting_short_description(request["abstract"])
+            result = manual_wrapper_description(request["abstract"])
             self.response = {self.model_config.response_key: result}
         elif not flag and "abstract" not in request:
             self.response = {self.model_config.response_key: ""}
         else:
             title = request["title"]
             abstract = request["abstract"]
+
+            result = manual_wrapper_description(abstract)
             self.response = {
-                self.model_config.response_key: self.take_action(title, abstract)
+                self.model_config.response_key: self.take_action(title, result)
             }
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
 
