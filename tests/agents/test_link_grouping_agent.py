@@ -25,19 +25,19 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "href": "https://example.ipynb",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "Example Notebook Link",
+                    "title": "Example Notebook Link[This is a Python Notebook link]",
                 },
                 {
                     "href": "https://example.com",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "Example Document Link",
+                    "title": "Example Document Link[This is a document link]",
                 },
                 {
                     "href": "https://example.wms",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "Example Data Link",
+                    "title": "Example Data Link[This is a data access link]",
                 },
             ]
         }
@@ -48,19 +48,19 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "href": "http://nesptropical.edu.au/wp-content/uploads/2016/03/NESP-TWQ-3.1-FINAL-REPORT.pdf",
                     "rel": "WWW:LINK-1.0-http--publication",
                     "type": "",
-                    "title": "REPORT - Project Final Report [PDF]",
+                    "title": "REPORT - Project Final Report [PDF][]",
                 },
                 {
                     "href": "https://catalogue.aodn.org.au:443/geonetwork/srv/api/records/05818c50-14c2-11dd-bdaa-00188b4c0af8/attachments/1989_01_12.zip",
                     "rel": "data",
                     "type": "",
-                    "title": "1989_01_12.zip",
+                    "title": "1989_01_12.zip[]",
                 },
                 {
                     "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
                     "rel": "data",
                     "type": "",
-                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD]",
+                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD][attachments]",
                 },
             ]
         }
@@ -71,31 +71,31 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "href": "https://processes.aodn.org.au/wps",
                     "rel": "OGC:WPS--gogoduck",
                     "type": "",
-                    "title": "csiro_oa_reconstruction_url",
+                    "title": "csiro_oa_reconstruction_url[A wms layer name]",
                 },
                 {
                     "href": "https://help.aodn.org.au/web-services/gogoduck-aggregator/",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "GoGoDuck help documentation",
+                    "title": "GoGoDuck help documentation[]",
                 },
                 {
                     "href": "https://portal.aodn.org.au/search?uuid=7709f541-fc0c-4318-b5b9-9053aa474e0e",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "View and download data though the AODN Portal",
+                    "title": "View and download data though the AODN Portal[]",
                 },
                 {
                     "href": "https://help.aodn.org.au/web-services/ncurllist-service/",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "ncUrlList help documentation",
+                    "title": "ncUrlList help documentation[]",
                 },
                 {
                     "href": "http://geoserver-123.aodn.org.au/geoserver/ows",
                     "rel": "IMOS:AGGREGATION--bodaac",
                     "type": "",
-                    "title": "anmn_velocity_timeseries_map#file_url",
+                    "title": "anmn_velocity_timeseries_map#file_url[A wms layer name]",
                 },
             ]
         }
@@ -118,7 +118,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 "href": "http://thredds.aodn.org.au/thredds/catalog/IMOS/Argo/dac/catalog.html",
                 "rel": "related",
                 "type": "text/html",
-                "title": "NetCDF files via THREDDS catalog",
+                "title": "NetCDF files via THREDDS catalog[]",
                 "ai:group": "Data Access",
             },
             # subgroup: wms
@@ -126,7 +126,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 "href": "http://geoserver-123.aodn.org.au/geoserver/wms",
                 "rel": "wms",
                 "type": "",
-                "title": "imos:argo_profile_bio_map",
+                "title": "imos:argo_profile_bio_map[A wms layer name]",
                 "ai:group": "Data Access",
             },
             # subgroup: aws
@@ -134,7 +134,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 "href": "https://registry.opendata.aws/aodn_slocum_glider_delayed_qc/",
                 "rel": "related",
                 "type": "text/html",
-                "title": "Access To AWS Open Data Program registry for the Cloud Optimised version of this dataset",
+                "title": "Access To AWS Open Data Program registry for the Cloud Optimised version of this dataset[]",
                 "ai:group": "Data Access",
             },
             # wfs
@@ -142,7 +142,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 "href": "http://geoserver-123.aodn.org.au/geoserver/ows",
                 "rel": "wfs",
                 "type": "",
-                "title": "anfog_dm_trajectory_data",
+                "title": "anfog_dm_trajectory_data[A wms layer name]",
                 "ai:group": "Data Access",
             },
             # no specific subgroup
@@ -150,7 +150,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 "href": "https://www.marine.csiro.au/data/trawler/dataset.cfm?survey=IN2015_V02&data_type=adcp",
                 "rel": "data",
                 "type": "",
-                "title": "Data available via Data Trawler",
+                "title": "Data available via Data Trawler[A data trawler link]",
                 "ai:group": "Data Access",
             },
         ]
@@ -169,7 +169,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
             "href": "https://example.tif",
             "rel": "data",
             "type": "",
-            "title": "Example Image Data Link",
+            "title": "Example Image Data Link []",
         }
 
         grouped_valid_data_link = self.agent.grouping(valid_data_link, [])
@@ -178,7 +178,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
         valid_crawl_link = {
             "href": "https://data.org/page.html",
             "rel": "related",
-            "title": "some title",
+            "title": "some title[]",
         }
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -192,7 +192,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
         invalid_crawl_link = {
             "href": "https://data.org/page.html",
             "rel": "related",
-            "title": "some title",
+            "title": "some title[]",
         }
         mock_get.side_effect = requests.exceptions.Timeout
 
@@ -204,7 +204,9 @@ class TestLinkGroupingAgent(unittest.TestCase):
         result = self.agent.make_decision(self.valid_request)
         # expect to skip the first irrelated link
         self.assertEqual(len(result), 3)
-        self.assertEqual(result[0]["title"], "Example Notebook Link")
+        self.assertEqual(
+            result[0]["title"], "Example Notebook Link[This is a Python Notebook link]"
+        )
 
     def test_make_decision_invalid_request(self):
         result = self.agent.make_decision(self.invalid_request)
@@ -236,21 +238,21 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "href": "http://nesptropical.edu.au/wp-content/uploads/2016/03/NESP-TWQ-3.1-FINAL-REPORT.pdf",
                     "rel": "WWW:LINK-1.0-http--publication",
                     "type": "",
-                    "title": "REPORT - Project Final Report [PDF]",
+                    "title": "REPORT - Project Final Report [PDF][]",
                     "ai:group": "Document",
                 },
                 {
                     "href": "https://catalogue.aodn.org.au:443/geonetwork/srv/api/records/05818c50-14c2-11dd-bdaa-00188b4c0af8/attachments/1989_01_12.zip",
                     "rel": "data",
                     "type": "",
-                    "title": "1989_01_12.zip",
+                    "title": "1989_01_12.zip[]",
                     "ai:group": "Data Access",
                 },
                 {
                     "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
                     "rel": "data",
                     "type": "",
-                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD]",
+                    "title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD][attachments]",
                     "ai:group": "Data Access",
                 },
             ],
@@ -266,31 +268,31 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "href": "https://processes.aodn.org.au/wps",
                     "rel": "OGC:WPS--gogoduck",
                     "type": "",
-                    "title": "csiro_oa_reconstruction_url",
+                    "title": "csiro_oa_reconstruction_url[A wms layer name]",
                 },
                 {
                     "href": "https://help.aodn.org.au/web-services/gogoduck-aggregator/",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "GoGoDuck help documentation",
+                    "title": "GoGoDuck help documentation[]",
                 },
                 {
                     "href": "https://portal.aodn.org.au/search?uuid=7709f541-fc0c-4318-b5b9-9053aa474e0e",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "View and download data though the AODN Portal",
+                    "title": "View and download data though the AODN Portal[]",
                 },
                 {
                     "href": "https://help.aodn.org.au/web-services/ncurllist-service/",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "ncUrlList help documentation",
+                    "title": "ncUrlList help documentation[]",
                 },
                 {
                     "href": "http://geoserver-123.aodn.org.au/geoserver/ows",
                     "rel": "IMOS:AGGREGATION--bodaac",
                     "type": "",
-                    "title": "anmn_velocity_timeseries_map#file_url",
+                    "title": "anmn_velocity_timeseries_map#file_url[A wms layer name]",
                 },
             ],
         )
