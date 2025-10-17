@@ -1,5 +1,5 @@
 # the agent model for link grouping task
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from itertools import product, permutations
 import requests
 import re
@@ -112,7 +112,10 @@ class LinkGroupingAgent(BaseAgent):
         exclude_rules = self.model_config.get("exclude_rules", {})
 
         for field, exclude_values in exclude_rules.items():
-            if link.get(field) in exclude_values:
+            field_value = link.get(field)
+            if field == "title" and field_value is not None:
+                field_value = parse_combined_title(field_value)[0]
+            if field_value in exclude_values:
                 return True
 
         return False
@@ -173,7 +176,8 @@ class LinkGroupingAgent(BaseAgent):
             str. The group of the link. It can be 'Data Access'/'Document'/'Python Notebook'/ 'Other'.
         """
         href = link.get("href", "").lower()
-        title = link.get("title", "").lower()
+        combined_title = link.get("title", "").lower()
+        title = parse_combined_title(combined_title)[0]
         rel = link.get("rel", "").lower()
 
         for group, conditions in self.model_config["grouping_rules"].items():
@@ -228,3 +232,29 @@ class LinkGroupingAgent(BaseAgent):
             self.response = {self.model_config["response_key"]: grouped_links}
 
         logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
+
+
+def parse_combined_title(combined_title: str) -> tuple[str | None, str | None]:
+    """
+    Helper function to parse combined text in link.title field, which is a combination of link title and description in the format title[description].
+    :param combined_title:str: the combined text in link.title field
+    :return: tuple[str, str | None]. The parsed title and description in string. description can be None if there is no description, i.e., square brackets have no text [].
+    """
+    # return None, None for both title and description if the combined text is None
+    if combined_title is None:
+        return None, None
+
+    # Otherwise, find the last matching bracket
+    bracket_count = 0
+    for i in range(len(combined_title) - 1, -1, -1):
+        if combined_title[i] == "]":
+            bracket_count += 1
+        elif combined_title[i] == "[":
+            bracket_count -= 1
+            if bracket_count == 0:
+                title = combined_title[:i].strip()
+                description = combined_title[i + 1 : -1].strip()
+                return (title, None if not description else description)
+
+    # return None description if no matching bracket found
+    return combined_title, None
