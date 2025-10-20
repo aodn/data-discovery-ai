@@ -1,4 +1,5 @@
 # the agent model for link grouping task
+import json
 from typing import Dict, Any, List, Tuple
 from itertools import product, permutations
 import requests
@@ -236,25 +237,46 @@ class LinkGroupingAgent(BaseAgent):
 
 def parse_combined_title(combined_title: str) -> tuple[str | None, str | None]:
     """
-    Helper function to parse combined text in link.title field, which is a combination of link title and description in the format title[description].
-    :param combined_title:str: the combined text in link.title field
-    :return: tuple[str, str | None]. The parsed title and description in string. description can be None if there is no description, i.e., square brackets have no text [].
+    Helper function to parse combined text in link.title field, which is a combination of link title and description in the json format {"title": "My Title", "description": "My Description"}.
+    The description field must exist in the JSON (even if empty) to parse the title. Otherwise, return the original text.
+
+    :param combined_title: str: the combined json string in link.title field
+    :return: tuple[str | None, str | None]. The parsed title and description in string. description can be None if it's an empty string.
     """
-    # return None, None for both title and description if the combined text is None
-    if combined_title is None:
+    # return None, None for both title and description if the combined text is None or empty
+    if combined_title is None or combined_title.strip() == "":
         return None, None
 
-    # Otherwise, find the last matching bracket
-    bracket_count = 0
-    for i in range(len(combined_title) - 1, -1, -1):
-        if combined_title[i] == "]":
-            bracket_count += 1
-        elif combined_title[i] == "[":
-            bracket_count -= 1
-            if bracket_count == 0:
-                title = combined_title[:i].strip()
-                description = combined_title[i + 1 : -1].strip()
-                return (title, None if not description else description)
+    # Try to parse as JSON
+    try:
+        data = json.loads(combined_title)
 
-    # return None description if no matching bracket found
-    return combined_title, None
+        if not isinstance(data, dict):
+            return combined_title.strip(), None
+
+        # Check if description field exists (key must be present)
+        if "description" not in data:
+            # No description field, return original text
+            return combined_title.strip(), None
+
+        # Parse title
+        title = data.get("title")
+        if isinstance(title, str):
+            title = title.strip()
+            title = title if title else None
+        else:
+            title = None
+
+        # Parse description
+        description = data.get("description")
+        if isinstance(description, str):
+            description = description.strip()
+            description = description if description else None
+        else:
+            description = None
+
+        return title, description
+
+    except (json.JSONDecodeError, TypeError):
+        # If not valid JSON, return original text as title with None description
+        return combined_title.strip(), None
