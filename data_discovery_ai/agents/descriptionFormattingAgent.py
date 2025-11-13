@@ -5,11 +5,13 @@ from ollama import chat
 from typing import Dict, Optional
 import re
 import json
+import structlog
 
-from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import LlmModels, AgentType
+
+logger = structlog.get_logger(__name__)
 
 
 def needs_formatting(abstract: str) -> bool:
@@ -313,7 +315,7 @@ class DescriptionFormattingAgent(BaseAgent):
             self.response = {
                 self.model_config.response_key: self.take_action(title, result)
             }
-        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
+        logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def make_decision(self, request: Dict[str, str]) -> bool:
         """
@@ -411,7 +413,7 @@ class DescriptionFormattingAgent(BaseAgent):
             Str: the markdown formatted abstract text.
             If the agent does not take action, the output is the original abstract text.
         """
-        logger.info(f"Description is being reformatted by {self.type} agent")
+        logger.debug(f"Description is being reformatted by {self.type} agent")
         response = None
         model = self.model_config.model
         try:

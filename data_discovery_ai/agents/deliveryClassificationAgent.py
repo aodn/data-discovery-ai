@@ -1,5 +1,6 @@
 # The agent-based model for data delivery mode classification task
-from data_discovery_ai import logger
+import structlog
+
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
@@ -7,6 +8,8 @@ from data_discovery_ai.config.constants import FILTER_FOLDER
 from data_discovery_ai.enum.agent_enums import AgentType
 
 from typing import Any, Dict
+
+logger = structlog.get_logger(__name__)
 
 
 class DeliveryClassificationAgent(BaseAgent):
@@ -83,7 +86,7 @@ class DeliveryClassificationAgent(BaseAgent):
             prediction = self.take_action(title, abstract, lineage)
             self.response = {self.model_config.response_key: prediction}
 
-        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
+        logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def load_saved_model(self) -> Any:
         pretrained_model_name = self.model_config.pretrained_model

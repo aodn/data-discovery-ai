@@ -8,9 +8,11 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
+import structlog
 
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai import logger
+
+logger = structlog.get_logger(__name__)
 
 
 def load_tokenizer_model():

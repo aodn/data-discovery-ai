@@ -76,8 +76,8 @@ class TestDescriptionFormattingAgent(unittest.TestCase):
                 f"description_formatting agent finished, it responses: \n {expected_response}",
             ),
         ]
-        mock_logger.info.assert_has_calls(expected_calls)
-        self.assertEqual(mock_logger.info.call_count, 2)
+        mock_logger.debug.assert_has_calls(expected_calls)
+        self.assertEqual(mock_logger.debug.call_count, 2)
 
 
 if __name__ == "__main__":

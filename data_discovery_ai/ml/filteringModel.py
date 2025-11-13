@@ -13,6 +13,7 @@ from pathlib import Path
 import mlflow  # type: ignore
 from typing import Any
 from dataclasses import asdict
+import structlog
 
 from data_discovery_ai.config.constants import FILTER_FOLDER
 from data_discovery_ai.ml.preprocessor import DeliveryPreprocessor
@@ -21,9 +22,8 @@ from data_discovery_ai.utils.agent_tools import (
     load_from_file,
     get_text_embedding,
 )
-from data_discovery_ai import logger
 
-
+logger = structlog.get_logger(__name__)
 mlflow.sklearn.autolog(log_input_examples=True, log_model_signatures=True)
 
 
