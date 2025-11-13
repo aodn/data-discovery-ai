@@ -9,21 +9,10 @@ from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
 import structlog
-import logging
 
 from data_discovery_ai.config.config import ConfigUtil
 
 logger = structlog.get_logger(__name__)
-
-
-def configure_logging():
-    # silent logging from third libraries, to ensure our logging format is preserved
-    logging.root.handlers.clear()
-
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    logging.root.addHandler(handler)
-    logging.root.setLevel(logging.INFO)
 
 
 def load_tokenizer_model():
