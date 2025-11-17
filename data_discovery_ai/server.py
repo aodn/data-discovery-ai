@@ -56,7 +56,7 @@ app.include_router(api_router)
 
 if __name__ == "__main__":
     config = ConfigUtil.get_config()
-    log_config_path = config.get_log_config_path()
+    log_config_path = config.log_config_path
     app_config = config.get_application_config()
     uvicorn.run(
         "data_discovery_ai.server:app",

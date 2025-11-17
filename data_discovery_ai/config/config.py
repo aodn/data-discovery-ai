@@ -153,10 +153,7 @@ class ConfigUtil:
         env_val = os.getenv("PROFILE")
         self.env = env_val.lower() if env_val else "development"
 
-        # setup logging level
-        self.init_logging()
-
-    def init_logging(self):
+    def set_logging_level(self):
         """
         In dev environment, log level is set to DEBUG, output in String format.
         In edge/staging/production environments, log level is set to INFO (for edge and staging) or WARNING (for production),
@@ -264,6 +261,8 @@ class ConfigUtil:
               "service":"es-indexer"
             }
         """
+        self.log_config_path = None
+
         logging.root.handlers.clear()
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter("%(message)s"))
@@ -420,6 +419,26 @@ class DevConfig(ConfigUtil):
         config_file = "config-dev.yaml"
         super().__init__(config_file)
 
+        structlog.configure(
+            processors=[
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.PositionalArgumentsFormatter(),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.dev.ConsoleRenderer(colors=False),
+            ],
+            wrapper_class=structlog.stdlib.BoundLogger,
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
+        self.set_logging_level()
+        log_config_path = self.base_dir / "log_config.yaml"
+        self.log_config_path = (
+            str(log_config_path) if log_config_path.exists() else None
+        )
+
 
 class EdgeConfig(ConfigUtil):
     LOGLEVEL = "INFO"
@@ -427,6 +446,7 @@ class EdgeConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-edge.yaml"
         super().__init__(config_file)
+        self._init_json_logging()
 
 
 class StagingConfig(ConfigUtil):
@@ -435,6 +455,7 @@ class StagingConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-staging.yaml"
         super().__init__(config_file)
+        self._init_json_logging()
 
 
 class ProdConfig(ConfigUtil):
@@ -443,3 +464,4 @@ class ProdConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-prod.yaml"
         super().__init__(config_file)
+        self._init_json_logging()
