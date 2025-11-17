@@ -55,9 +55,9 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(api_router)
 
 if __name__ == "__main__":
-    log_config_path = str(Path(__file__).parent.parent / "log_config.yaml")
-
-    app_config = ConfigUtil.get_config().get_application_config()
+    config = ConfigUtil.get_config()
+    log_config_path = config.get_log_config_path()
+    app_config = config.get_application_config()
     uvicorn.run(
         "data_discovery_ai.server:app",
         host="0.0.0.0",
