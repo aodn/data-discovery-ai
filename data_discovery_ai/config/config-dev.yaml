@@ -1,8 +1,14 @@
 elasticsearch:
-  batch_size: 100
-  sleep_time: 5
   es_index_name: sample-index
   es_ai_index_name: sample-index-ai
+ogcapi:
+  host: "http://localhost:8080/"
+  endpoint: "api/v1/ogc/collections"
+  query: "?properties=id,title,description,statement,themes&filter=page_size%3D"
+  page_size: 3
+  sleep_time: 1
+  max_tries: 3
+  timeout: 10
 mlflow:
   port: 53000
   gateway: "http://127.0.0.1:53001"

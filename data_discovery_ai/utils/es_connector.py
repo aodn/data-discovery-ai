@@ -37,6 +37,7 @@ def connect_es() -> Elasticsearch | None:
         return None
 
 
+# TODO: change to use ogcapi to fetch all records
 def search_es(
     client: Elasticsearch,
     index: str,
