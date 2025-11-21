@@ -20,13 +20,15 @@ from data_discovery_ai.config.constants import (
 )
 from data_discovery_ai.ml.keywordModel import train_keyword_model
 from data_discovery_ai.ml.filteringModel import train_delivery_model
-from data_discovery_ai import logger
 import argparse
 import subprocess
 from dotenv import load_dotenv
 import os
 import time
 import socket
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class BasePipeline:

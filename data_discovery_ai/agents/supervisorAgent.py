@@ -1,9 +1,9 @@
 from elasticsearch import Elasticsearch
 from typing import Dict, Union, Any, List, Tuple
+import structlog
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
-from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.agents.descriptionFormattingAgent import (
     DescriptionFormattingAgent,
@@ -15,6 +15,8 @@ from data_discovery_ai.agents.linkGroupingAgent import LinkGroupingAgent
 from data_discovery_ai.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
 )
+
+logger = structlog.get_logger(__name__)
 
 
 class SupervisorAgent(BaseAgent):

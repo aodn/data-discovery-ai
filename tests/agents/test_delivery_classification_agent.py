@@ -47,7 +47,7 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         )
 
         # Check logging
-        mock_logger.info.assert_called_once()
-        log_msg = mock_logger.info.call_args[0][0]
+        mock_logger.debug.assert_called_once()
+        log_msg = mock_logger.debug.call_args[0][0]
         self.assertIn("delivery_classification agent finished", log_msg)
         self.assertIn("real-time", log_msg)

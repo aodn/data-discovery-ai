@@ -8,9 +8,11 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
+import structlog
 
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai import logger
+
+logger = structlog.get_logger(__name__)
 
 
 def load_tokenizer_model():
@@ -53,9 +55,9 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(api_router)
 
 if __name__ == "__main__":
-    log_config_path = str(Path(__file__).parent.parent / "log_config.yaml")
-
-    app_config = ConfigUtil.get_config().get_application_config()
+    config = ConfigUtil.get_config()
+    log_config_path = config.log_config_path
+    app_config = config.get_application_config()
     uvicorn.run(
         "data_discovery_ai.server:app",
         host="0.0.0.0",

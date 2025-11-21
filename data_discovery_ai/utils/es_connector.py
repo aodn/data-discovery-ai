@@ -7,10 +7,12 @@ import os
 from dotenv import load_dotenv
 import json
 from typing import Tuple, Dict, Any
+import structlog
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.config.constants import RECORDS_ENHANCED_SCHEMA
-from data_discovery_ai import logger
+
+logger = structlog.get_logger(__name__)
 
 
 def connect_es() -> Elasticsearch | None:

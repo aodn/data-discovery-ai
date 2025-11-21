@@ -4,11 +4,14 @@ from typing import Dict, Any, List, Tuple
 from itertools import product, permutations
 import requests
 import re
+import structlog
 
-from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
+
+
+logger = structlog.get_logger(__name__)
 
 
 def subgroup_access_link(link: Dict[str, Any]) -> Dict[str, Any]:
@@ -128,7 +131,6 @@ class LinkGroupingAgent(BaseAgent):
         for link in links:
             keys = set(link.keys())
             if "href" not in keys or "title" not in keys:
-                logger.info(f"Invalid link with no href or title: {link}")
                 continue
 
             if self.is_excluded(link):
@@ -218,7 +220,7 @@ class LinkGroupingAgent(BaseAgent):
                     if any(keyword in content for keyword in page_content_keywords):
                         return "Data Access"
         except requests.exceptions.RequestException:
-            logger.warning(f"Failed to crawl the link: {link['href']}")
+            logger.error(f"Failed to crawl the link: {link['href']}")
             return "Other"
 
         return "Other"
@@ -232,7 +234,7 @@ class LinkGroupingAgent(BaseAgent):
             grouped_links = self.take_action(links)
             self.response = {self.model_config["response_key"]: grouped_links}
 
-        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
+        logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 
 
 def parse_combined_title(combined_title: str) -> tuple[str | None, str | None]:
