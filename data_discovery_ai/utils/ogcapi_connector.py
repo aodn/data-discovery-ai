@@ -1,10 +1,9 @@
-import math
-import os
 import time
 from typing import Optional, List, Any
 from urllib.parse import quote
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
+import pandas as pd
 
 import structlog
 import requests
@@ -59,7 +58,7 @@ class OGCAPIConnector:
 
     def build_search_after_filter(self, search_after: List[Any]) -> str:
         """
-        build the encoded search after filter. The search_after value comes from the response.
+        Build the encoded search after filter. The search_after value comes from the response.
         :param search_after:
         :return: encoded search after filter string
         """
@@ -69,7 +68,12 @@ class OGCAPIConnector:
         encoded_search_after_filter = self.QUERY_CONNECTOR + encoded_filter
         return encoded_search_after_filter
 
-    def build_ogcapi_query_url(self):
+    def build_ogcapi_query_url(self) -> str:
+        """
+        Build the OGCAPI query url with configured host, endpoint, and page_size. For example:
+         http://localhost:8080/api/v1/ogc/collections?properties=id,title,description,statement,themes,status&filter=page_size%3D3
+        :return: OGCAPI query url
+        """
         base_url = self.host.rstrip("/")
         endpoint = self.endpoint.lstrip("/")
         page_size_str = str(self.page_size)
@@ -80,6 +84,12 @@ class OGCAPIConnector:
         return ogcapi_query_url
 
     def _parse_fetched_collection_data(self, resp_dict: dict) -> List[dict]:
+        """
+        Convert response from OGCAPI query to formatted dict as a collection list. Only keep required keys for training ML models.
+        Required keys: id, title, description, statement, themes, status.
+        :param resp_dict: the response from OGCAPI query
+        :return: the parsed collection list
+        """
         parsed_collection_data = []
         for collection in resp_dict.get("collections", []):
             props = collection.get("properties", {})
@@ -88,13 +98,28 @@ class OGCAPIConnector:
                     "id": collection.get("id"),
                     "title": collection.get("title"),
                     "description": collection.get("description"),
-                    "statement": props.get("statement"),
-                    "themes": props.get("themes", []),
+                    "statement": props.get("statement", None),
+                    "themes": props.get("themes", None),
+                    "status": props.get("status", None),
                 }
             )
         return parsed_collection_data
 
     def get_all_collections(self):
+        """
+        Retrieve all collections from the OGCAPI endpoint using search-after. This method performs repeated GET requests
+        with sleep time to avoid overwhelming the upstream API, and automatically merges all pages into a single DataFrame.
+        :return: pd.DataFrame
+        A DataFrame containing all collection records. Columns include:
+        - id
+        - title
+        - description
+        - statement
+        - themes
+        - status
+        :raises: requests.HTTPError
+        If any request to the OGCAPI endpoint fails.
+        """
         all_collections = []
         # build initial request url
         initial_url = self.build_ogcapi_query_url()
@@ -110,41 +135,38 @@ class OGCAPIConnector:
 
         resp_dict = resp.json()
         total_collections = resp_dict.get("total", 0)
+        logger.info(f"Total collections through OCGAPI: {total_collections}")
 
         all_collections.extend(self._parse_fetched_collection_data(resp_dict))
 
         search_after = resp_dict.get("search_after", None)
         if not search_after:
             logger.info("No search after")
-            return all_collections
+            return pd.DataFrame(all_collections)
+
+        current_page = 1
+        logger.debug(f"Fetching current page {current_page} | url: {initial_url}")
 
         while search_after:
             # set a sleep time to avoid too frequent query
             time.sleep(self.sleep_time)
-            # build loop reqeust
-            num_of_page = math.ceil(total_collections / self.page_size)
-            for i in range(1, num_of_page):
-                encoded_search_after_filter = self.build_search_after_filter(
-                    search_after
+            encoded_search_after_filter = self.build_search_after_filter(search_after)
+            query_url = initial_url + encoded_search_after_filter
+            current_page += 1
+            logger.debug(f"Fetching current page {current_page} | url: {query_url}")
+
+            resp = self.session.get(query_url, timeout=self.timeout)
+
+            if resp.status_code != requests.codes.ok:
+                logger.error(
+                    "Failed to fetch collections from ogcapi",
+                    status=resp.status_code,
+                    url=query_url,
                 )
-                query_url = initial_url + encoded_search_after_filter
-                logger.debug("fetch_collections_page", url=query_url)
+                resp.raise_for_status()
 
-                resp = self.session.get(query_url, timeout=self.timeout)
+            resp_dict = resp.json()
+            all_collections.extend(self._parse_fetched_collection_data(resp_dict))
 
-                if resp.status_code != requests.codes.ok:
-                    logger.error(
-                        "Failed to fetch collections from ogcapi",
-                        status=resp.status_code,
-                        url=query_url,
-                    )
-                    resp.raise_for_status()
-
-                resp_dict = resp.json()
-                all_collections.extend(self._parse_fetched_collection_data(resp_dict))
-
-                search_after = resp_dict.get("search_after", [])
-                # set a sleep time to avoid too frequent query
-                time.sleep(self.sleep_time)
-                logger.debug(f"Finalise fetching collections on page {i}")
-        return all_collections
+            search_after = resp_dict.get("search_after", [])
+        return pd.DataFrame(all_collections)

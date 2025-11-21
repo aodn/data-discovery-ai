@@ -86,3 +86,5 @@ node_modules/
 **/output
 mlruns
 mlartifacts
+
+data_discovery_ai/resources/*.pkl
