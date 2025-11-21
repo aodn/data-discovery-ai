@@ -3,14 +3,16 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Optional, Iterable
 from keras.models import load_model  # type: ignore
+import structlog
 
-from data_discovery_ai import logger
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
 from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
 from data_discovery_ai.ml.preprocessor import Concept
 from data_discovery_ai.enum.agent_enums import AgentType
+
+logger = structlog.get_logger(__name__)
 
 
 def replace_with_column_names(
@@ -136,7 +138,7 @@ class KeywordClassificationAgent(BaseAgent):
             prediction = self.take_action(title, abstract)
             self.response = {self.model_config.response_key: prediction}
             self.response = reformat_response(self.response)
-        logger.info(f"{self.type} agent finished, it responses: \n {self.response}")
+        logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 
     def take_action(self, title, abstract) -> List[Any]:
         """
@@ -170,7 +172,7 @@ class KeywordClassificationAgent(BaseAgent):
                 predicted_labels, selective_labels
             )
 
-            logger.info(f"Keyword is being predicted by {self.type} agent")
+            logger.debug(f"Keyword is being predicted by {self.type} agent")
             return predicted_keywords
         else:
             return []

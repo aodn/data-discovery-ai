@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import pandas as pd
 import numpy as np
 import tempfile
+import structlog
 
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
@@ -11,13 +12,14 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
 from tqdm import tqdm
+from transformers import AutoTokenizer, TFBertModel
 
-from data_discovery_ai import logger
 import data_discovery_ai.utils.es_connector as es_connector
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding
 from data_discovery_ai.config.constants import CONCEPT_AI_DESCRIPTION
-from transformers import AutoTokenizer, TFBertModel
+
+logger = structlog.getLogger(__name__)
 
 
 class BasePreprocessor:

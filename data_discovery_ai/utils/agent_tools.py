@@ -1,10 +1,11 @@
 #  toolbox contains common tools shared by agents
 from typing import Any, Union, Tuple
 import pickle
-from data_discovery_ai import logger
-from transformers import AutoTokenizer, TFBertModel
+import structlog
 import numpy as np
 from pathlib import Path
+
+logger = structlog.get_logger(__name__)
 
 
 def save_to_file(obj: Any, full_path: Union[str, Path]) -> None:

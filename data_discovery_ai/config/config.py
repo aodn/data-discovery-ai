@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import yaml
+import structlog
 from dotenv import load_dotenv
 
 from data_discovery_ai.config.constants import PARAMETER_FILE
@@ -152,13 +153,40 @@ class ConfigUtil:
         env_val = os.getenv("PROFILE")
         self.env = env_val.lower() if env_val else "development"
 
-        # setup logging level
-        self.init_logging()
-
-    def init_logging(self):
+    def set_logging_level(self):
+        """
+        In dev environment, log level is set to DEBUG, output in String format.
+        In edge/staging/production environments, log level is set to INFO (for edge and staging) or WARNING (for production),
+        output in JSON format.
+        """
         level_str = getattr(self, "LOGLEVEL", "DEBUG")
         numeric_level = getattr(logging, level_str.upper(), logging.INFO)
         logging.getLogger().setLevel(numeric_level)
+
+        # set third party libraries' logging level
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
+        logging.getLogger("urllib3").setLevel(logging.WARNING)
+        logging.getLogger("uvicorn").setLevel(logging.WARNING)
+
+        if self.env == "development":
+            # set up logging for local development environment
+            structlog.configure(
+                processors=[
+                    structlog.stdlib.filter_by_level,
+                    structlog.stdlib.add_log_level,
+                    structlog.stdlib.PositionalArgumentsFormatter(),
+                    structlog.processors.StackInfoRenderer(),
+                    structlog.processors.format_exc_info,
+                    structlog.dev.ConsoleRenderer(colors=False),
+                ],
+                wrapper_class=structlog.stdlib.BoundLogger,
+                context_class=dict,
+                logger_factory=structlog.stdlib.LoggerFactory(),
+                cache_logger_on_first_use=True,
+            )
+        else:
+            self._init_json_logging()
 
     @staticmethod
     def get_config(profile: EnvType = None):
@@ -176,6 +204,20 @@ class ConfigUtil:
 
             case _:
                 return DevConfig()
+
+    def get_log_config_path(self):
+        """
+        Get uvicorn log config path based on environment.
+
+        Returns:
+            str: Path to log_config.yaml for DEV
+            None: For PROD/STAGING/EDGE (use structlog JSON)
+        """
+        if self.env == "development":
+            log_config_path = self.base_dir / "log_config.yaml"
+            return str(log_config_path) if log_config_path.exists() else None
+        else:
+            return None
 
     def _load_yaml(self, config_file: Path) -> Dict[str, Any]:
         if not config_file.exists():
@@ -204,6 +246,87 @@ class ConfigUtil:
             else:
                 return default
         return data
+
+    def _init_json_logging(self):
+        """
+        logging config to output in json format, example format:
+            {
+              "instant":"2025-06-06T00:01:44.529Z",
+              "level":"INFO",
+              "loggerName":"au.org.aodn.esindexer.BaseTestClass",
+              "message":"Triggered indexer successfully",
+              "endOfBatch":false,
+              "threadId":1,
+              "threadPriority":5,
+              "service":"es-indexer"
+            }
+        """
+        self.log_config_path = None
+
+        logging.root.handlers.clear()
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logging.root.addHandler(handler)
+
+        # add key-value mapping
+        def add_service_name(logger, method_name, event_dict):
+            event_dict["service"] = "data-discovery-ai"
+            return event_dict
+
+        def rename_timestamp(logger, method_name, event_dict):
+            if "timestamp" in event_dict:
+                event_dict["instant"] = event_dict.pop("timestamp")
+            return event_dict
+
+        def rename_logger_name(logger, method_name, event_dict):
+            if "logger" in event_dict:
+                event_dict["loggerName"] = event_dict.pop("logger")
+            return event_dict
+
+        def add_thread_info(logger, method_name, event_dict):
+            """Add thread ID and priority information"""
+            import threading
+
+            thread = threading.current_thread()
+            event_dict["threadId"] = thread.ident
+            event_dict["threadPriority"] = 5  # use default priority
+            return event_dict
+
+        def add_logger_name(logger, method_name, event_dict):
+            event_dict["loggerName"] = (
+                logger.name if hasattr(logger, "name") else __name__
+            )
+            return event_dict
+
+        def add_end_of_batch(logger, method_name, event_dict):
+            event_dict["endOfBatch"] = False
+            return event_dict
+
+        structlog.configure(
+            processors=[
+                # instant field (timestamp use UTC timezone)
+                structlog.processors.TimeStamper(fmt="iso", utc=True),
+                rename_timestamp,
+                # level field
+                structlog.stdlib.add_log_level,
+                # loggerName field
+                structlog.stdlib.add_logger_name,
+                rename_logger_name,
+                # message field
+                structlog.processors.EventRenamer("message"),
+                # endOfBatch field
+                add_end_of_batch,
+                # threadId and threadPriority fields
+                add_thread_info,
+                # service field
+                add_service_name,
+                # in JSON format
+                structlog.processors.JSONRenderer(),
+            ],
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
 
     def get_es_config(self) -> ElasticsearchConfig:
         sub = "elasticsearch"
@@ -296,6 +419,26 @@ class DevConfig(ConfigUtil):
         config_file = "config-dev.yaml"
         super().__init__(config_file)
 
+        structlog.configure(
+            processors=[
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.PositionalArgumentsFormatter(),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.dev.ConsoleRenderer(colors=False),
+            ],
+            wrapper_class=structlog.stdlib.BoundLogger,
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
+        self.set_logging_level()
+        log_config_path = self.base_dir / "log_config.yaml"
+        self.log_config_path = (
+            str(log_config_path) if log_config_path.exists() else None
+        )
+
 
 class EdgeConfig(ConfigUtil):
     LOGLEVEL = "INFO"
@@ -303,6 +446,7 @@ class EdgeConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-edge.yaml"
         super().__init__(config_file)
+        self._init_json_logging()
 
 
 class StagingConfig(ConfigUtil):
@@ -311,6 +455,7 @@ class StagingConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-staging.yaml"
         super().__init__(config_file)
+        self._init_json_logging()
 
 
 class ProdConfig(ConfigUtil):
@@ -319,3 +464,4 @@ class ProdConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-prod.yaml"
         super().__init__(config_file)
+        self._init_json_logging()

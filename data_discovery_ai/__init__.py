@@ -1,6 +1,3 @@
-import logging
+import structlog
 
-# Logging config
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)

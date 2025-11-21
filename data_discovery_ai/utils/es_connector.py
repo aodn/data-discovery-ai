@@ -7,10 +7,12 @@ import os
 from dotenv import load_dotenv
 import json
 from typing import Tuple, Dict, Any
+import structlog
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.config.constants import RECORDS_ENHANCED_SCHEMA
-from data_discovery_ai import logger
+
+logger = structlog.get_logger(__name__)
 
 
 def connect_es() -> Elasticsearch | None:
@@ -119,7 +121,7 @@ def search_es(
                     raise KeyError("Invalid first query response: missing 'hits.hits'.")
                 data = query_resp["hits"]["hits"]
                 if not data:
-                    logger.info("No more results returned. Ending search.")
+                    logger.error("No more results returned. Ending search.")
                     break
 
                 # set search after value
@@ -146,7 +148,7 @@ def search_es(
 
         # close pit
         try:
-            logger.info(f"Total results: {len(dataframes)}")
+            logger.debug(f"Total results: {len(dataframes)}")
             client.close_point_in_time(
                 id=current_pit,
             )
