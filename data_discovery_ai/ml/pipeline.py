@@ -1,6 +1,4 @@
 # ML pipeline, may need to be deployed in cloud environment in the future
-from typing import Any
-
 import pandas as pd
 
 from data_discovery_ai.config.config import ConfigUtil
@@ -162,9 +160,9 @@ class KeywordClassificationPipeline(BasePipeline):
         if not executable:
             return
 
-        raw_data = self.get_raw_data(use_cached_raw)
-
         if start_from_preprocess:
+            # get raw data
+            raw_data = self.get_raw_data(use_cached_raw)
             # preprocess raw data
             filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
             preprocessed_label = self.preprocessor.concept_to_index
@@ -237,9 +235,10 @@ class DeliveryClassificationPipeline(BasePipeline):
         if not executable:
             return
 
-        raw_data = self.get_raw_data(use_cached_raw)
-
         if start_from_preprocess:
+            # get raw data
+            raw_data = self.get_raw_data(use_cached_raw)
+            # process raw data
             filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
             preprocessed_data = self.preprocessor.calculate_embedding(
                 ds=filtered_data, seperator=self.params.separator
@@ -286,7 +285,7 @@ def main():
         "--use_cached_raw",
         type=lambda x: x.lower() == "true",
         default=True,
-        help="Whether to start from fetching raw data (True/False)",
+        help="Whether to use cached raw data instead of fetching fresh data (True/False)",
     )
     parser.add_argument(
         "-s",

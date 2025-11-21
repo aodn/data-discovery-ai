@@ -3,7 +3,7 @@ elasticsearch:
   es_ai_index_name: es-indexer-staging-ai
 ogcapi:
   host: "https://ogcapi.staging.aodn.org.au/"
-  endpoint: "/api/v1/ogc/collections"
+  endpoint: "api/v1/ogc/collections"
   query: "?properties=id,title,description,statement,themes,status&filter=page_size%3D"
   page_size: 11
   sleep_time: 3
