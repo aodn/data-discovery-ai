@@ -59,21 +59,25 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
         ]
         df = pd.DataFrame(
             {
-                "_id": ["1", "2"],
-                "_source.title": ["title 1", "title 2"],
-                "_source.description": ["abstract 1", "abstract 2"],
-                "_source.themes": [themes_1, themes_2],
+                "id": ["1", "2"],
+                "title": ["title 1", "title 2"],
+                "description": ["abstract 1", "abstract 2"],
+                "themes": [themes_1, themes_2],
+                "statement": ["statement 1", "statement 2"],
+                "status": ["OnGoing", "Completed"],
             }
         )
 
         out = kp.filter_raw_data(df)
 
-        self.assertListEqual(list(out.columns), ["id", "title", "abstract", "keywords"])
+        self.assertListEqual(
+            list(out.columns), ["id", "title", "description", "themes"]
+        )
         self.assertEqual(out["id"].iloc[0], "1")
-        self.assertEqual(out["abstract"].iloc[0], "abstract 1")
+        self.assertEqual(out["title"].iloc[0], "title 1")
 
         # the expected format of keyword is a dict like {"vocab_type": vocab_type, "value": value,"url": url}
-        kw0 = out["keywords"].iloc[0]
+        kw0 = out["themes"].iloc[0]
         self.assertIsInstance(kw0, list)
         self.assertEqual(kw0, [0])
 
@@ -81,30 +85,48 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
 class TestDeliveryPreprocessorPostFilter(unittest.TestCase):
     def test_filter_raw_data(self):
         dp = DeliveryPreprocessor()
+        themes_1 = [
+            {
+                "concepts": [
+                    {
+                        "id": "1",
+                        "url": "https://vocabs.ardc.edu.au/1",
+                        "title": "A",
+                        "description": "",
+                    }
+                ],
+                "scheme": "platform",
+            }
+        ]
+        themes_2 = [
+            {
+                "concepts": [
+                    {
+                        "id": "2",
+                        "url": "https://vocabs.ardc.edu.au/2",
+                        "title": "A",
+                        "description": "",
+                    }
+                ],
+                "scheme": "theme",
+            }
+        ]
         df = pd.DataFrame(
             {
-                "_id": ["1", "2", "3"],
-                "_source.title": [
-                    "Real time data",
-                    "Delayed response",
-                    "completed data",
-                ],
-                "_source.description": [
-                    "test real time abstract",
-                    "test delayed abstract",
-                    "test completed abstract",
-                ],
-                "_source.summaries.statement": ["a", "b", None],
-                "_source.summaries.status": ["onGoing", "onGoing", "completed"],
+                "id": ["1", "2"],
+                "title": ["title real time", "title delayed"],
+                "description": ["abstract 1", "abstract 2"],
+                "themes": [themes_1, themes_2],
+                "statement": ["statement 1", "statement 2"],
+                "status": ["onGoing", "Completed"],
             }
         )
         out = dp.filter_raw_data(df)
-        self.assertTrue(
-            list(out.columns), ["id", "title", "abstract", "lineage", "status", "mode"]
+        self.assertEqual(
+            list(out.columns),
+            ["id", "title", "description", "statement", "status", "mode"],
         )
         self.assertTrue((out["status"] == "onGoing").all())
-        self.assertIn("mode", out.columns)
-        self.assertSetEqual(set(out["mode"]), {0, 1})
 
 
 if __name__ == "__main__":

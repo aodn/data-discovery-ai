@@ -30,6 +30,9 @@ from data_discovery_ai.config.config import (
 
 
 class TestKeywordClassificationPipeline(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest"):
+        super().__init__(methodName)
+
     def setUp(self):
         configUtil = patch("data_discovery_ai.ml.pipeline.ConfigUtil.get_config")
         preprocessor = patch("data_discovery_ai.ml.pipeline.KeywordPreprocessor")
@@ -80,17 +83,19 @@ class TestKeywordClassificationPipeline(unittest.TestCase):
         mock_logger.error.assert_not_called()
 
     def test_pipeline_preprocess_start_from_preprocess(self):
-        self.preprocessor.fetch_raw_data.return_value = "raw_data"
+        self.pipeline.get_raw_data = MagicMock(return_value="raw_data")
         self.preprocessor.filter_raw_data.return_value = "preprocessed_data"
         self.preprocessor.calculate_embedding.return_value = (
             "preprocessed_data_with_embedding"
         )
         self.preprocessor.data = SimpleNamespace(labels="labels")
 
-        self.pipeline.pipeline(start_from_preprocess=True, model_name="development")
+        self.pipeline.pipeline(
+            use_cached_raw=True, start_from_preprocess=True, model_name="development"
+        )
 
         # expect to start from preprocessing, including: fetch raw data, preprocess raw data, calculate embeddings, prepare train and test set, and call training model
-        self.preprocessor.fetch_raw_data.assert_called_once()
+        self.pipeline.get_raw_data.assert_called_once()
         self.preprocessor.filter_raw_data.assert_called_once_with(raw_data="raw_data")
         self.preprocessor.calculate_embedding.assert_called_once_with(
             ds="preprocessed_data", seperator="|"
@@ -149,10 +154,11 @@ class TestDeliveryClassificationPipeline(unittest.TestCase):
             "manual_labelled_data",
         ]
 
-        self.pipeline.pipeline(start_from_preprocess=False, model_name="development")
+        self.pipeline.pipeline(
+            use_cached_raw=False, start_from_preprocess=False, model_name="development"
+        )
 
         # expect to start from prepare train and test sets, and call training model
-        self.preprocessor.fetch_raw_data.assert_not_called()
         self.preprocessor.filter_raw_data.assert_not_called()
         self.preprocessor.calculate_embedding.assert_not_called()
 
@@ -168,7 +174,10 @@ class TestMainFunction(unittest.TestCase):
     @patch("data_discovery_ai.ml.pipeline.argparse.ArgumentParser")
     def test_main_keyword(self, mock_ap, mock_kw_pipe):
         args = SimpleNamespace(
-            pipeline="keyword", start_from_preprocess=False, model_name="development"
+            pipeline="keyword",
+            use_cached_raw=False,
+            start_from_preprocess=False,
+            model_name="development",
         )
         parser = MagicMock()
         parser.parse_args.return_value = args
@@ -177,13 +186,16 @@ class TestMainFunction(unittest.TestCase):
         pipeline_instance = mock_kw_pipe.return_value
         main()
         parser.parse_args.assert_called_once()
-        pipeline_instance.pipeline.assert_called_once_with(False, "development")
+        pipeline_instance.pipeline.assert_called_once_with(False, False, "development")
 
     @patch("data_discovery_ai.ml.pipeline.DeliveryClassificationPipeline")
     @patch("data_discovery_ai.ml.pipeline.argparse.ArgumentParser")
     def test_main_delivery(self, mock_ap, mock_del_pipe):
         args = SimpleNamespace(
-            pipeline="delivery", start_from_preprocess=True, model_name="experimental"
+            pipeline="delivery",
+            use_cached_raw=True,
+            start_from_preprocess=True,
+            model_name="experimental",
         )
         parser = MagicMock()
         parser.parse_args.return_value = args
@@ -192,7 +204,7 @@ class TestMainFunction(unittest.TestCase):
         pipeline_instance = mock_del_pipe.return_value
         main()
         parser.parse_args.assert_called_once()
-        pipeline_instance.pipeline.assert_called_once_with(True, "experimental")
+        pipeline_instance.pipeline.assert_called_once_with(True, True, "experimental")
 
     @patch("data_discovery_ai.ml.pipeline.logger")
     @patch("data_discovery_ai.ml.pipeline.argparse.ArgumentParser")

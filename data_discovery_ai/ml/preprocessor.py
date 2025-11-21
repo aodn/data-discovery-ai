@@ -14,7 +14,8 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from tqdm import tqdm
 from transformers import AutoTokenizer, TFBertModel
 
-import data_discovery_ai.utils.es_connector as es_connector
+from data_discovery_ai import logger
+from data_discovery_ai.utils.ogcapi_connector import OGCAPIConnector
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding
 from data_discovery_ai.config.constants import CONCEPT_AI_DESCRIPTION
@@ -32,15 +33,9 @@ class BasePreprocessor:
         self.data = None
 
     def fetch_raw_data(self) -> pd.DataFrame | None:
-        es_config = self.config.get_es_config()
-        client = es_connector.connect_es()
-        if client:
-            raw_data = es_connector.search_es(
-                client=client,
-                index=es_config.es_index_name,
-                batch_size=es_config.batch_size,
-                sleep_time=es_config.sleep_time,
-            )
+        connector = OGCAPIConnector()
+        if connector:
+            raw_data = connector.get_all_collections()
             return raw_data
         else:
             return None
@@ -246,13 +241,12 @@ class KeywordPreprocessor(BasePreprocessor):
         self.mlflow_config = self.config.get_mlflow_config()
 
         self.watched_columns = [
-            "_id",
-            "_source.title",
-            "_source.description",
-            "_source.themes",
+            "id",
+            "title",
+            "description",
+            "themes",
         ]
-        self.replaced_column_names = ["id", "title", "abstract", "keywords"]
-        self.require_embedding = ["title", "abstract"]
+        self.require_embedding = ["title", "description"]
         self.rare_labels = []
         self.data = None
         self.train_test_data = None
@@ -287,7 +281,7 @@ class KeywordPreprocessor(BasePreprocessor):
         watched_vocabs = self.trainer_config.vocabs
         # only keep rows with vocabs in selected vocabs
         watched_df = df[
-            df["keywords"].apply(
+            df["themes"].apply(
                 lambda theme_list: isinstance(theme_list, list)
                 and any(
                     isinstance(theme, dict)
@@ -305,12 +299,12 @@ class KeywordPreprocessor(BasePreprocessor):
         ]
         # format keyword values into Concept object
         # preprocessor set up themes and concepts used in the dataset, and set up the concept-index mapping in this step
-        watched_df["keywords"] = watched_df["keywords"].apply(
+        watched_df["themes"] = watched_df["themes"].apply(
             lambda x: self.keywords_formatter(x, watched_vocabs)
         )
 
         # clean rows with empty keywords
-        return watched_df[watched_df["keywords"].apply(lambda x: x != [])]
+        return watched_df[watched_df["themes"].apply(lambda x: x != [])]
 
     def customized_resample(self):
         """
@@ -498,9 +492,9 @@ def prepare_Y_matrix(ds: pd.DataFrame) -> pd.DataFrame:
     Output:
         K: A DataFrame representing the multi-label binarized target matrix, with each column corresponding to a unique keyword.
     """
-    ds["keywords"] = ds["keywords"].apply(clean_keywords)
+    ds["themes"] = ds["themes"].apply(clean_keywords)
     mlb = MultiLabelBinarizer()
-    Y = mlb.fit_transform(ds["keywords"])
+    Y = mlb.fit_transform(ds["themes"])
     K = pd.DataFrame(Y, columns=mlb.classes_)
 
     if "" in K.columns:
@@ -547,14 +541,13 @@ class DeliveryPreprocessor(BasePreprocessor):
         self.mlflow_config = self.config.get_mlflow_config()
 
         self.watched_columns = [
-            "_id",
-            "_source.title",
-            "_source.description",
-            "_source.summaries.statement",
-            "_source.summaries.status",
+            "id",
+            "title",
+            "description",
+            "statement",
+            "status",
         ]
-        self.replaced_column_names = ["id", "title", "abstract", "lineage", "status"]
-        self.require_embedding = ["title", "abstract", "lineage"]
+        self.require_embedding = ["title", "description", "statement"]
         self.data = None
         self.train_test_data = None
 
@@ -570,13 +563,19 @@ class DeliveryPreprocessor(BasePreprocessor):
         real_time_data = temp[
             temp["title"].str.contains("|".join(real_time_variants), case=False)
         ]
-        real_time_data.loc[:, "mode"] = "Real-Time"
+        if not real_time_data.empty:
+            real_time_data = real_time_data.assign(mode="Real-Time")
         # and also for 'delayed' and its variants
         delayed_variants = ["delayed", "delay", "delaying"]
         delayed_data = temp[
             temp["title"].str.contains("|".join(delayed_variants), case=False)
         ]
-        delayed_data.loc[:, "mode"] = "Delayed"
+        if not delayed_data.empty:
+            delayed_data = delayed_data.assign(mode="Delayed")
+
+        if real_time_data.empty and delayed_data.empty:
+            logger.error("No labelled data for training purpose")
+            return None
 
         real_time_delayed_data = pd.concat([real_time_data, delayed_data])
         data_with_mode = filtered_df.join(real_time_delayed_data["mode"])
