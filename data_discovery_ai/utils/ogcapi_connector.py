@@ -105,7 +105,7 @@ class OGCAPIConnector:
             )
         return parsed_collection_data
 
-    def get_all_collections(self):
+    def get_all_collections(self) -> pd.DataFrame:
         """
         Retrieve all collections from the OGCAPI endpoint using search-after. This method performs repeated GET requests
         with sleep time to avoid overwhelming the upstream API, and automatically merges all pages into a single DataFrame.
@@ -135,7 +135,7 @@ class OGCAPIConnector:
 
         resp_dict = resp.json()
         total_collections = resp_dict.get("total", 0)
-        logger.info(f"Total collections through OCGAPI: {total_collections}")
+        logger.info(f"Total collections through OGCAPI: {total_collections}")
 
         all_collections.extend(self._parse_fetched_collection_data(resp_dict))
 
