@@ -189,24 +189,26 @@ Currently, two machine learning pipelines are available for training and evaluat
 ### How to Run
 To run one of the pipelines (for example, the keyword one), you can use the following command in your terminal:
 ```shell
-python -m data_discovery_ai.ml.pipeline --pipeline keyword --start_from_preprocess False --model_name experimental
+python -m data_discovery_ai.ml.pipeline --pipeline keyword --use_cached_raw False --start_from_preprocess True --model_name experimental
 ```
 You can also use a shorter version:
 ```shell
- python -m data_discovery_ai.ml.pipeline -p keyword -s False -n experimental
+ python -m data_discovery_ai.ml.pipeline -p keyword -r False -s True -n experimental
 ```
 
 ### When Should I Re-Train?
 If the raw data has changed (e.g., updated, cleaned, or expanded), you are recommended to re-train the model using the latest data.
 To do this, set:
 ```shell
---start_from_preprocess True
+--use_cached_raw False --start_from_preprocess True
 ```
 
 As mentioned in [Environment variables](#environment-variables), ElasticSearch endpoint and API key are required to be set up in `.env` file.
 
 ### What Happens When I Run a Pipeline?
 Running a pipeline trains a Machine Learning model and saves several resource files for reuse — so you don’t have to reprocess data or retrain the model every time.
+
+For cached purpose, raw data which contains all collections from OGCAPI is saved in `data_discovery_ai/resources/raw_data.pkl`
 
 1. `delivery` pipeline
 

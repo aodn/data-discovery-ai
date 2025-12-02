@@ -32,9 +32,18 @@ class ApplicationConfig:
 
 
 @dataclass(frozen=True)
-class ElasticsearchConfig:
-    batch_size: int
+class OgcapiConfig:
+    host: str
+    endpoint: str
+    query: str
+    page_size: int
     sleep_time: int
+    max_retries: int
+    timeout: int
+
+
+@dataclass(frozen=True)
+class ElasticsearchConfig:
     es_index_name: str
     es_ai_index_name: str
 
@@ -123,6 +132,7 @@ class ModelConfig:
 @dataclass(frozen=True)
 class FullConfig:
     elasticsearch: ElasticsearchConfig
+    ogcapi: OgcapiConfig
     model: ModelConfig
     trainer: TrainerConfig
     logging: Dict[str, Any]
@@ -332,10 +342,21 @@ class ConfigUtil:
         sub = "elasticsearch"
         es_config = self._config_data.get(sub)
         return ElasticsearchConfig(
-            batch_size=es_config.get("batch_size", 100),
-            sleep_time=es_config.get("sleep_time", 1),
             es_index_name=es_config.get("es_index_name", ""),
             es_ai_index_name=es_config.get("es_ai_index_name", ""),
+        )
+
+    def get_ogcapi_config(self) -> OgcapiConfig:
+        sub = "ogcapi"
+        ogcapi_config = self._config_data.get(sub)
+        return OgcapiConfig(
+            host=ogcapi_config.get("host", ""),
+            endpoint=ogcapi_config.get("endpoint", ""),
+            query=ogcapi_config.get("query", ""),
+            page_size=ogcapi_config.get("page_size", 1),
+            sleep_time=ogcapi_config.get("sleep_time", 1),
+            max_retries=ogcapi_config.get("max_retries", 1),
+            timeout=ogcapi_config.get("timeout", 1),
         )
 
     def get_supervisor_config(self) -> SupervisorConfig:

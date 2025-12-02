@@ -1,4 +1,6 @@
 # ML pipeline, may need to be deployed in cloud environment in the future
+import pandas as pd
+
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import save_to_file, load_from_file
 from data_discovery_ai.ml.preprocessor import (
@@ -12,6 +14,7 @@ from data_discovery_ai.config.constants import (
     KEYWORD_LABEL_FILE,
     FILTER_FOLDER,
     FILTER_PREPROCESSED_FILE,
+    CACHED_RAW_DATA,
 )
 from data_discovery_ai.ml.keywordModel import train_keyword_model
 from data_discovery_ai.ml.filteringModel import train_delivery_model
@@ -36,6 +39,7 @@ class BasePipeline:
             "experimental",
             "benchmark",
         ]
+        self.preprocessor = None
 
     def is_valid_model(self, model_name: str) -> bool:
         """
@@ -52,7 +56,31 @@ class BasePipeline:
         else:
             return True
 
-    def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
+    def get_raw_data(self, use_cached_raw: bool) -> pd.DataFrame:
+        raw_data = None
+        cache_path = self.config.base_dir / "resources" / CACHED_RAW_DATA
+        if use_cached_raw:
+            # use cached raw data from saved file
+            try:
+                raw_data = load_from_file(cache_path)
+                logger.info("Loaded cached raw data from %s", cache_path)
+            except FileNotFoundError:
+                logger.warning(
+                    "Cached raw data not found at %s, fetching from source", cache_path
+                )
+                raw_data = self.preprocessor.fetch_raw_data()
+                save_to_file(raw_data, cache_path)
+
+        else:
+            # fetch raw data
+            raw_data = self.preprocessor.fetch_raw_data()
+            # save as cached file
+            save_to_file(raw_data, cache_path)
+        return raw_data
+
+    def pipeline(
+        self, use_cached_raw: bool, start_from_preprocess: bool, model_name: str
+    ) -> None:
         pass
 
     def start_mlflow(self) -> None:
@@ -119,11 +147,14 @@ class KeywordClassificationPipeline(BasePipeline):
         self.params = self.config.get_keyword_trainer_config()
         self.preprocessor = KeywordPreprocessor()
 
-    def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
+    def pipeline(
+        self, use_cached_raw: bool, start_from_preprocess: bool, model_name: str
+    ) -> None:
         """
         The keyword classification model training pipeline.
         Inputs:
-            start_from_preprocess: bool. The indicator to call the data preprocessing module or not.
+            use_cached_raw: bool. If True, load previously fetched raw data from cache. If False, fetch fresh raw data from OGCAPI and (optionally) update the cache.
+            start_from_preprocess: bool. If True, run the preprocessing pipeline from raw data and overwrite the cached preprocessed artifacts. If False, load preprocessed data/labels from previously saved files.
             model_name: str. The model name for saving a selected pretrained model.
         """
         executable = self.is_valid_model(model_name)
@@ -132,14 +163,8 @@ class KeywordClassificationPipeline(BasePipeline):
             return
 
         if start_from_preprocess:
-            # fetch raw data
-            raw_data = self.preprocessor.fetch_raw_data()
-
-            # for test only because it has more data
-            # raw_data = load_from_file(
-            #     self.config.base_dir / "resources" / "raw_data.pkl"
-            # )
-
+            # get raw data
+            raw_data = self.get_raw_data(use_cached_raw)
             # preprocess raw data
             filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
             preprocessed_label = self.preprocessor.concept_to_index
@@ -197,42 +222,56 @@ class DeliveryClassificationPipeline(BasePipeline):
         self.params = self.config.get_delivery_trainer_config()
         self.preprocessor = DeliveryPreprocessor()
 
-    def pipeline(self, start_from_preprocess: bool, model_name: str) -> None:
+    def pipeline(
+        self, use_cached_raw: bool, start_from_preprocess: bool, model_name: str
+    ) -> None:
+        """
+        The data delivery mode classification model training pipeline.
+        Inputs:
+            use_cached_raw: bool. If True, load previously fetched raw data from cache. If False, fetch fresh raw data from OGCAPI and (optionally) update the cache.
+            start_from_preprocess: bool. If True, run the preprocessing pipeline from raw data and overwrite the cached preprocessed artifacts. If False, load preprocessed data/labels from previously saved files.
+            model_name: str. The model name for saving a selected pretrained model.
+        """
         executable = self.is_valid_model(model_name)
-        if executable:
-            if start_from_preprocess:
-                raw_data = self.preprocessor.fetch_raw_data()
-                filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
-                preprocessed_data = self.preprocessor.calculate_embedding(
-                    ds=filtered_data, seperator=self.params.separator
-                )
-                save_to_file(
-                    preprocessed_data,
-                    self.config.base_dir
-                    / "resources"
-                    / FILTER_FOLDER
-                    / FILTER_PREPROCESSED_FILE,
-                )
-            else:
-                preprocessed_data = load_from_file(
-                    self.config.base_dir
-                    / "resources"
-                    / FILTER_FOLDER
-                    / FILTER_PREPROCESSED_FILE
-                )
 
-            if preprocessed_data is not None:
-                manual_labelled_data = load_from_file(
-                    self.config.base_dir
-                    / "resources"
-                    / FILTER_FOLDER
-                    / "manual_labelled_data.pkl"
-                )
-                preprocessed_data = add_manual_labelled_data(
-                    preprocessed_data, manual_labelled_data
-                )
-                self.preprocessor.prepare_train_test_set(preprocessed_data)
-                train_delivery_model(model_name, self.preprocessor)
+        if not executable:
+            return
+
+        if start_from_preprocess:
+            # get raw data
+            raw_data = self.get_raw_data(use_cached_raw)
+            # process raw data
+            filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
+            preprocessed_data = self.preprocessor.calculate_embedding(
+                ds=filtered_data, seperator=self.params.separator
+            )
+            save_to_file(
+                preprocessed_data,
+                self.config.base_dir
+                / "resources"
+                / FILTER_FOLDER
+                / FILTER_PREPROCESSED_FILE,
+            )
+        else:
+            preprocessed_data = load_from_file(
+                self.config.base_dir
+                / "resources"
+                / FILTER_FOLDER
+                / FILTER_PREPROCESSED_FILE
+            )
+
+        if preprocessed_data is not None:
+            manual_labelled_data = load_from_file(
+                self.config.base_dir
+                / "resources"
+                / FILTER_FOLDER
+                / "manual_labelled_data.pkl"
+            )
+            preprocessed_data = add_manual_labelled_data(
+                preprocessed_data, manual_labelled_data
+            )
+            self.preprocessor.prepare_train_test_set(preprocessed_data)
+            train_delivery_model(model_name, self.preprocessor)
 
 
 def main():
@@ -242,6 +281,13 @@ def main():
         "--pipeline",
         type=str,
         help="The ML pipeline to use, options: {'keyword', 'delivery'}",
+    )
+    parser.add_argument(
+        "-r",
+        "--use_cached_raw",
+        type=lambda x: x.lower() == "true",
+        default=True,
+        help="Whether to use cached raw data instead of fetching fresh data (True/False)",
     )
     parser.add_argument(
         "-s",
@@ -262,11 +308,15 @@ def main():
     if args.pipeline == "keyword":
         pipeline = KeywordClassificationPipeline()
         pipeline.start_mlflow()
-        pipeline.pipeline(args.start_from_preprocess, args.model_name)
+        pipeline.pipeline(
+            args.use_cached_raw, args.start_from_preprocess, args.model_name
+        )
     elif args.pipeline == "delivery":
         pipeline = DeliveryClassificationPipeline()
         pipeline.start_mlflow()
-        pipeline.pipeline(args.start_from_preprocess, args.model_name)
+        pipeline.pipeline(
+            args.use_cached_raw, args.start_from_preprocess, args.model_name
+        )
     else:
         logger.error("Invalid pipeline")
 

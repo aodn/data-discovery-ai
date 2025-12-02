@@ -1,10 +1,9 @@
 # unit test for es_connector.py
 import unittest
-import pandas as pd
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
 
-from data_discovery_ai.utils.es_connector import connect_es, search_es, create_es_index
+from data_discovery_ai.utils.es_connector import connect_es, create_es_index
 
 
 class TestESConnector(unittest.TestCase):
@@ -47,33 +46,6 @@ class TestESConnector(unittest.TestCase):
         self.assertIsNone(client)
         mock_logger.error.assert_called_once()
         self.assertIn("Connection Failed", mock_logger.error.call_args[0][0])
-
-    @patch("data_discovery_ai.utils.es_connector.logger")
-    @patch("data_discovery_ai.utils.es_connector.pd")
-    def test_search_es_success(self, mock_pd, mock_logger):
-        # Setup
-        mock_client = MagicMock()
-        mock_client.count.return_value = {"count": 3}
-        mock_client.open_point_in_time.return_value = {"id": "mock_pit_id"}
-
-        mock_hit = {"_source": {"field": "value"}, "sort": ["mock_sort_value"]}
-        search_result = {
-            "hits": {"hits": [mock_hit, mock_hit]},
-            "pit_id": "mock_pit_id",
-        }
-        mock_client.search.side_effect = [search_result, search_result]
-
-        mock_client.close_point_in_time.return_value = True
-
-        df_mock = pd.DataFrame([{"field": "value"}])
-        mock_pd.json_normalize.return_value = df_mock
-        mock_pd.concat.return_value = pd.DataFrame([{"field": "value"}])
-
-        result = search_es(mock_client, "test-index", batch_size=2, sleep_time=0)
-
-        self.assertIsInstance(result, pd.DataFrame)
-        self.assertEqual(mock_client.search.call_count, 2)
-        self.assertEqual(mock_pd.concat.call_count, 1)
 
     @patch("data_discovery_ai.utils.es_connector.connect_es")
     @patch("data_discovery_ai.utils.es_connector.ConfigUtil.get_config")
