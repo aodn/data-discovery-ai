@@ -35,7 +35,14 @@ class TestKeywordClassificationAgent(unittest.TestCase):
                     "url": "http://example.com/concept3",
                     "title": "Theme B",
                     "description": "Desc B",
-                    "theme": {"scheme": "Scheme B"},
+                    "theme": {"scheme": "Scheme B.1"},
+                },
+                {
+                    "id": "Concept4",
+                    "url": "http://example.com/concept3",
+                    "title": "Theme B",
+                    "description": "Desc B",
+                    "theme": {"scheme": "Scheme B.2"},
                 },
             ]
         }
@@ -50,8 +57,8 @@ class TestKeywordClassificationAgent(unittest.TestCase):
         formatted_response = reformat_response(self.prediction)
         self.assertIn("themes", formatted_response)
 
-        # expect two grouped themes: A and B
-        self.assertEqual(len(formatted_response["themes"]), 2)
+        # expect three groups of concepts grouped by title and scheme: A, B.1, and B.2
+        self.assertEqual(len(formatted_response["themes"]), 3)
         self.assertIsInstance(formatted_response["themes"], list)
 
         for theme in formatted_response["themes"]:
