@@ -66,10 +66,10 @@ def reformat_response(response: Dict) -> Dict:
 
     for item in response.get("themes", []):
         theme_info = item.get("theme") or {}
-        theme_title = norm(theme_info.get("title"))
+        theme_title = norm(item.get("title"))
         theme_scheme = norm(theme_info.get("scheme"))
-        theme_desc = norm(theme_info.get("description"))
-        tkey = (theme_title, theme_scheme, theme_desc)
+        # group by vocabulary title and scheme
+        tkey = (theme_title, theme_scheme)
 
         bucket = grouped.get(tkey)
         if bucket is None:
