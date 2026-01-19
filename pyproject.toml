@@ -25,12 +25,12 @@ iterative-stratification = "^0.1.9"
 pyyaml = "^6.0.2"
 elasticsearch = "^8.15.1"
 # https://github.com/python-poetry/poetry/issues/8271#issuecomment-1712020965
-tensorflow-cpu = {version = "2.17.0" }
+tensorflow-cpu = {version = "2.16.2" }
 tensorflow-io-gcs-filesystem = [
     { version = ">= 0.23.1", markers = "platform_machine!='arm64' or platform_system!='Darwin'" },
     { version = "< 0.32.0", markers = "platform_system == 'Windows'" }
 ]
-tf-keras = "2.17.0"
+tf-keras = "2.16.0"
 openai = "^1.66.3"
 h11 = "0.16.0"
 ollama = "^0.4.8"
