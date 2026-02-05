@@ -193,7 +193,7 @@ class SupervisorAgent(BaseAgent):
 
         uuid = request.get("uuid", None)
 
-        query = {"query": {"term": {"id.keyword": uuid}}}
+        query = {"query": {"term": {"id": uuid}}}
         resp = client.search(index=index, body=query)
         hits = resp.get("hits", {}).get("hits", [])
         if not hits:
