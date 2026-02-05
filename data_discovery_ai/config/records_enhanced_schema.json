@@ -12,72 +12,30 @@
         "analyzer": "keyword"
       },
       "title": {
-        "type": "keyword"
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "description": {
-        "type": "keyword"
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
       },
       "themes": {
-        "type": "nested",
-        "properties": {
-          "concepts": {
-            "type": "nested",
-            "properties": {
-              "id": {
-                "type": "text",
-                "fields": {
-                  "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                  }
-                }
-              },
-              "url": {
-                "type": "keyword"
-              },
-              "title": {
-                "type": "keyword"
-              },
-              "description": {
-                "type": "keyword"
-              },
-              "ai:description": {
-                "type": "keyword"
-              }
-            }
-          },
-          "scheme": {
-            "type": "keyword"
-          }
-        }
+        "type": "object",
+        "enabled": false
       },
       "links": {
-        "type": "nested",
-        "properties": {
-          "link": {
-            "type": "nested",
-            "properties": {
-              "href": {
-                "type": "keyword"
-              },
-              "rel": {
-                "type": "keyword"
-              },
-              "type": {
-                "type": "keyword"
-              },
-              "title": {
-                "type": "keyword"
-              },
-              "description": {
-                "type": "keyword"
-              },
-              "ai:group": {
-                "type": "keyword"
-              }
-            }
-          }
-        }
+        "type": "object",
+        "enabled": false
       },
       "summaries": {
         "properties": {
@@ -94,7 +52,7 @@
       },
       "ai:request_raw": {
         "type": "object",
-        "enabled": true
+        "enabled": false
       }
     }
   }
