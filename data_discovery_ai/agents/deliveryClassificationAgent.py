@@ -1,5 +1,6 @@
-# The agent-based model for data delivery mode classification task
+# The agent-based model for data delivery mode classification task, the classes include: {completed, real-time, delayed, other}
 import structlog
+from enum import Enum
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
@@ -10,6 +11,13 @@ from data_discovery_ai.enum.agent_enums import AgentType
 from typing import Any, Dict
 
 logger = structlog.get_logger(__name__)
+
+
+class UpdateFrequency(Enum):
+    completed = "completed"
+    real_time = "real-time"
+    delayed = "delayed"
+    other = "other"
 
 
 class DeliveryClassificationAgent(BaseAgent):
@@ -62,11 +70,15 @@ class DeliveryClassificationAgent(BaseAgent):
             target_X = text_embedding.reshape(1, dimension)
 
             y_pred = pretrained_model.predict(target_X)
-            class_map = {0: "Real-Time", 1: "Delayed", 2: "Other"}
+            class_map = {
+                0: UpdateFrequency.real_time.value,
+                1: UpdateFrequency.delayed.value,
+                2: UpdateFrequency.other.value,
+            }
             pred_class = class_map.get(y_pred[0])
             return pred_class
         else:
-            return ""
+            return UpdateFrequency.other.value
 
     def execute(self, request: dict) -> None:
         """
@@ -80,11 +92,17 @@ class DeliveryClassificationAgent(BaseAgent):
         if not flag:
             self.response = {self.model_config.response_key: ""}
         else:
-            title = request["title"]
-            abstract = request["abstract"]
-            lineage = request["lineage"]
-            prediction = self.take_action(title, abstract, lineage)
-            self.response = {self.model_config.response_key: prediction}
+            status = request["status"]
+            temporal = request["temporal"]
+            mapped_update_frequency = map_status_update_frequency(status, temporal)
+            if mapped_update_frequency == UpdateFrequency.other.value:
+                title = request["title"]
+                abstract = request["abstract"]
+                lineage = request["lineage"]
+                prediction = self.take_action(title, abstract, lineage)
+                self.response = {self.model_config.response_key: prediction}
+            else:
+                self.response = {self.model_config.response_key: mapped_update_frequency}
 
         logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 
@@ -96,3 +114,55 @@ class DeliveryClassificationAgent(BaseAgent):
         )
         trained_model = load_from_file(model_file_path.with_suffix(".pkl"))
         return trained_model
+
+
+def map_status_update_frequency(status: str, temporal: list) -> str:
+    """
+    Input:
+        - status: str - the status of the record, such as "completed", "onGoing", can have free text in one or few words.
+        - temporal: List<Map>, for example:
+        "temporal": [
+            {
+                "start": "2023-01-22T13:00:00Z",
+                "end": "2023-01-23T12:59:59Z"
+            },
+            {}
+        ]
+    Output:
+        str: the mapped update frequency in terms of "completed" or "other"
+    Given status and temporal range of the record, decide update_frequency based on a set of predefined rules
+    (see: https://github.com/aodn/backlog/issues/7978#issuecomment-3821164737). Specifically:
+    1. these statuses could also be regarded as 'completed'
+        historicalArchive
+        obsolete
+        deprecated
+        complete
+        Complete
+    2. onGoing | historicalArchive - records have 2 x status identifed, 'ongoing' is priority
+    3. Under development = check has date range. Yes = completed
+        Planned = check has date range. Yes = completed
+        Tentative = check has date range. Yes = completed
+        No status = check has date range. Yes = completed (likely they are completed)
+    Set update_frequency to 'completed' if meet rules or 'other' if not meet
+    """
+    if status is None:
+        status = ""
+    normalised_status = status.replace(" ", "").lower()
+    # rule 2: check ongoing priority first
+    if "ongoing" in normalised_status:
+        return UpdateFrequency.other.value
+
+    # rule 1: check completed status with its variants
+    completed_status = ["historicalarchive", "obsolete", "deprecated", "complete"]
+    if normalised_status in completed_status:
+        return UpdateFrequency.completed.value
+
+    # rule 3: check free text status with temporal range
+    free_text_status = ["underdevelopment", "planned", "tentative", ""]
+    if normalised_status in free_text_status:
+        for temporal_entry in temporal:
+            if temporal_entry.get("start") and temporal_entry.get("end"):
+                return UpdateFrequency.completed.value
+
+    # default to 'other'
+    return UpdateFrequency.other.value
