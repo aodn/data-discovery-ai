@@ -18,6 +18,8 @@ model:
           - title
           - abstract
           - lineage
+          - status
+          - temporal
       description_formatting:
         required_fields:
           - title
