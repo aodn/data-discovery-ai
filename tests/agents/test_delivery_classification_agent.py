@@ -3,17 +3,23 @@ import unittest
 from unittest.mock import patch, MagicMock
 from data_discovery_ai.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
+    map_status_update_frequency,
+    UpdateFrequency,
 )
 
 
 class TestDeliveryClassificationAgent(unittest.TestCase):
     def setUp(self):
         self.agent = DeliveryClassificationAgent()
-        self.agent.set_required_fields(["title", "abstract", "lineage"])
+        self.agent.set_required_fields(
+            ["title", "abstract", "lineage", "status", "temporal"]
+        )
         self.valid_request = {
             "title": "Test Title",
             "abstract": "Test abstract.",
             "lineage": "Test lineage.",
+            "status": "on going",
+            "temporal": [],
         }
 
         self.invalid_request = {"title": "Test Title", "abstract": "Test abstract."}
@@ -31,9 +37,11 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         self.agent.take_action = MagicMock(return_value="real-time")
 
         request = {
-            "title": "Test title",
-            "abstract": "Test abstract",
-            "lineage": "test lineage",
+            "title": "Test Title",
+            "abstract": "Test abstract.",
+            "lineage": "Test lineage.",
+            "status": "on going",
+            "temporal": [],
         }
 
         self.agent.execute(request)
@@ -51,3 +59,30 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         log_msg = mock_logger.debug.call_args[0][0]
         self.assertIn("delivery_classification agent finished", log_msg)
         self.assertIn("real-time", log_msg)
+
+    def test_map_status_update_frequency(self):
+        completed_status = "historicalArchive"
+        completed_temporal = [
+            {"start": "2023-01-22T13:00:00Z", "end": "2023-01-23T12:59:59Z"}
+        ]
+        ongoing_temporal = [{"start": "2023-01-22T13:00:00Z"}]
+        self.assertEqual(
+            map_status_update_frequency(completed_status, completed_temporal),
+            UpdateFrequency.completed.value,
+        )
+
+        free_text_status = "Under development"
+        self.assertEqual(
+            map_status_update_frequency(free_text_status, completed_temporal),
+            UpdateFrequency.completed.value,
+        )
+        self.assertEqual(
+            map_status_update_frequency(free_text_status, ongoing_temporal),
+            UpdateFrequency.other.value,
+        )
+
+        ongoing_status = "onGoing | historicalArchive"
+        self.assertEqual(
+            map_status_update_frequency(ongoing_status, ongoing_temporal),
+            UpdateFrequency.other.value,
+        )

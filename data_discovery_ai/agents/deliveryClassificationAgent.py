@@ -102,7 +102,9 @@ class DeliveryClassificationAgent(BaseAgent):
                 prediction = self.take_action(title, abstract, lineage)
                 self.response = {self.model_config.response_key: prediction}
             else:
-                self.response = {self.model_config.response_key: mapped_update_frequency}
+                self.response = {
+                    self.model_config.response_key: mapped_update_frequency
+                }
 
         logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 
