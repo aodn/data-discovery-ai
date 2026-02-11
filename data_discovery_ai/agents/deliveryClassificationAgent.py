@@ -147,8 +147,12 @@ def map_status_update_frequency(status: str, temporal: list) -> str:
         No status = check has date range. Yes = completed (likely they are completed)
     Set update_frequency to 'completed' if meet rules or 'other' if not meet
     """
+    if status.lower() == UpdateFrequency.completed.value:
+        return UpdateFrequency.completed.value
+
     if status is None:
         status = ""
+
     normalised_status = status.replace(" ", "").lower()
     # rule 2: check ongoing priority first
     if "ongoing" in normalised_status:
