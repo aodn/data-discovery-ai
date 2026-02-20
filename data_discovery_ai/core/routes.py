@@ -49,20 +49,12 @@ async def ensure_ready():
     )
     keyword_label_path = base_path / KEYWORD_FOLDER / KEYWORD_LABEL_FILE
 
-    # Path for delivery classification
-    delivery_model = config.get_delivery_classification_config().pretrained_model
-    delivery_model_path = (base_path / FILTER_FOLDER / delivery_model).with_suffix(
-        ".pkl"
-    )
-
     # Check resource existence
     missing = []
     if not keyword_model_path.exists():
         missing.append(f"Keyword model resource not found at {keyword_model_path}")
     if not keyword_label_path.exists():
         missing.append(f"Keyword label resource not found at {keyword_label_path}")
-    if not delivery_model_path.exists():
-        missing.append(f"Delivery model resource not found at {delivery_model_path}")
     if missing:
         raise HTTPException(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="; ".join(missing)
@@ -246,6 +238,8 @@ async def process_record(
     supervisor.set_tokenizer(request.app.state.tokenizer)
     supervisor.set_embedding_model(request.app.state.embedding_model)
     supervisor.set_llm_client(request.app.state.llm_client)
+    supervisor.set_nli_tokenizer(request.app.state.nli_tokenizer)
+    supervisor.set_nli_model(request.app.state.nli_model)
 
     if not supervisor.is_valid_request(body):
 

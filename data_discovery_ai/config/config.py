@@ -76,13 +76,12 @@ class KeywordClassificationTrainerConfig:
 
 @dataclass(frozen=True)
 class DeliveryClassificationTrainerConfig:
-    test_size: float
-    threshold: float
-    separator: str
-    max_depth: int
-    max_leaf_nodes: int
-    k_best: int
-    max_iter: int
+    entailment_high: float
+    entailment_low: float
+    conflict_high: float
+    model_name: str
+    max_length: int
+    max_sentence: int
 
 
 @dataclass(frozen=True)

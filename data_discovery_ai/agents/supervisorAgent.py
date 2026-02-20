@@ -36,12 +36,20 @@ class SupervisorAgent(BaseAgent):
         self.tokenizer = None
         self.embedding_model = None
         self.llm_client = None
+        self.nli_tokenizer = None
+        self.nli_model = None
 
     def set_tokenizer(self, tokenizer: Any):
         self.tokenizer = tokenizer
 
     def set_embedding_model(self, embedding_model: Any):
         self.embedding_model = embedding_model
+
+    def set_nli_tokenizer(self, tokenizer: Any):
+        self.nli_tokenizer = tokenizer
+
+    def set_nli_model(self, model: Any):
+        self.nli_model = model
 
     def set_llm_client(self, llm_client: Any):
         self.llm_client = llm_client
@@ -205,6 +213,9 @@ class SupervisorAgent(BaseAgent):
         old_models = set(old_request.get("selected_model", []))
         current_models = set(request.get("selected_model", []))
 
+        # only allow description_formatting to use stored data, other models always re-run because they can be updated with no cost
+        cacheable_models = {AgentType.DESCRIPTION_FORMATTING.value}
+
         model_fields = {
             AgentType.LINK_GROUPING.value: self.model_config.get("task_agents")
             .get(AgentType.LINK_GROUPING.value)
@@ -225,6 +236,9 @@ class SupervisorAgent(BaseAgent):
         matched_models = []
 
         for model in current_models:
+            # skip models that are not allowed to use stored data
+            if model not in cacheable_models:
+                continue
             if model not in old_models:
                 continue
             required_fields = model_fields.get(model, [])

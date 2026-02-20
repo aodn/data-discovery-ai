@@ -13,3 +13,8 @@ class AgentType(Enum):
     DESCRIPTION_FORMATTING = "description_formatting"
     KEYWORD_CLASSIFICATION = "keyword_classification"
     DELIVERY_CLASSIFICATION = "delivery_classification"
+
+
+class HuggingfaceModel(Enum):
+    NLI_MODEL_NAME = "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
+    EMBEDDING_MODEL_NAME = "google-bert/bert-base-uncased"

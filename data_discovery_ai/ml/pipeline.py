@@ -3,21 +3,14 @@ import pandas as pd
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import save_to_file, load_from_file
-from data_discovery_ai.ml.preprocessor import (
-    KeywordPreprocessor,
-    DeliveryPreprocessor,
-    add_manual_labelled_data,
-)
+from data_discovery_ai.ml.preprocessor import KeywordPreprocessor
 from data_discovery_ai.config.constants import (
     KEYWORD_FOLDER,
     KEYWORD_SAMPLE_FILE,
     KEYWORD_LABEL_FILE,
-    FILTER_FOLDER,
-    FILTER_PREPROCESSED_FILE,
     CACHED_RAW_DATA,
 )
 from data_discovery_ai.ml.keywordModel import train_keyword_model
-from data_discovery_ai.ml.filteringModel import train_delivery_model
 import argparse
 import subprocess
 from dotenv import load_dotenv
@@ -216,64 +209,6 @@ class KeywordClassificationPipeline(BasePipeline):
         train_keyword_model(model_name, self.preprocessor)
 
 
-class DeliveryClassificationPipeline(BasePipeline):
-    def __init__(self) -> None:
-        super().__init__()
-        self.params = self.config.get_delivery_trainer_config()
-        self.preprocessor = DeliveryPreprocessor()
-
-    def pipeline(
-        self, use_cached_raw: bool, start_from_preprocess: bool, model_name: str
-    ) -> None:
-        """
-        The data delivery mode classification model training pipeline.
-        Inputs:
-            use_cached_raw: bool. If True, load previously fetched raw data from cache. If False, fetch fresh raw data from OGCAPI and (optionally) update the cache.
-            start_from_preprocess: bool. If True, run the preprocessing pipeline from raw data and overwrite the cached preprocessed artifacts. If False, load preprocessed data/labels from previously saved files.
-            model_name: str. The model name for saving a selected pretrained model.
-        """
-        executable = self.is_valid_model(model_name)
-
-        if not executable:
-            return
-
-        if start_from_preprocess:
-            # get raw data
-            raw_data = self.get_raw_data(use_cached_raw)
-            # process raw data
-            filtered_data = self.preprocessor.filter_raw_data(raw_data=raw_data)
-            preprocessed_data = self.preprocessor.calculate_embedding(
-                ds=filtered_data, seperator=self.params.separator
-            )
-            save_to_file(
-                preprocessed_data,
-                self.config.base_dir
-                / "resources"
-                / FILTER_FOLDER
-                / FILTER_PREPROCESSED_FILE,
-            )
-        else:
-            preprocessed_data = load_from_file(
-                self.config.base_dir
-                / "resources"
-                / FILTER_FOLDER
-                / FILTER_PREPROCESSED_FILE
-            )
-
-        if preprocessed_data is not None:
-            manual_labelled_data = load_from_file(
-                self.config.base_dir
-                / "resources"
-                / FILTER_FOLDER
-                / "manual_labelled_data.pkl"
-            )
-            preprocessed_data = add_manual_labelled_data(
-                preprocessed_data, manual_labelled_data
-            )
-            self.preprocessor.prepare_train_test_set(preprocessed_data)
-            train_delivery_model(model_name, self.preprocessor)
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -307,12 +242,6 @@ def main():
     args = parser.parse_args()
     if args.pipeline == "keyword":
         pipeline = KeywordClassificationPipeline()
-        pipeline.start_mlflow()
-        pipeline.pipeline(
-            args.use_cached_raw, args.start_from_preprocess, args.model_name
-        )
-    elif args.pipeline == "delivery":
-        pipeline = DeliveryClassificationPipeline()
         pipeline.start_mlflow()
         pipeline.pipeline(
             args.use_cached_raw, args.start_from_preprocess, args.model_name

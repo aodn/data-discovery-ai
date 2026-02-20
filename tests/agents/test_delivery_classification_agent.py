@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import patch, MagicMock
 from data_discovery_ai.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
-    map_status_update_frequency,
     UpdateFrequency,
 )
 
@@ -31,11 +30,15 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         # Test invalid request with missing field
         self.assertFalse(self.agent.make_decision(self.invalid_request))
 
+    @patch(
+        "data_discovery_ai.agents.deliveryClassificationAgent.mapping_update_frequency"
+    )
     @patch("data_discovery_ai.agents.deliveryClassificationAgent.logger")
-    def test_execute(self, mock_logger):
+    def test_execute_with_NIL(self, mock_logger, mock_mapping):
+        # Mock rule-based path to return OTHER, so NLI path is triggered
+        mock_mapping.return_value = UpdateFrequency.OTHER.value
         self.agent.make_decision = MagicMock(return_value=True)
         self.agent.take_action = MagicMock(return_value="real-time")
-
         request = {
             "title": "Test Title",
             "abstract": "Test abstract.",
@@ -43,46 +46,43 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
             "status": "on going",
             "temporal": [],
         }
-
         self.agent.execute(request)
-
         self.agent.make_decision.assert_called_once_with(request)
+        mock_mapping.assert_called_once_with(
+            request["status"], request["temporal"], request["title"]
+        )
         self.agent.take_action.assert_called_once_with(
             request["title"], request["abstract"], request["lineage"]
         )
+        # Response is now a plain mode string, not a dict with "mode" key
         self.assertEqual(
             self.agent.response, {"summaries.ai:update_frequency": "real-time"}
         )
-
-        # Check logging
         mock_logger.debug.assert_called_once()
         log_msg = mock_logger.debug.call_args[0][0]
         self.assertIn("delivery_classification agent finished", log_msg)
         self.assertIn("real-time", log_msg)
 
-    def test_map_status_update_frequency(self):
-        completed_status = "historicalArchive"
-        completed_temporal = [
-            {"start": "2023-01-22T13:00:00Z", "end": "2023-01-23T12:59:59Z"}
-        ]
-        ongoing_temporal = [{"start": "2023-01-22T13:00:00Z"}]
+    @patch(
+        "data_discovery_ai.agents.deliveryClassificationAgent.mapping_update_frequency"
+    )
+    @patch("data_discovery_ai.agents.deliveryClassificationAgent.logger")
+    def test_execute_rule_based(self, mock_logger, mock_mapping):
+        # Mock rule-based path to return COMPLETED, NLI path should NOT be triggered
+        mock_mapping.return_value = UpdateFrequency.COMPLETED.value
+        self.agent.make_decision = MagicMock(return_value=True)
+        self.agent.take_action = MagicMock()
+        request = {
+            "title": "Test Title",
+            "abstract": "Test abstract.",
+            "lineage": "Test lineage.",
+            "status": "completed",
+            "temporal": [],
+        }
+        self.agent.execute(request)
+        # take_action should NOT be called when rule-based path returns a result
+        self.agent.take_action.assert_not_called()
         self.assertEqual(
-            map_status_update_frequency(completed_status, completed_temporal),
-            UpdateFrequency.completed.value,
-        )
-
-        free_text_status = "Under development"
-        self.assertEqual(
-            map_status_update_frequency(free_text_status, completed_temporal),
-            UpdateFrequency.completed.value,
-        )
-        self.assertEqual(
-            map_status_update_frequency(free_text_status, ongoing_temporal),
-            UpdateFrequency.other.value,
-        )
-
-        ongoing_status = "onGoing | historicalArchive"
-        self.assertEqual(
-            map_status_update_frequency(ongoing_status, ongoing_temporal),
-            UpdateFrequency.other.value,
+            self.agent.response,
+            {"summaries.ai:update_frequency": UpdateFrequency.COMPLETED.value},
         )

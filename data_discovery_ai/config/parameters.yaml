@@ -129,10 +129,9 @@ trainer:
     validation_split: 0.2
     rare_label_threshold: 3
   delivery_classification:
-    separator: " [SEP] "
-    test_size: 0.3
-    threshold: 0.75
-    max_depth: 20
-    max_leaf_nodes: 2
-    k_best: 5
-    max_iter: 10
+    entailment_high: 0.75
+    entailment_low: 0.3
+    conflict_high: 0.75
+    model_name: "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli"
+    max_length: 512
+    max_sentence: 5
