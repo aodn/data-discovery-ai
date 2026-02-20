@@ -49,7 +49,9 @@ def get_text_embedding(
         return None
     else:
         # https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__.return_tensors, set as 'tf' to return tensorflow tensor
-        inputs = tokenizer(text, return_tensors="tf", max_length=max_length, truncation=True)
+        inputs = tokenizer(
+            text, return_tensors="tf", max_length=max_length, truncation=True
+        )
         outputs = embedding_model(inputs)
         text_embedding = outputs.last_hidden_state[:, 0, :].numpy()
         # output as a 1D array, shape (768,)

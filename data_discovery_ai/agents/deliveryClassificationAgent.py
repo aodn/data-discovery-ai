@@ -5,7 +5,11 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
 from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
-from data_discovery_ai.ml.filteringModel import mapping_update_frequency, DeliveryModeInferencer, extract_evidence
+from data_discovery_ai.ml.filteringModel import (
+    mapping_update_frequency,
+    DeliveryModeInferencer,
+    extract_evidence,
+)
 
 from typing import Dict
 
@@ -52,7 +56,7 @@ class DeliveryClassificationAgent(BaseAgent):
         # {'mode': 'REAL_TIME', 'reason': 'nli_entails_real_time', 'evidence': Evidence(rt=['This dataset is delivered in real-time.'], delayed=['The silk is removed from the CPR cassette and processed as described in Richardson et al 2006.'], rt_unprocessed=[]), 'nli': {'ent_rt': 0.9275655746459961, 'ent_dl': 0.14127250015735626, 'rt_scores': [0.9275655746459961], 'dl_scores': [0.14127250015735626]}}
         probs = infer_model.decide_with_nli(evidence)
         # process 'UNKNOWN' prediction to default 'other' mode
-        if probs["mode"]== UpdateFrequency.UNKNOWN.value:
+        if probs["mode"] == UpdateFrequency.UNKNOWN.value:
             return UpdateFrequency.OTHER.value
         # process 'CONFLICT' prediction (indication to both high probability of being delayed and real-time to 'DELAYED` mode
         if probs["mode"] == UpdateFrequency.BOTH.value:

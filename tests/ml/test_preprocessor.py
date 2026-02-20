@@ -7,7 +7,7 @@ from data_discovery_ai.config.config import (
     ConfigUtil,
     KeywordClassificationTrainerConfig,
 )
-from data_discovery_ai.ml.preprocessor import KeywordPreprocessor, DeliveryPreprocessor
+from data_discovery_ai.ml.preprocessor import KeywordPreprocessor
 
 
 class TestKeywordPreprocessorFilter(unittest.TestCase):
@@ -80,53 +80,6 @@ class TestKeywordPreprocessorFilter(unittest.TestCase):
         kw0 = out["themes"].iloc[0]
         self.assertIsInstance(kw0, list)
         self.assertEqual(kw0, [0])
-
-
-class TestDeliveryPreprocessorPostFilter(unittest.TestCase):
-    def test_filter_raw_data(self):
-        dp = DeliveryPreprocessor()
-        themes_1 = [
-            {
-                "concepts": [
-                    {
-                        "id": "1",
-                        "url": "https://vocabs.ardc.edu.au/1",
-                        "title": "A",
-                        "description": "",
-                    }
-                ],
-                "scheme": "platform",
-            }
-        ]
-        themes_2 = [
-            {
-                "concepts": [
-                    {
-                        "id": "2",
-                        "url": "https://vocabs.ardc.edu.au/2",
-                        "title": "A",
-                        "description": "",
-                    }
-                ],
-                "scheme": "theme",
-            }
-        ]
-        df = pd.DataFrame(
-            {
-                "id": ["1", "2"],
-                "title": ["title real time", "title delayed"],
-                "description": ["abstract 1", "abstract 2"],
-                "themes": [themes_1, themes_2],
-                "statement": ["statement 1", "statement 2"],
-                "status": ["onGoing", "Completed"],
-            }
-        )
-        out = dp.filter_raw_data(df)
-        self.assertEqual(
-            list(out.columns),
-            ["id", "title", "description", "statement", "status", "mode"],
-        )
-        self.assertTrue((out["status"] == "onGoing").all())
 
 
 if __name__ == "__main__":

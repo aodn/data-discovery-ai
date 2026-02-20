@@ -11,43 +11,63 @@ from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
 
 logger = structlog.get_logger(__name__)
 
+
 @dataclass
 class DeliveryModePatterns:
     # explicit real-time mode identifiers: {near real time, real time, nrt, delayed}
-    real_time_mode: Pattern = field(default_factory=lambda: re.compile(
-        r"\b(near[-\s]?real[-\s]?time|real[-\s]?time|nrt)\b", re.I
-    ))
+    real_time_mode: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b(near[-\s]?real[-\s]?time|real[-\s]?time|nrt)\b", re.I
+        )
+    )
 
     # explicit delayed mode identifiers: {delayed, delaying, delay}
-    delayed_mode: Pattern = field(default_factory=lambda: re.compile(
-        r"\b(delayed(?:[-\s]?mode)?)\b", re.I
-    ))
+    delayed_mode: Pattern = field(
+        default_factory=lambda: re.compile(r"\b(delayed(?:[-\s]?mode)?)\b", re.I)
+    )
 
     # post-processing identifiers, e.g., quality control, processed, etc., used for identifying delayed mode
-    processed: Pattern = field(default_factory=lambda: re.compile(
-        r"\b(quality[-\s]?controlled|quality control|qc\b|qc[-\s]?flags?|flagged|validated|processed|reprocessed|post[-\s]?processed)\b", re.I
-    ))
+    processed: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b(quality[-\s]?controlled|quality control|qc\b|qc[-\s]?flags?|flagged|validated|processed|reprocessed|post[-\s]?processed)\b",
+            re.I,
+        )
+    )
 
     # delivery verb identifiers
-    delivery_verb: Pattern = field(default_factory=lambda: re.compile( r"\b(via|available|provided|delivered|uploaded|broadcast|published|accessible)\b", re.I ))
+    delivery_verb: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b(via|available|provided|delivered|uploaded|broadcast|published|accessible)\b",
+            re.I,
+        )
+    )
 
     # unprocessed identifiers, e.g., raw data, used for identifying real-time mode
-    unprocessed: Pattern = field(default_factory=lambda: re.compile(
-        r"\b(unprocessed|raw|no quality control|no qc|no quality control flags|without qc flags|not quality controlled)\b", re.I
-    ))
+    unprocessed: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b(unprocessed|raw|no quality control|no qc|no quality control flags|without qc flags|not quality controlled)\b",
+            re.I,
+        )
+    )
 
     # target identifier, i.e., specifically indicates this record, so that to make sure the text explicitly indicates current record.
-    target: Pattern = field(default_factory=lambda: re.compile(
-        r"\b(this (dataset|record|data|product|collection)|"
-        r"the (data|observations|measurements)|"
-        r"(data|observations|measurements) (is|are))\b",
-        re.I
-    ))
+    target: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b(this (dataset|record|data|product|collection)|"
+            r"the (data|observations|measurements)|"
+            r"(data|observations|measurements) (is|are))\b",
+            re.I,
+        )
+    )
 
     # Contrast markers for clause selection. Edge case: "the rest of the collection are in delayed mode, while this one is delivered in real-time"
-    contrast: Pattern = field(default_factory=lambda: re.compile(
-        r"\b(but|however|whereas|although|instead|unlike|except|rather than|while)\b", re.I
-    ))
+    contrast: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b(but|however|whereas|although|instead|unlike|except|rather than|while)\b",
+            re.I,
+        )
+    )
+
 
 @dataclass(frozen=True)
 class DeliveryModeHypothesis:
@@ -61,14 +81,22 @@ class DeliveryModeHypothesis:
     def real_time(self) -> str:
         return f"{self.subject} is delivered in real-time mode."
 
+
 @dataclass
 class Evidence:
     rt: List[str] = field(default_factory=list)
     delayed: List[str] = field(default_factory=list)
     rt_unprocessed: List[str] = field(default_factory=list)
 
-def extract_evidence(title: str, description: str, statement: str,
-                     max_rt: int = 3, max_del: int = 3, max_unp: int = 2) -> Evidence:
+
+def extract_evidence(
+    title: str,
+    description: str,
+    statement: str,
+    max_rt: int = 3,
+    max_del: int = 3,
+    max_unp: int = 2,
+) -> Evidence:
     """
     Extract evidence sentences from title, description, and statement that indicate whether the record is real-time or delayed mode.
     Filters out noise and keeps only relevant clauses as evidence.
@@ -84,6 +112,7 @@ def extract_evidence(title: str, description: str, statement: str,
     """
     ev = Evidence()
     p = DeliveryModePatterns()
+
     def process_field(text: str):
         for sent in clean_text_to_sentences(text):
             clauses = split_clauses(sent)
@@ -125,7 +154,11 @@ def extract_evidence(title: str, description: str, statement: str,
                 if has_rt and has_unp and len(ev.rt_unprocessed) < max_unp:
                     ev.rt_unprocessed.append(c)
 
-                if len(ev.rt) >= max_rt and len(ev.delayed) >= max_del and len(ev.rt_unprocessed) >= max_unp:
+                if (
+                    len(ev.rt) >= max_rt
+                    and len(ev.delayed) >= max_del
+                    and len(ev.rt_unprocessed) >= max_unp
+                ):
                     return
 
     process_field(title)
@@ -136,6 +169,7 @@ def extract_evidence(title: str, description: str, statement: str,
     ev.delayed = remove_duplicated_sentences(ev.delayed)
     ev.rt_unprocessed = remove_duplicated_sentences(ev.rt_unprocessed)
     return ev
+
 
 def clean_text_to_sentences(text: str) -> List[str]:
     sentence_split = re.compile(r"(?<=[\.\!\?\;])\s+|\n+")
@@ -149,10 +183,15 @@ def clean_text_to_sentences(text: str) -> List[str]:
 
     return [x.strip() for x in sentence_split.split(text) if x and x.strip()]
 
+
 def split_clauses(sent: str) -> List[str]:
-    clause_split = re.compile(r"\b(?:but|however|whereas|although|instead|unlike|except|rather than|while)\b|[,;]", re.I)
+    clause_split = re.compile(
+        r"\b(?:but|however|whereas|although|instead|unlike|except|rather than|while)\b|[,;]",
+        re.I,
+    )
     parts = [x.strip() for x in re.split(clause_split, sent) if x and x.strip()]
     return parts if parts else [sent.strip()]
+
 
 def remove_duplicated_sentences(sentences: List[str]) -> List[str]:
     out, seen = [], set()
@@ -189,16 +228,22 @@ class DeliveryModeInferencer:
         )
         logits = self.model(inputs).logits
         probs = tf.nn.softmax(logits, axis=-1).numpy().squeeze(0)
-        out = {"entailment": float(probs[self.ent_id]), "contradiction": float(probs[self.con_id]),
-               "neutral": float(probs[self.neu_id]) if self.neu_id is not None else float(np.nan)}
+        out = {
+            "entailment": float(probs[self.ent_id]),
+            "contradiction": float(probs[self.con_id]),
+            "neutral": (
+                float(probs[self.neu_id]) if self.neu_id is not None else float(np.nan)
+            ),
+        }
         return out
 
     def decide_with_nli(
-            self,
-            ev: Evidence,
-            max_sents: int = 5,
+        self,
+        ev: Evidence,
+        max_sents: int = 5,
     ) -> Dict[str, Any]:
         hypothesis = DeliveryModeHypothesis()
+
         def max_entailment(sentences: List[str], hypo: str):
             scores = []
             for s in sentences[:max_sents]:
@@ -228,9 +273,19 @@ class DeliveryModeInferencer:
         # (b) else => CONFLICT
         if ent_dl >= self.config.conflict_high and ent_rt >= self.config.conflict_high:
             return {
-                "mode": UpdateFrequency.REAL_TIME.value if multi_product else UpdateFrequency.BOTH.value,
-                "reason": "both_entail_high_multi_product" if multi_product else "both_entail_high_conflict",
-                "secondary": "REAL_TIME_UNPROCESSED_AVAILABLE" if multi_product else None,
+                "mode": (
+                    UpdateFrequency.REAL_TIME.value
+                    if multi_product
+                    else UpdateFrequency.BOTH.value
+                ),
+                "reason": (
+                    "both_entail_high_multi_product"
+                    if multi_product
+                    else "both_entail_high_conflict"
+                ),
+                "secondary": (
+                    "REAL_TIME_UNPROCESSED_AVAILABLE" if multi_product else None
+                ),
                 "evidence": ev,
                 "nli": {
                     "ent_rt": ent_rt,
@@ -241,7 +296,10 @@ class DeliveryModeInferencer:
             }
 
         # Case 2: delayed, max(entailment_delayed) >= threshold entailment_high and max(entailment_real_time) <= threshold entailment_low
-        if ent_dl >= self.config.entailment_high and ent_rt <= self.config.entailment_low:
+        if (
+            ent_dl >= self.config.entailment_high
+            and ent_rt <= self.config.entailment_low
+        ):
             return {
                 "mode": UpdateFrequency.DELAYED.value,
                 "reason": "nli_entails_delayed",
@@ -255,7 +313,10 @@ class DeliveryModeInferencer:
             }
 
         # Case 3: real-time, max(entailment_real_time) > threshold entailment_high and max(entailment_delayed) < threshold entailment_low
-        if ent_rt >= self.config.entailment_high and ent_dl <= self.config.entailment_low:
+        if (
+            ent_rt >= self.config.entailment_high
+            and ent_dl <= self.config.entailment_low
+        ):
             return {
                 "mode": UpdateFrequency.REAL_TIME.value,
                 "reason": "nli_entails_real_time",

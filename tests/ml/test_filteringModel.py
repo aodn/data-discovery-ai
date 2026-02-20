@@ -1,42 +1,55 @@
-import sys
 import unittest
-from unittest.mock import MagicMock, patch
 
-# mock mlflow so that don't need running server
-mlflow_stub = MagicMock()
-
-
-class DummyRun:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        pass
-
-
-mlflow_stub.start_run.return_value = DummyRun()
-sys.modules["mlflow"] = mlflow_stub
-sys.modules["mlflow.tracking"] = mlflow_stub.tracking
+from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
+from data_discovery_ai.ml.filteringModel import mapping_update_frequency
 
 import data_discovery_ai.ml.filteringModel as filteringModel
 
 
 class TestFilteringModel(unittest.TestCase):
-    def test_get_predicted_class_name(self):
-        self.assertEqual(filteringModel.get_predicted_class_name(0), "Real-Time")
-        self.assertEqual(filteringModel.get_predicted_class_name(1), "Delayed")
-        self.assertEqual(filteringModel.get_predicted_class_name(2), "Other")
-        self.assertIsNone(filteringModel.get_predicted_class_name(3))
+    def test_map_title_update_frequency(self):
+        real_time_in_title = "Wave buoys Observations - Australia - near real-time"
+        self.assertEqual(
+            filteringModel.map_title_update_frequency(real_time_in_title),
+            UpdateFrequency.REAL_TIME.value,
+        )
 
-    @patch("data_discovery_ai.ml.filteringModel.load_from_file")
-    def test_load_saved_model(self, mock_load):
-        mock_model = MagicMock()
-        mock_load.side_effect = [mock_model]
+        delayed_in_title = "IMOS - Animal Tracking Facility - Satellite Relay Tagging Program - Delayed mode data"
+        self.assertEqual(
+            filteringModel.map_title_update_frequency(delayed_in_title),
+            UpdateFrequency.DELAYED.value,
+        )
 
-        model = filteringModel.load_saved_model("test")
+        unknow_title = "Victorian Statewide Marine Habitat Map 2023"
+        self.assertEqual(filteringModel.map_title_update_frequency(unknow_title), None)
 
-        self.assertEqual(mock_load.call_count, 1)
-        self.assertIs(model, mock_model)
+    def test_map_status_update_frequency(self):
+        completed_status = "historicalArchive"
+        completed_temporal = [
+            {"start": "2023-01-22T13:00:00Z", "end": "2023-01-23T12:59:59Z"}
+        ]
+        title = "IMOS - Animal Tracking Facility - Satellite Relay Tagging Program - Delayed mode data"
+        ongoing_temporal = [{"start": "2023-01-22T13:00:00Z"}]
+        self.assertEqual(
+            mapping_update_frequency(completed_status, completed_temporal, title),
+            UpdateFrequency.COMPLETED.value,
+        )
+
+        free_text_status = "Under development"
+        self.assertEqual(
+            mapping_update_frequency(free_text_status, completed_temporal, title),
+            UpdateFrequency.COMPLETED.value,
+        )
+        self.assertEqual(
+            mapping_update_frequency(free_text_status, ongoing_temporal, title),
+            UpdateFrequency.DELAYED.value,
+        )
+
+        ongoing_status = "onGoing | historicalArchive"
+        self.assertEqual(
+            mapping_update_frequency(ongoing_status, ongoing_temporal, title),
+            UpdateFrequency.DELAYED.value,
+        )
 
 
 if __name__ == "__main__":

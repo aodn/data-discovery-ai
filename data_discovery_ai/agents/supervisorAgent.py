@@ -213,6 +213,9 @@ class SupervisorAgent(BaseAgent):
         old_models = set(old_request.get("selected_model", []))
         current_models = set(request.get("selected_model", []))
 
+        # only allow description_formatting to use stored data, other models always re-run because they can be updated with no cost
+        cacheable_models = {AgentType.DESCRIPTION_FORMATTING.value}
+
         model_fields = {
             AgentType.LINK_GROUPING.value: self.model_config.get("task_agents")
             .get(AgentType.LINK_GROUPING.value)
@@ -233,6 +236,9 @@ class SupervisorAgent(BaseAgent):
         matched_models = []
 
         for model in current_models:
+            # skip models that are not allowed to use stored data
+            if model not in cacheable_models:
+                continue
             if model not in old_models:
                 continue
             required_fields = model_fields.get(model, [])
