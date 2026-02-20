@@ -36,12 +36,20 @@ class SupervisorAgent(BaseAgent):
         self.tokenizer = None
         self.embedding_model = None
         self.llm_client = None
+        self.nli_tokenizer = None
+        self.nli_model = None
 
     def set_tokenizer(self, tokenizer: Any):
         self.tokenizer = tokenizer
 
     def set_embedding_model(self, embedding_model: Any):
         self.embedding_model = embedding_model
+
+    def set_nli_tokenizer(self, tokenizer: Any):
+        self.nli_tokenizer = tokenizer
+
+    def set_nli_model(self, model: Any):
+        self.nli_model = model
 
     def set_llm_client(self, llm_client: Any):
         self.llm_client = llm_client

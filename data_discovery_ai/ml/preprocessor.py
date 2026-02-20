@@ -1,6 +1,7 @@
 import ast
-from typing import Any, Dict, List, Union, Tuple
-from dataclasses import dataclass
+import re
+from typing import Any, Dict, List, Union, Tuple, Pattern
+from dataclasses import dataclass, field
 import pandas as pd
 import numpy as np
 import tempfile
@@ -19,6 +20,7 @@ from data_discovery_ai.utils.ogcapi_connector import OGCAPIConnector
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.agent_tools import get_text_embedding
 from data_discovery_ai.config.constants import CONCEPT_AI_DESCRIPTION
+from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
 
 logger = structlog.getLogger(__name__)
 
@@ -532,136 +534,3 @@ class DDMTrainTestData:
     Y_combined_train: np.ndarray
     X_test: np.ndarray
     Y_test: np.ndarray
-
-
-class DeliveryPreprocessor(BasePreprocessor):
-    def __init__(self):
-        super().__init__()
-        self.trainer_config = self.config.get_delivery_trainer_config()
-        self.mlflow_config = self.config.get_mlflow_config()
-
-        self.watched_columns = [
-            "id",
-            "title",
-            "description",
-            "statement",
-            "status",
-        ]
-        self.require_embedding = ["title", "description", "statement"]
-        self.data = None
-        self.train_test_data = None
-
-    def post_filter_hook(self, df: pd.DataFrame) -> pd.DataFrame | None:
-        filtered_df = df[df["status"] == "onGoing"]
-
-        # make a copy of the input data to ensure the original data is not modified
-        temp = filtered_df.copy()
-
-        # find rows with title contains 'real time' and its variants
-        # define real time string and variants and ignore case
-        real_time_variants = ["real time", "real-time", "realtime"]
-        real_time_data = temp[
-            temp["title"].str.contains("|".join(real_time_variants), case=False)
-        ]
-        if not real_time_data.empty:
-            real_time_data = real_time_data.assign(mode="Real-Time")
-        # and also for 'delayed' and its variants
-        delayed_variants = ["delayed", "delay", "delaying"]
-        delayed_data = temp[
-            temp["title"].str.contains("|".join(delayed_variants), case=False)
-        ]
-        if not delayed_data.empty:
-            delayed_data = delayed_data.assign(mode="Delayed")
-
-        if real_time_data.empty and delayed_data.empty:
-            logger.error("No labelled data for training purpose")
-            return None
-
-        real_time_delayed_data = pd.concat([real_time_data, delayed_data])
-        data_with_mode = filtered_df.join(real_time_delayed_data["mode"])
-
-        label_map = {"Real-Time": 0, "Delayed": 1, np.nan: -1}
-        data_with_mode["mode"] = data_with_mode["mode"].map(label_map)
-        return data_with_mode
-
-    def fetch_raw_data(self) -> pd.DataFrame | None:
-        return super().fetch_raw_data()
-
-    def set_preprocessed_data(self, df: pd.DataFrame) -> None:
-        X = np.array(df["embedding"].tolist())
-        Y = np.array(df["mode"].tolist())
-        self.data = DDMData(X, Y)
-
-    def prepare_train_test_set(self, df: pd.DataFrame) -> None:
-        """
-        Prepares the training and testing datasets for the data delivery mode filter model.
-        Input:
-            df: pd.DataFrame. The final data set that contains both the labelled and unlabelled records. It is expected to have these fields: "id", "title", "abstract", "lineage", "status", "information", "embedding", "mode".
-        """
-        self.set_preprocessed_data(df)
-        # split the data into labelled and unlabelled sets
-        labelled_data = df[df["mode"] != -1]
-        logger.info(f"Size of labelled set: {len(labelled_data)}")
-
-        unlabelled_data = df[df["mode"] == -1]
-        logger.info(f"Size of unlabelled set: {len(unlabelled_data)}")
-
-        # only keep embedding column as feature X and mode column as target y for labelled data
-        X_labelled = labelled_data["embedding"].tolist()
-        Y_labelled = labelled_data["mode"].tolist()
-
-        # split labelled data into training and testing sets for validation
-        X_labelled_train, X_test, Y_labelled_train, Y_test = train_test_split(
-            X_labelled,
-            Y_labelled,
-            test_size=self.trainer_config.test_size,
-            # shuffle=True,
-            # use this line instead of shuffle to reproduce the best performance model
-            random_state=42,
-        )
-        logger.info(
-            f"Size of training set: {len(X_labelled_train)} \n Size of test set: {len(X_test)}"
-        )
-
-        # only keep embedding column as feature X and mode column as target y for unlabelled data
-        X_unlabelled = unlabelled_data["embedding"].tolist()
-        Y_unlabelled = unlabelled_data["mode"].tolist()
-
-        # combine unlabelled data with labelled training data for training
-        X_combined_train = np.vstack([X_labelled_train, X_unlabelled])
-        Y_combined_train = np.hstack([Y_labelled_train, Y_unlabelled])
-        logger.info(
-            f"size of final training set: {len(X_combined_train)} \n Size of test set: {len(X_test)}"
-        )
-        # just to make sure X and y are same size
-        if len(X_combined_train) != len(Y_combined_train):
-            logger.error("X and y are not the same size")
-        # just to make sure train and test sets have same dimension
-        if X_combined_train[0].shape != X_test[0].shape:
-            logger.error("Train and test sets have different dimensions")
-        else:
-            self.train_test_data = DDMTrainTestData(
-                np.array(X_labelled_train),
-                np.array(Y_labelled_train),
-                X_combined_train,
-                Y_combined_train,
-                np.array(X_test),
-                np.array(Y_test),
-            )
-
-
-def add_manual_labelled_data(df, manual_labelled_data: pd.DataFrame) -> pd.DataFrame:
-    """
-    There are some records have been manually labelled. Add them to post-filter_hook.
-    Input: df: filtered data. manual_labelled_data: manually labeled data. These two dataframe are expected to have same shape.
-    Output: pd.DataFrame. Filtered data with manually labelled data.
-    """
-    df = df.copy()
-    df.set_index("id", inplace=True)
-    manual_labelled_data.set_index("id", inplace=True)
-
-    df.update(manual_labelled_data[["mode"]])
-    new_rows = manual_labelled_data[~manual_labelled_data.index.isin(df.index)]
-    df = pd.concat([df, new_rows], axis=0)
-    df.reset_index(inplace=True)
-    return df

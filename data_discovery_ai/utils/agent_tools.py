@@ -36,7 +36,7 @@ def load_from_file(full_path: Union[str, Path]) -> Any | None:
 
 
 def get_text_embedding(
-    text: str, tokenizer: Any, embedding_model: Any
+    text: str, tokenizer: Any, embedding_model: Any, max_length: int = 512
 ) -> np.ndarray | None:
     """
     Calculates the embedding of a given text using a pre-trained BERT model. This function tokenizes the input text, processes it through a BERT model, and extracts the CLS token embedding, which serves as a representation of the text.
@@ -49,7 +49,7 @@ def get_text_embedding(
         return None
     else:
         # https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__.return_tensors, set as 'tf' to return tensorflow tensor
-        inputs = tokenizer(text, return_tensors="tf", max_length=512, truncation=True)
+        inputs = tokenizer(text, return_tensors="tf", max_length=max_length, truncation=True)
         outputs = embedding_model(inputs)
         text_embedding = outputs.last_hidden_state[:, 0, :].numpy()
         # output as a 1D array, shape (768,)

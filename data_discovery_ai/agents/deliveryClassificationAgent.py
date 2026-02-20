@@ -1,23 +1,15 @@
 # The agent-based model for data delivery mode classification task, the classes include: {completed, real-time, delayed, other}
 import structlog
-from enum import Enum
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
-from data_discovery_ai.config.constants import FILTER_FOLDER
 from data_discovery_ai.enum.agent_enums import AgentType
+from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
+from data_discovery_ai.ml.filteringModel import mapping_update_frequency, DeliveryModeInferencer, extract_evidence
 
-from typing import Any, Dict
+from typing import Dict
 
 logger = structlog.get_logger(__name__)
-
-
-class UpdateFrequency(Enum):
-    completed = "completed"
-    real_time = "real-time"
-    delayed = "delayed"
-    other = "other"
 
 
 class DeliveryClassificationAgent(BaseAgent):
@@ -43,42 +35,31 @@ class DeliveryClassificationAgent(BaseAgent):
         return super().is_valid_request(request)
 
     def make_decision(self, request) -> bool:
-        # the complex decision-making is done by the es-indexer end, here we simply check if the request is valid
+        # check if the request is valid
         return self.is_valid_request(request)
 
     def take_action(self, title: str, abstract: str, lineage: str) -> str:
         """
         The action module of the Delivery Classification Agent. Its task is to classify the delivery mode based on the provided title, abstract, and lineage.
         """
-        # load the model
-        pretrained_model = self.load_saved_model()
-        if pretrained_model:
-            # calculate the embedding of the title, abstract, and lineage
-            request_text = (
-                title
-                + self.model_config.separator
-                + abstract
-                + self.model_config.separator
-                + lineage
-            )
-            tokenizer = self.supervisor.tokenizer
-            embedding_model = self.supervisor.embedding_model
-            text_embedding = get_text_embedding(
-                request_text, tokenizer, embedding_model
-            )
-            dimension = text_embedding.shape[0]
-            target_X = text_embedding.reshape(1, dimension)
-
-            y_pred = pretrained_model.predict(target_X)
-            class_map = {
-                0: UpdateFrequency.real_time.value,
-                1: UpdateFrequency.delayed.value,
-                2: UpdateFrequency.other.value,
-            }
-            pred_class = class_map.get(y_pred[0])
-            return pred_class
+        nli_model = self.supervisor.nli_model
+        nli_tokenizer = self.supervisor.nli_tokenizer
+        # initialize the inference model
+        infer_model = DeliveryModeInferencer(nli_tokenizer, nli_model)
+        # extract evidence sentences
+        evidence = extract_evidence(title, abstract, lineage)
+        # calculate probabilities to each case. the example structure is a dict, such as:
+        # {'mode': 'REAL_TIME', 'reason': 'nli_entails_real_time', 'evidence': Evidence(rt=['This dataset is delivered in real-time.'], delayed=['The silk is removed from the CPR cassette and processed as described in Richardson et al 2006.'], rt_unprocessed=[]), 'nli': {'ent_rt': 0.9275655746459961, 'ent_dl': 0.14127250015735626, 'rt_scores': [0.9275655746459961], 'dl_scores': [0.14127250015735626]}}
+        probs = infer_model.decide_with_nli(evidence)
+        # process 'UNKNOWN' prediction to default 'other' mode
+        if probs["mode"]== UpdateFrequency.UNKNOWN.value:
+            return UpdateFrequency.OTHER.value
+        # process 'CONFLICT' prediction (indication to both high probability of being delayed and real-time to 'DELAYED` mode
+        if probs["mode"] == UpdateFrequency.BOTH.value:
+            return UpdateFrequency.DELAYED.value
         else:
-            return UpdateFrequency.other.value
+            # return inferred real-time or delayed
+            return probs["mode"]
 
     def execute(self, request: dict) -> None:
         """
@@ -94,9 +75,10 @@ class DeliveryClassificationAgent(BaseAgent):
         else:
             status = request["status"]
             temporal = request["temporal"]
-            mapped_update_frequency = map_status_update_frequency(status, temporal)
-            if mapped_update_frequency == UpdateFrequency.other.value:
-                title = request["title"]
+            title = request["title"]
+            mapped_update_frequency = mapping_update_frequency(status, temporal, title)
+            # only conduct language inference if update frequency is 'other'
+            if mapped_update_frequency == UpdateFrequency.OTHER.value:
                 abstract = request["abstract"]
                 lineage = request["lineage"]
                 prediction = self.take_action(title, abstract, lineage)
@@ -107,68 +89,3 @@ class DeliveryClassificationAgent(BaseAgent):
                 }
 
         logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
-
-    def load_saved_model(self) -> Any:
-        pretrained_model_name = self.model_config.pretrained_model
-        # load model pickle file
-        model_file_path = (
-            self.config.base_dir / "resources" / FILTER_FOLDER / pretrained_model_name
-        )
-        trained_model = load_from_file(model_file_path.with_suffix(".pkl"))
-        return trained_model
-
-
-def map_status_update_frequency(status: str, temporal: list) -> str:
-    """
-    Input:
-        - status: str - the status of the record, such as "completed", "onGoing", can have free text in one or few words.
-        - temporal: List<Map>, for example:
-        "temporal": [
-            {
-                "start": "2023-01-22T13:00:00Z",
-                "end": "2023-01-23T12:59:59Z"
-            },
-            {}
-        ]
-    Output:
-        str: the mapped update frequency in terms of "completed" or "other"
-    Given status and temporal range of the record, decide update_frequency based on a set of predefined rules
-    (see: https://github.com/aodn/backlog/issues/7978#issuecomment-3821164737). Specifically:
-    1. these statuses could also be regarded as 'completed'
-        historicalArchive
-        obsolete
-        deprecated
-        complete
-        Complete
-    2. onGoing | historicalArchive - records have 2 x status identifed, 'ongoing' is priority
-    3. Under development = check has date range. Yes = completed
-        Planned = check has date range. Yes = completed
-        Tentative = check has date range. Yes = completed
-        No status = check has date range. Yes = completed (likely they are completed)
-    Set update_frequency to 'completed' if meet rules or 'other' if not meet
-    """
-    if status.lower() == UpdateFrequency.completed.value:
-        return UpdateFrequency.completed.value
-
-    if status is None:
-        status = ""
-
-    normalised_status = status.replace(" ", "").lower()
-    # rule 2: check ongoing priority first
-    if "ongoing" in normalised_status:
-        return UpdateFrequency.other.value
-
-    # rule 1: check completed status with its variants
-    completed_status = ["historicalarchive", "obsolete", "deprecated", "complete"]
-    if normalised_status in completed_status:
-        return UpdateFrequency.completed.value
-
-    # rule 3: check free text status with temporal range
-    free_text_status = ["underdevelopment", "planned", "tentative", ""]
-    if normalised_status in free_text_status:
-        for temporal_entry in temporal:
-            if temporal_entry.get("start") and temporal_entry.get("end"):
-                return UpdateFrequency.completed.value
-
-    # default to 'other'
-    return UpdateFrequency.other.value
