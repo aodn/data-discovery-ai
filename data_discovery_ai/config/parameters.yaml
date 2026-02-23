@@ -132,6 +132,6 @@ trainer:
     entailment_high: 0.75
     entailment_low: 0.3
     conflict_high: 0.75
-    model_name: "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli"
+    model_name: "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
     max_length: 512
     max_sentence: 5
