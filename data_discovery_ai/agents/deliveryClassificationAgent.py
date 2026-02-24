@@ -73,6 +73,11 @@ class DeliveryClassificationAgent(BaseAgent):
         Input:
             request (dict): The request format.
         """
+        # from es-indexer end, if these fields have empty values, the request will have no such fields. But from the data-discovery-ai side, these fields are required for the model to make decision.
+        # so we set default empty values for these fields to catch null error
+        request.setdefault("status", "")
+        request.setdefault("lineage", "")
+        request.setdefault("temporal", [])
         flag = self.make_decision(request)
         if not flag:
             self.response = {self.model_config.response_key: ""}
