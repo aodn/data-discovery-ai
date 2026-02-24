@@ -75,11 +75,11 @@ class DeliveryModeHypothesis:
 
     @property
     def delayed(self) -> str:
-        return f"{self.subject} is delayed mode."
+        return f"{self.subject} is delivered in delayed mode."
 
     @property
     def real_time(self) -> str:
-        return f"{self.subject} is real-time mode."
+        return f"{self.subject} is delivered in real-time mode."
 
 
 @dataclass

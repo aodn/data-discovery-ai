@@ -68,16 +68,11 @@ class DeliveryClassificationAgent(BaseAgent):
     def execute(self, request: dict) -> None:
         """
         Execute the action module of the Delivery Classification Agent. The action is to classify the delivery mode based on the provided request.
-        The agent perceives the request, and make decision based on the received request. If it decides to take action, it will call the ML module to classify the delivery mode and set self response as the classified delivery mode.
+        The agent perceives the request, and make decision based on the received request. If it decides to take action, it will call the LLM module to classify the delivery mode and set self response as the classified delivery mode.
         Otherwise, it will set self.response as an empty string.
         Input:
             request (dict): The request format.
         """
-        # from es-indexer end, if these fields have empty values, the request will have no such fields. But from the data-discovery-ai side, these fields are required for the model to make decision.
-        # so we set default empty values for these fields to catch null error
-        request.setdefault("status", "")
-        request.setdefault("lineage", "")
-        request.setdefault("temporal", [])
         flag = self.make_decision(request)
         if not flag:
             self.response = {self.model_config.response_key: ""}
