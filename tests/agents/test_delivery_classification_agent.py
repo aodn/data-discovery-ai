@@ -63,13 +63,8 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         self.assertIn("delivery_classification agent finished", log_msg)
         self.assertIn("real-time", log_msg)
 
-    @patch(
-        "data_discovery_ai.agents.deliveryClassificationAgent.mapping_update_frequency"
-    )
     @patch("data_discovery_ai.agents.deliveryClassificationAgent.logger")
-    def test_execute_rule_based(self, mock_logger, mock_mapping):
-        # Mock rule-based path to return COMPLETED, NLI path should NOT be triggered
-        mock_mapping.return_value = UpdateFrequency.COMPLETED.value
+    def test_execute_rule_based(self, mock_logger):
         self.agent.make_decision = MagicMock(return_value=True)
         self.agent.take_action = MagicMock()
         request = {
@@ -85,4 +80,34 @@ class TestDeliveryClassificationAgent(unittest.TestCase):
         self.assertEqual(
             self.agent.response,
             {"summaries.ai:update_frequency": UpdateFrequency.COMPLETED.value},
+        )
+
+        mapped_real_time_title_request = {
+            "title": "IMOS - Animal Tracking Facility - Satellite Relay Tagging Program - Near real-time CTD profile data",
+            "abstract": "Test abstract.",
+            "lineage": "Test lineage.",
+            "status": "completed",
+            "temporal": [],
+        }
+
+        self.agent.execute(mapped_real_time_title_request)
+        self.agent.take_action.assert_not_called()
+        self.assertEqual(
+            self.agent.response,
+            {"summaries.ai:update_frequency": UpdateFrequency.REAL_TIME.value},
+        )
+
+        mapped_qc_title_in_completed_request = {
+            "title": "Quality Controlled Ocean Temperature Archive (QUOTA) Tasman Sea",
+            "abstract": "This dataset contains temperature data from the Tasman Sea. Data (including available XBT data) were collected since 1778. They have been subjected to quality control as an activity of CSIRO and BoM.",
+            "lineage": "",
+            "status": "onGoing",
+            "temporal": [],
+        }
+
+        self.agent.execute(mapped_qc_title_in_completed_request)
+        self.agent.take_action.assert_not_called()
+        self.assertEqual(
+            self.agent.response,
+            {"summaries.ai:update_frequency": UpdateFrequency.DELAYED.value},
         )

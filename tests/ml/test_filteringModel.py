@@ -32,13 +32,13 @@ class TestFilteringModel(unittest.TestCase):
         ongoing_temporal = [{"start": "2023-01-22T13:00:00Z"}]
         self.assertEqual(
             mapping_update_frequency(completed_status, completed_temporal, title),
-            UpdateFrequency.COMPLETED.value,
+            UpdateFrequency.DELAYED.value,
         )
 
         free_text_status = "Under development"
         self.assertEqual(
             mapping_update_frequency(free_text_status, completed_temporal, title),
-            UpdateFrequency.COMPLETED.value,
+            UpdateFrequency.DELAYED.value,
         )
         self.assertEqual(
             mapping_update_frequency(free_text_status, ongoing_temporal, title),

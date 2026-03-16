@@ -45,7 +45,9 @@ class DeliveryModePatterns:
     # unprocessed identifiers, e.g., raw data, used for identifying real-time mode
     unprocessed: Pattern = field(
         default_factory=lambda: re.compile(
-            r"\b(unprocessed|raw|no quality control|no qc|no quality control flags|without qc flags|not quality controlled)\b",
+            r"\b(unprocessed|raw data|raw measurements|raw observations|"
+            r"no quality control|no qc|no quality control flags|"
+            r"without qc flags|not quality controlled)\b",
             re.I,
         )
     )
@@ -53,9 +55,7 @@ class DeliveryModePatterns:
     # target identifier, i.e., specifically indicates this record, so that to make sure the text explicitly indicates current record.
     target: Pattern = field(
         default_factory=lambda: re.compile(
-            r"\b(this (dataset|record|data|product|collection)|"
-            r"the (data|observations|measurements)|"
-            r"(data|observations|measurements) (is|are))\b",
+            r"\b(data|dataset|observations|measurements|record|product|collection|stream|feed)\b",
             re.I,
         )
     )
@@ -81,12 +81,53 @@ class DeliveryModeHypothesis:
     def real_time(self) -> str:
         return f"{self.subject} is real-time mode."
 
+    @property
+    def processed(self):
+        return f"{self.subject} is quality controlled."
+
 
 @dataclass
 class Evidence:
     rt: List[str] = field(default_factory=list)
     delayed: List[str] = field(default_factory=list)
+    dl_processed: List[str] = field(default_factory=list)
     rt_unprocessed: List[str] = field(default_factory=list)
+
+
+def is_adjacent(
+    text: str, pattern_a: Pattern, pattern_b: Pattern, window: int = 5
+) -> bool:
+    """
+    A helper function to satisfy this rule: If a real-time/delayed pattern appears in a sentence and is closely associated with the term 'data', that sentence should be extracted as supporting evidence.
+    Inputs:
+        - pattern_a: real-time/delayed pattern
+        - pattern_b: target (data) pattern
+        - window: the max number of words between two patterns
+    Output:
+        bool: the two patterns are close to each other or not.
+    """
+    words = text.split()
+    char_to_word = {}
+    pos = 0
+    for i, w in enumerate(words):
+        m = re.search(re.escape(w), text[pos:])
+        if m:
+            start = pos + m.start()
+            for c in range(start, start + len(w)):
+                char_to_word[c] = i
+            pos = start + len(w)
+
+    def match_word_positions(pattern: Pattern) -> List[int]:
+        word_positions = set()
+        for m in pattern.finditer(text):
+            start_char = m.start()
+            if start_char in char_to_word:
+                word_positions.add(char_to_word[start_char])
+        return list(word_positions)
+
+    pos_a = match_word_positions(pattern_a)
+    pos_b = match_word_positions(pattern_b)
+    return any(abs(i - j) <= window for i in pos_a for j in pos_b)
 
 
 def extract_evidence(
@@ -134,9 +175,12 @@ def extract_evidence(
                 has_proc = bool(p.processed.search(c))
                 has_unp = bool(p.unprocessed.search(c))
 
+                rt_near_data = has_rt and is_adjacent(c, p.real_time_mode, p.target)
+                del_near_data = has_del and is_adjacent(c, p.delayed_mode, p.target)
+
                 # REAL-TIME evidence:
                 # (a) explicit real-time mode assertion
-                if has_rt and has_delivery_verb and len(ev.rt) < max_rt:
+                if rt_near_data and len(ev.rt) < max_rt:
                     ev.rt.append(c)
                 # (b) implicit real-time mode assertion: unprocessed implies real-time
                 if has_target and has_unp and len(ev.rt) < max_unp:
@@ -144,11 +188,11 @@ def extract_evidence(
 
                 # DELAYED evidence:
                 # (a) explicit delayed mode assertion
-                if has_del and has_delivery_verb and len(ev.delayed) < max_del:
+                if del_near_data and len(ev.delayed) < max_del:
                     ev.delayed.append(c)
                 # (b) processed implies delayed (as evidence)
-                elif has_proc and (not has_unp) and len(ev.delayed) < max_del:
-                    ev.delayed.append(c)
+                elif has_proc and (not has_unp) and len(ev.dl_processed) < max_del:
+                    ev.dl_processed.append(c)
 
                 # CONFLICT: rt + delivery + unprocessed
                 if has_rt and has_unp and len(ev.rt_unprocessed) < max_unp:
@@ -157,6 +201,7 @@ def extract_evidence(
                 if (
                     len(ev.rt) >= max_rt
                     and len(ev.delayed) >= max_del
+                    and len(ev.dl_processed) >= max_del
                     and len(ev.rt_unprocessed) >= max_unp
                 ):
                     return
@@ -255,9 +300,18 @@ class DeliveryModeInferencer:
             return max(scores) if scores else 0.0, scores
 
         ent_rt, rt_scores = max_entailment(ev.rt, hypothesis.real_time)
-        ent_dl, dl_scores = max_entailment(ev.delayed, hypothesis.delayed)
+        ent_dl_explicit, dl_explicit_scores = max_entailment(
+            ev.delayed, hypothesis.delayed
+        )
+        ent_dl_processed, dl_processed_scores = max_entailment(
+            ev.dl_processed, hypothesis.processed
+        )
 
-        if not ev.rt and not ev.delayed:
+        ent_dl = max(ent_dl_explicit, ent_dl_processed)
+        dl_scores = dl_explicit_scores + dl_processed_scores
+        has_any_delayed_evidence = bool(ev.delayed or ev.dl_processed)
+
+        if not ev.rt and not has_any_delayed_evidence:
             return {
                 "mode": UpdateFrequency.UNKNOWN.value,
                 "reason": "no_evidence",
@@ -265,34 +319,25 @@ class DeliveryModeInferencer:
                 "nli": None,
             }
 
-        # Multi-product detection
-        multi_product = (len(ev.rt_unprocessed) > 0) and (len(ev.delayed) > 0)
+        def nli_payload():
+            # helper function to define output format to avoid repeating the nli dict in every return
+            return {
+                "ent_rt": ent_rt,
+                "ent_dl": ent_dl,
+                "ent_dl_explicit": ent_dl_explicit,
+                "ent_dl_processed": ent_dl_processed,
+                "rt_scores": rt_scores,
+                "dl_scores": dl_scores,
+            }
 
-        # Case 1: both high - max(entailment_delayed) >= threshold entailment_high and max(entailment_real_time) >= threshold entailment_high
-        # (a) if indicates unprocessed and delayed => REAL-TIME
-        # (b) else => CONFLICT
+        # Case 1: both high - max(entailment_delayed) >= threshold conflict_high and max(entailment_real_time) >= threshold conflict_high
+        # return BOTH
         if ent_dl >= self.config.conflict_high and ent_rt >= self.config.conflict_high:
             return {
-                "mode": (
-                    UpdateFrequency.REAL_TIME.value
-                    if multi_product
-                    else UpdateFrequency.BOTH.value
-                ),
-                "reason": (
-                    "both_entail_high_multi_product"
-                    if multi_product
-                    else "both_entail_high_conflict"
-                ),
-                "secondary": (
-                    "REAL_TIME_UNPROCESSED_AVAILABLE" if multi_product else None
-                ),
+                "mode": UpdateFrequency.BOTH.value,
+                "reason": "both_entail_high",
                 "evidence": ev,
-                "nli": {
-                    "ent_rt": ent_rt,
-                    "ent_dl": ent_dl,
-                    "rt_scores": rt_scores,
-                    "dl_scores": dl_scores,
-                },
+                "nli": nli_payload(),
             }
 
         # Case 2: delayed, max(entailment_delayed) >= threshold entailment_high and max(entailment_real_time) <= threshold entailment_low
@@ -304,12 +349,7 @@ class DeliveryModeInferencer:
                 "mode": UpdateFrequency.DELAYED.value,
                 "reason": "nli_entails_delayed",
                 "evidence": ev,
-                "nli": {
-                    "ent_rt": ent_rt,
-                    "ent_dl": ent_dl,
-                    "rt_scores": rt_scores,
-                    "dl_scores": dl_scores,
-                },
+                "nli": nli_payload(),
             }
 
         # Case 3: real-time, max(entailment_real_time) > threshold entailment_high and max(entailment_delayed) < threshold entailment_low
@@ -321,12 +361,7 @@ class DeliveryModeInferencer:
                 "mode": UpdateFrequency.REAL_TIME.value,
                 "reason": "nli_entails_real_time",
                 "evidence": ev,
-                "nli": {
-                    "ent_rt": ent_rt,
-                    "ent_dl": ent_dl,
-                    "rt_scores": rt_scores,
-                    "dl_scores": dl_scores,
-                },
+                "nli": nli_payload(),
             }
 
         # Case 4: unknow if uncertain
@@ -334,23 +369,30 @@ class DeliveryModeInferencer:
             "mode": UpdateFrequency.UNKNOWN.value,
             "reason": "nli_abstain_below_threshold",
             "evidence": ev,
-            "nli": {
-                "ent_rt": ent_rt,
-                "ent_dl": ent_dl,
-                "rt_scores": rt_scores,
-                "dl_scores": dl_scores,
-            },
+            "nli": nli_payload(),
         }
 
 
 def map_title_update_frequency(title: str) -> Optional[str]:
     real_time_variants = ["real time", "real-time", "realtime"]
-    delayed_variants = ["delayed", "delay", "delaying"]
+    delayed_variants = [
+        "delayed",
+        "delay",
+        "delaying",
+        "quality control",
+        "quality controlled",
+        "quality-controlled",
+    ]
     # if real-time variants in title, return real-time mode
     if re.search("|".join(real_time_variants), title, re.IGNORECASE):
         return UpdateFrequency.REAL_TIME.value
     # if delayed variants in title, return delayed mode
     if re.search("|".join(delayed_variants), title, re.IGNORECASE):
+        return UpdateFrequency.DELAYED.value
+    # check "qc" separately, exclude "non-qc"
+    if re.search(r"\bqc\b", title, re.IGNORECASE) and not re.search(
+        r"\bnon[-\s]?qc\b", title, re.IGNORECASE
+    ):
         return UpdateFrequency.DELAYED.value
     # default as null
     return None
@@ -384,32 +426,31 @@ def mapping_update_frequency(status: str, temporal: list, title: str) -> str:
         Tentative = check has date range. Yes = completed
         No status = check has date range. Yes = completed (likely they are completed)
     Set update_frequency to 'completed' if meet rules or 'other' if not meet
-    4. for records that with no "completed" status, if "real-time" or "delayed" in title, map as "real-time" or "delayed"
+    4. if "real-time" or "delayed" in title, map as "real-time" or "delayed"
     """
     if status is None:
         status = ""
     normalised_status = status.replace(" ", "").lower()
 
     mapped_mode = map_title_update_frequency(title)
-    # if status is completed, return 'completed' delivery mode
+    logger.debug(mapped_mode)
+    # if status is completed, return 'completed' delivery mode if title has no "real-time" or "delayed" variants
     if status.lower() == UpdateFrequency.COMPLETED.value:
-        return UpdateFrequency.COMPLETED.value
+        return mapped_mode if mapped_mode else UpdateFrequency.COMPLETED.value
     # rule 2: check ongoing priority
     if "ongoing" in normalised_status:
         # rule 4: check title for real-time/delayed variants
-        if mapped_mode:
-            return mapped_mode
-        return UpdateFrequency.OTHER.value
+        return mapped_mode if mapped_mode else UpdateFrequency.OTHER.value
     # rule 1: check completed status with its variants, if matched, return 'completed' delivery mode
     completed_status = ["historicalarchive", "obsolete", "deprecated", "complete"]
     if normalised_status in completed_status:
-        return UpdateFrequency.COMPLETED.value
+        return mapped_mode if mapped_mode else UpdateFrequency.COMPLETED.value
     # rule 3: check free text status with temporal range
     free_text_status = ["underdevelopment", "planned", "tentative", ""]
     if normalised_status in free_text_status and temporal is not None:
         for temporal_entry in temporal:
             if temporal_entry.get("start") and temporal_entry.get("end"):
-                return UpdateFrequency.COMPLETED.value
+                return mapped_mode if mapped_mode else UpdateFrequency.COMPLETED.value
         if mapped_mode:
             return mapped_mode
 
