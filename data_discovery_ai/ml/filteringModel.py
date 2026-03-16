@@ -433,7 +433,6 @@ def mapping_update_frequency(status: str, temporal: list, title: str) -> str:
     normalised_status = status.replace(" ", "").lower()
 
     mapped_mode = map_title_update_frequency(title)
-    logger.debug(mapped_mode)
     # if status is completed, return 'completed' delivery mode if title has no "real-time" or "delayed" variants
     if status.lower() == UpdateFrequency.COMPLETED.value:
         return mapped_mode if mapped_mode else UpdateFrequency.COMPLETED.value
