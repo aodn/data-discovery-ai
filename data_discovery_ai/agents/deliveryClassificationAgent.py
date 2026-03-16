@@ -1,4 +1,4 @@
-# The agent-based model for data delivery mode classification task, the classes include: {completed, real-time, delayed, other}
+# The agent-based model for data delivery mode classification task, the classes include: {completed, real-time, delayed, other, both}
 import structlog
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
@@ -58,9 +58,9 @@ class DeliveryClassificationAgent(BaseAgent):
         # process 'UNKNOWN' prediction to default 'other' mode
         if probs["mode"] == UpdateFrequency.UNKNOWN.value:
             return UpdateFrequency.OTHER.value
-        # process 'CONFLICT' prediction (indication to both high probability of being delayed and real-time to 'DELAYED` mode
+        # process 'CONFLICT' prediction to 'both' mode
         if probs["mode"] == UpdateFrequency.BOTH.value:
-            return UpdateFrequency.DELAYED.value
+            return UpdateFrequency.BOTH.value
         else:
             # return inferred real-time or delayed
             return probs["mode"]
