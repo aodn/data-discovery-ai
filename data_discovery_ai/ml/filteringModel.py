@@ -180,6 +180,8 @@ def extract_evidence(
 
                 # REAL-TIME evidence:
                 # (a) explicit real-time mode assertion
+                if has_rt and has_delivery_verb and len(ev.rt) < max_rt:
+                    ev.rt.append(c)
                 if rt_near_data and len(ev.rt) < max_rt:
                     ev.rt.append(c)
                 # (b) implicit real-time mode assertion: unprocessed implies real-time
