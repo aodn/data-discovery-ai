@@ -13,6 +13,7 @@ class AgentType(Enum):
     DESCRIPTION_FORMATTING = "description_formatting"
     KEYWORD_CLASSIFICATION = "keyword_classification"
     DELIVERY_CLASSIFICATION = "delivery_classification"
+    DOWNLOADABLE_LINK_GROUPING = "downloadable_link_grouping"
 
 
 class HuggingfaceModel(Enum):

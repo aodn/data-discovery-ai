@@ -7,6 +7,7 @@ import re
 import structlog
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
+from data_discovery_ai.agents.downloadableLinkAgent import DownloadableLinkAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
 
@@ -65,6 +66,7 @@ def subgroup_access_link(link: Dict[str, Any]) -> Dict[str, Any]:
 class LinkGroupingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
+        self.sub_agent = None
         self.type = AgentType.LINK_GROUPING.value
         self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_link_grouping_config()
@@ -169,11 +171,11 @@ class LinkGroupingAgent(BaseAgent):
         final_combinations = list(final_combinations)
         return final_combinations
 
-    def grouping(self, link: Dict[str, str], page_content_keywords: List) -> str:
+    def grouping(self, link: Dict[str, Any], page_content_keywords: List) -> str:
         """
         Based on the decision-making rules defined in grouping rules, determine the group of the link.
         Input:
-            link: Dict[str, str]. A dictionary with keys 'href' and 'title'. The link to be grouped.
+            link: Dict[str, Any]. A dictionary of link object. The link to be grouped.
             page_content_keywords: List[str]. A list of strings. Each string is a combination of keywords. These keywords are used to filter the content of the link page.
         Output:
             str. The group of the link. It can be 'Data Access'/'Document'/'Python Notebook'/ 'Other'.
@@ -218,6 +220,7 @@ class LinkGroupingAgent(BaseAgent):
                 if resp.status_code == 200:
                     content = resp.text.lower()
                     if any(keyword in content for keyword in page_content_keywords):
+                        link["ai:is_page_downloadable"] = True
                         return "Data Access"
         except requests.exceptions.RequestException:
             logger.error(f"Failed to crawl the link: {link['href']}")
@@ -232,7 +235,27 @@ class LinkGroupingAgent(BaseAgent):
         else:
             links = request["links"]
             grouped_links = self.take_action(links)
-            self.response = {self.model_config["response_key"]: grouped_links}
+
+            # if contains data access links, call sub agent downloadable link agent to identify downloadable links
+            data_access_links = [
+                link
+                for link in grouped_links
+                if (link.get("ai:group") or "").startswith("Data Access")
+            ]
+            if data_access_links:
+                self.sub_agent = DownloadableLinkAgent()
+                self.sub_agent.execute(data_access_links)
+
+                # remove temp flag used only by sub agent
+                for link in data_access_links:
+                    link.pop("ai:is_page_downloadable", None)
+                self.response = {
+                    self.model_config["response_key"]: grouped_links,
+                    # adds "summaries.ai:assets" for downloadable links
+                    **self.sub_agent.response,
+                }
+            else:
+                self.response = {self.model_config["response_key"]: grouped_links}
 
         logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")
 

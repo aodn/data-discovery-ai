@@ -401,6 +401,11 @@ class ConfigUtil:
             AgentType.LINK_GROUPING.value, {}
         )
 
+    def get_downloadable_link_grouping_config(self) -> Dict[str, Any]:
+        return self._parameter_data.get("model", {}).get(
+            AgentType.DOWNLOADABLE_LINK_GROUPING.value, {}
+        )
+
     def get_keyword_trainer_config(self) -> KeywordClassificationTrainerConfig:
         tr = self._parameter_data.get("trainer", {}).get(
             AgentType.KEYWORD_CLASSIFICATION.value, {}
