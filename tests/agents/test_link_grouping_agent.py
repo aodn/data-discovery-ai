@@ -297,3 +297,99 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 },
             ],
         )
+
+    def test_execute_without_ai_assets(self):
+        # when no Data Access links exist, summaries.ai:assets should not appear in response
+        request = {
+            "links": [
+                # document link — not downloadable data link
+                {
+                    "href": "http://nesptropical.edu.au/wp-content/uploads/2016/03/NESP-TWQ-3.1-FINAL-REPORT.pdf",
+                    "rel": "WWW:LINK-1.0-http--publication",
+                    "type": "",
+                    "title": "REPORT - Project Final Report",
+                },
+                # other link — not downloadable data link
+                {
+                    "href": "https://auswaves.org/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "AusWaves website",
+                },
+            ]
+        }
+        self.agent.execute(request)
+
+        # links must still exist in response with ai group mapping if works
+        self.assertIn("links", self.agent.response)
+
+        links = self.agent.response["links"]
+        pdf_link = next(l for l in links if "REPORT" in l.get("title", ""))
+        self.assertEqual(pdf_link["ai:group"], "Document")
+        other_link = next(l for l in links if "auswaves" in l.get("href", ""))
+        self.assertEqual(other_link["ai:group"], "Other")
+
+        # summaries.ai:assets must NOT be present when there are no downloadable links
+        self.assertNotIn("summaries.ai:assets", self.agent.response)
+
+        # sub_agent should not have been initialised
+        self.assertIsNone(self.agent.sub_agent)
+
+    def test_execute_produces_ai_assets(self):
+        # verify sub_agent response is merged into LinkGroupingAgent response
+        request = {
+            "links": [
+                # thredds should be treated as downloadable link
+                {
+                    "href": "https://thredds.aodn.org.au/thredds/catalog/IMOS/catalog.html",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "NetCDF files via THREDDS catalog",
+                },
+                # wfs should be treated as downloadable link
+                {
+                    "href": "https://geoserver.imas.utas.edu.au/geoserver/seamap/wfs?version=1.0.0&request=GetFeature&typeName=SeamapAus_VIC_statewide_habitats_2023&outputFormat=SHAPE-ZIP",
+                    "rel": "wfs",
+                    "type": "",
+                    "title": "SHAPE-ZIP",
+                    "description": "DATA ACCESS - This OGC WFS service returns the data (Statewide marine habitats 2023) in Shapefile format",
+                },
+                # wms should NOT be treated as downloadable link
+                {
+                    "href": "https://geoserver.imas.utas.edu.au/geoserver/seamap/wms",
+                    "rel": "wms",
+                    "type": "",
+                    "title": "seamap:SeamapAus_VIC_statewide_habitats_2023",
+                    "description": "MAP - Statewide marine habitats 2023",
+                },
+            ]
+        }
+        self.agent.execute(request)
+
+        # summaries.ai:assets must exist in response
+        self.assertIn("summaries.ai:assets", self.agent.response)
+
+        assets = self.agent.response["summaries.ai:assets"]
+        self.assertIsInstance(assets, dict)
+
+        thredds_href = "https://thredds.aodn.org.au/thredds/catalog/IMOS/catalog.html"
+        wfs_href = "https://geoserver.imas.utas.edu.au/geoserver/seamap/wfs?version=1.0.0&request=GetFeature&typeName=SeamapAus_VIC_statewide_habitats_2023&outputFormat=SHAPE-ZIP"
+        wms_href = "https://geoserver.imas.utas.edu.au/geoserver/seamap/wms"
+
+        # verify rules work
+        self.assertIn(thredds_href, assets)
+        self.assertIn(wfs_href, assets)
+
+        self.assertNotIn(wms_href, assets)
+
+        # verify asset structure
+        for href, asset in assets.items():
+            self.assertEqual(href, asset["href"])
+            self.assertEqual(asset["role"], "DOWNLOAD")
+            self.assertIn("title", asset)
+            self.assertIn("description", asset)
+            self.assertIn("type", asset)
+
+        # verify temp flag is not leaked into output links
+        for link in self.agent.response["links"]:
+            self.assertNotIn("ai:is_page_downloadable", link)

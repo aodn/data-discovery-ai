@@ -89,6 +89,9 @@
           },
           "ai:update_frequency": {
             "type": "keyword"
+          },
+          "ai:assets": {
+            "type": "flattened"
           }
         }
       },

@@ -108,6 +108,32 @@ model:
         content:
           - [data, dataset]
           - [download]
+  downloadable_link_grouping:
+    response_key: "summaries.ai:assets"
+    exclude_rules:
+      title:
+        - visualisation
+        - visualization
+        - survey
+      description:
+        - survey
+      ai:group:
+        - Data Access > wms
+    grouping_rules:
+      ai:group:
+        - Data Access > thredds
+        - Data Access > aws
+      href:
+        - csv
+        - zip
+        - tif
+        - trawler
+        - data_type
+        - nc
+        - xlsx
+        - mp4
+        - outputformat
+        - download
 #  for training the pre-trained classification models
 
 trainer:

@@ -1,8 +1,6 @@
 from elasticsearch import Elasticsearch
 import logging
-import pandas as pd
-from pandas import DataFrame
-import time
+import hashlib
 import os
 from dotenv import load_dotenv
 import json
@@ -39,9 +37,29 @@ def connect_es() -> Elasticsearch | None:
         return None
 
 
+def get_mapping_hash(mapping: dict) -> str:
+    """Generate a stable MD5 hash from the mapping dict."""
+    # Sort keys to ensure consistent ordering before hashing
+    mapping_str = json.dumps(mapping, sort_keys=True)
+    return hashlib.md5(mapping_str.encode()).hexdigest()
+
+
+def get_stored_hash(client: Elasticsearch, index_name: str) -> str | None:
+    """Retrieve the mapping hash stored in the index metadata."""
+    try:
+        mappings = client.indices.get_mapping(index=index_name)
+        return mappings[index_name]["mappings"].get("_meta", {}).get("mapping_hash")
+    except Exception:
+        # Index doesn't exist yet
+        return None
+
+
 def create_es_index() -> Tuple[None, None] | Tuple[Elasticsearch, str]:
     """
-    Create Elasticsearch index to store documents with AI-generated data. No action applied if the index already exists.
+    Create Elasticsearch index to store documents with AI-generated data.
+    - If index does not exist: create it
+    - If index exists and mapping is unchanged: reuse it
+    - If index exists and mapping has changed: delete and recreate
     Output:
         Tuple[Elasticsearch, str]: Elasticsearch client and index if connected successfully. None otherwise.
     """
@@ -49,7 +67,6 @@ def create_es_index() -> Tuple[None, None] | Tuple[Elasticsearch, str]:
     es_config = config.get_es_config()
     index = es_config.es_ai_index_name
     client = connect_es()
-
     if client is None:
         return None, None
 
@@ -61,13 +78,35 @@ def create_es_index() -> Tuple[None, None] | Tuple[Elasticsearch, str]:
     with open(schema_path, "r") as f:
         mapping = json.load(f)
 
+    current_hash = get_mapping_hash(mapping)
+
     if client.indices.exists(index=index):
-        logger.warning(f"Elasticsearch index '{index}' already exists.")
-        return client, index
+        stored_hash = get_stored_hash(client, index)
+
+        if stored_hash == current_hash:
+            # Mapping is unchanged, no action needed
+            logger.info(f"Elasticsearch index '{index}' mapping unchanged, reusing.")
+            return client, index
+
+        # Mapping has changed, rebuild the index
+        logger.warning(f"Mapping changed for index '{index}', rebuilding...")
+        try:
+            client.indices.delete(index=index)
+            logger.info(f"Elasticsearch index '{index}' deleted.")
+        except Exception as e:
+            logger.error(f"Failed to delete Elasticsearch index '{index}': {e}")
+            return None, None
+
+    # Inject hash into mapping settings before creating
+    mapping.setdefault("mappings", {})
+    mapping["mappings"].setdefault("_meta", {})
+    mapping["mappings"]["_meta"]["mapping_hash"] = current_hash
 
     try:
         client.indices.create(index=index, body=mapping)
-        logger.info(f"Elasticsearch index '{index}' created.")
+        logger.info(
+            f"Elasticsearch index '{index}' created with hash {current_hash[:8]}."
+        )
         return client, index
     except Exception as e:
         logger.error(f"Failed to create Elasticsearch index '{index}': {e}")
