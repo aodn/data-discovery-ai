@@ -1,12 +1,12 @@
 import structlog
 from typing import Dict, Any, List
+import re
+from urllib.parse import urlparse
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
-from data_discovery_ai.agents.linkGroupingAgent import parse_combined_title
-import re
-from urllib.parse import urlparse, parse_qs
+from data_discovery_ai.utils.agent_tools import parse_combined_title
 
 logger = structlog.get_logger(__name__)
 

@@ -344,23 +344,21 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "href": "https://thredds.aodn.org.au/thredds/catalog/IMOS/catalog.html",
                     "rel": "related",
                     "type": "text/html",
-                    "title": "NetCDF files via THREDDS catalog",
+                    "title": '{"title":"NetCDF files via THREDDS catalog","description":""}',
                 },
                 # wfs should be treated as downloadable link
                 {
                     "href": "https://geoserver.imas.utas.edu.au/geoserver/seamap/wfs?version=1.0.0&request=GetFeature&typeName=SeamapAus_VIC_statewide_habitats_2023&outputFormat=SHAPE-ZIP",
                     "rel": "wfs",
                     "type": "",
-                    "title": "SHAPE-ZIP",
-                    "description": "DATA ACCESS - This OGC WFS service returns the data (Statewide marine habitats 2023) in Shapefile format",
+                    "title": '{"title":"SHAPE-ZIP","description":"DATA ACCESS - This OGC WFS service returns the data (Statewide marine habitats 2023) in Shapefile format"}',
                 },
                 # wms should NOT be treated as downloadable link
                 {
                     "href": "https://geoserver.imas.utas.edu.au/geoserver/seamap/wms",
                     "rel": "wms",
                     "type": "",
-                    "title": "seamap:SeamapAus_VIC_statewide_habitats_2023",
-                    "description": "MAP - Statewide marine habitats 2023",
+                    "title": '{"title":"seamap:SeamapAus_VIC_statewide_habitats_2023","description":"MAP - Statewide marine habitats 2023"}',
                 },
             ]
         }
