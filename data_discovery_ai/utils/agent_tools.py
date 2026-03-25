@@ -1,9 +1,10 @@
 #  toolbox contains common tools shared by agents
-from typing import Any, Union, Tuple
+from typing import Any, Union
 import pickle
 import structlog
 import numpy as np
 from pathlib import Path
+import json
 
 logger = structlog.get_logger(__name__)
 
@@ -56,3 +57,50 @@ def get_text_embedding(
         text_embedding = outputs.last_hidden_state[:, 0, :].numpy()
         # output as a 1D array, shape (768,)
         return text_embedding.squeeze()
+
+
+def parse_combined_title(combined_title: str) -> tuple[str | None, str | None]:
+    """
+    Helper function to parse combined text in link.title field, which is a combination of link title and description in the json format {"title": "My Title", "description": "My Description"}.
+    The description field must exist in the JSON (even if empty) to parse the title. Otherwise, return the original text.
+
+    :param combined_title: str: the combined json string in link.title field
+    :return: tuple[str | None, str | None]. The parsed title and description in string. description can be None if it's an empty string.
+    """
+    # return None, None for both title and description if the combined text is None or empty
+    if combined_title is None or combined_title.strip() == "":
+        return None, None
+
+    # Try to parse as JSON
+    try:
+        data = json.loads(combined_title)
+
+        if not isinstance(data, dict):
+            return combined_title.strip(), None
+
+        # Check if description field exists (key must be present)
+        if "description" not in data:
+            # No description field, return original text
+            return combined_title.strip(), None
+
+        # Parse title
+        title = data.get("title")
+        if isinstance(title, str):
+            title = title.strip()
+            title = title if title else None
+        else:
+            title = None
+
+        # Parse description
+        description = data.get("description")
+        if isinstance(description, str):
+            description = description.strip()
+            description = description if description else None
+        else:
+            description = None
+
+        return title, description
+
+    except (json.JSONDecodeError, TypeError):
+        # If not valid JSON, return original text as title with None description
+        return combined_title.strip(), None
