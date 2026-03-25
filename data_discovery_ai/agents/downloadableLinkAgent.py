@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
+from data_discovery_ai.agents.linkGroupingAgent import parse_combined_title
 import re
 from urllib.parse import urlparse, parse_qs
 
@@ -40,10 +41,13 @@ class DownloadableLinkAgent(BaseAgent):
                 href = (link.get("href") or "").strip()
                 if href:
                     # build asset dict
+                    combined_title_description = link.get("title")
+                    title = parse_combined_title(combined_title_description)[0]
+                    description = parse_combined_title(combined_title_description)[1]
                     ai_assets[href] = {
                         "href": link.get("href"),
-                        "title": link.get("title"),
-                        "description": link.get("description", ""),
+                        "title": title,
+                        "description": description if description else "",
                         "type": link.get("type", ""),
                         "role": "DOWNLOAD",
                     }
