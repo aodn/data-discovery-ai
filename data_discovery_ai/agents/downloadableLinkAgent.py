@@ -41,6 +41,8 @@ class DownloadableLinkAgent(BaseAgent):
                 href = (link.get("href") or "").strip()
                 if href:
                     # build asset dict
+                    # the original link title is a combined json string, e.g., "title": "{\"title\":\"Project summary - Recreational Fisheries Databases\",\"description\":\"Project summary - Recreational Fisheries Databases\"}"
+                    # we need to parse it to title and description field
                     combined_title_description = link.get("title")
                     title = parse_combined_title(combined_title_description)[0]
                     description = parse_combined_title(combined_title_description)[1]
