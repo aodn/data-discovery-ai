@@ -74,6 +74,9 @@
               },
               "ai:group": {
                 "type": "keyword"
+              },
+              "ai:role": {
+                "type": "keyword"
               }
             }
           }

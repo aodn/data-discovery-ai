@@ -248,6 +248,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": '{"title": "1989_01_12.zip", "description": ""}',
                     "ai:group": "Data Access",
+                    "ai:role": ["download"],
                 },
                 {
                     "href": "https://data.imas.utas.edu.au/attachments/Abalone_habitat_warming_reefs/bathy/BLOCK27_bathy_50cm.tif",
@@ -255,6 +256,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": '{"title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD], "description": "attachments"}',
                     "ai:group": "Data Access",
+                    "ai:role": ["download"],
                 },
             ],
         )
@@ -298,8 +300,8 @@ class TestLinkGroupingAgent(unittest.TestCase):
             ],
         )
 
-    def test_execute_without_ai_assets(self):
-        # when no Data Access links exist, summaries.ai:assets should not appear in response
+    def test_execute_without_ai_role(self):
+        # when no Data Access links exist, no ai:role should be tagged for links
         request = {
             "links": [
                 # document link — not downloadable data link
@@ -320,22 +322,25 @@ class TestLinkGroupingAgent(unittest.TestCase):
         }
         self.agent.execute(request)
 
+        # sub_agent should have been initialised without calling execution
+        self.assertIsNotNone(self.agent.sub_agent)
+
         # links must still exist in response with ai group mapping if works
         self.assertIn("links", self.agent.response)
-
         links = self.agent.response["links"]
+
+        # verify grouping still works correctly
         pdf_link = next(l for l in links if "REPORT" in l.get("title", ""))
         self.assertEqual(pdf_link["ai:group"], "Document")
+
         other_link = next(l for l in links if "auswaves" in l.get("href", ""))
         self.assertEqual(other_link["ai:group"], "Other")
 
-        # summaries.ai:assets must NOT be present when there are no downloadable links
-        self.assertNotIn("summaries.ai:assets", self.agent.response)
+        # no link should have ai:role — sub_agent only runs on Data Access links
+        for link in links:
+            self.assertNotIn("ai:role", link)
 
-        # sub_agent should not have been initialised
-        self.assertIsNone(self.agent.sub_agent)
-
-    def test_execute_produces_ai_assets(self):
+    def test_execute_with_ai_role(self):
         # verify sub_agent response is merged into LinkGroupingAgent response
         request = {
             "links": [
@@ -360,34 +365,48 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": '{"title":"seamap:SeamapAus_VIC_statewide_habitats_2023","description":"MAP - Statewide marine habitats 2023"}',
                 },
+                # visualisation link should NOT be treated as downloadable link
+                {
+                    "href": "https://www.marine.csiro.au/data/underway/?survey=in2019_v06",
+                    "rel": "data",
+                    "type": "",
+                    "title": """{"title":"Underway Visualisation Tool","description":"Link to visualisation tool for Near Real-Time Underway Data"}""",
+                },
+                # survey link should NOT be treated as downloadable link
+                {
+                    "href": "https://www.marine.csiro.au/data/trawler/survey_details.cfm?survey=IN2019_V06",
+                    "rel": "data",
+                    "type": "",
+                    "title": """{"title":"Investigator Survey","description":"Link to RV Investigator Survey Information, including voyage plans and summaries"}""",
+                },
             ]
         }
         self.agent.execute(request)
 
-        # summaries.ai:assets must exist in response
-        self.assertIn("summaries.ai:assets", self.agent.response)
+        # 'links' should in agent's response
+        self.assertIn("links", self.agent.response)
+        links = self.agent.response["links"]
 
-        assets = self.agent.response["summaries.ai:assets"]
-        self.assertIsInstance(assets, dict)
+        # find links by href to verify ai:role assignment
+        thredds_link = next(l for l in links if "thredds" in l.get("href", ""))
+        wfs_link = next(l for l in links if "wfs" in l.get("rel", ""))
+        wms_link = next(l for l in links if "wms" in l.get("rel", ""))
+        visualisation_link = next(
+            l for l in links if "Visualisation" in l.get("title", "")
+        )
+        survey_link = next(l for l in links if "Survey" in l.get("title", ""))
 
-        thredds_href = "https://thredds.aodn.org.au/thredds/catalog/IMOS/catalog.html"
-        wfs_href = "https://geoserver.imas.utas.edu.au/geoserver/seamap/wfs?version=1.0.0&request=GetFeature&typeName=SeamapAus_VIC_statewide_habitats_2023&outputFormat=SHAPE-ZIP"
-        wms_href = "https://geoserver.imas.utas.edu.au/geoserver/seamap/wms"
+        # verify downloadable links have ai:role set correctly
+        self.assertIn("ai:role", thredds_link)
+        self.assertIn("ai:role", wfs_link)
 
-        # verify rules work
-        self.assertIn(thredds_href, assets)
-        self.assertIn(wfs_href, assets)
+        # WMS should not be marked as downloadable
+        self.assertNotIn("ai:role", wms_link)
 
-        self.assertNotIn(wms_href, assets)
+        # visualisaton/survey link should not be marked as downlaodable
+        self.assertNotIn("ai:role", visualisation_link)
+        self.assertNotIn("ai:role", survey_link)
 
-        # verify asset structure
-        for href, asset in assets.items():
-            self.assertEqual(href, asset["href"])
-            self.assertEqual(asset["role"], "DOWNLOAD")
-            self.assertIn("title", asset)
-            self.assertIn("description", asset)
-            self.assertIn("type", asset)
-
-        # verify temp flag is not leaked into output links
-        for link in self.agent.response["links"]:
+        # verify temp flag is not leaked into output
+        for link in links:
             self.assertNotIn("ai:is_page_downloadable", link)

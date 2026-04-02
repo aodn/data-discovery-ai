@@ -109,7 +109,8 @@ model:
           - [data, dataset]
           - [download]
   downloadable_link_grouping:
-    response_key: "summaries.ai:assets"
+    # should be added as a link property
+    response_key: "ai:role"
     exclude_rules:
       title:
         - visualisation
@@ -135,7 +136,6 @@ model:
         - outputformat
         - download
 #  for training the pre-trained classification models
-
 trainer:
   keyword_classification:
     vocabs:
