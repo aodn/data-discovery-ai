@@ -222,15 +222,6 @@ class LinkGroupingAgent(BaseAgent):
                 if resp.status_code == 200:
                     content = resp.text.lower()
                     if any(keyword in content for keyword in page_content_keywords):
-                        # call sub agent to check link roles
-                        # build request
-                        sub_agent_request = {
-                            "link": link,
-                            "instruction": {"ai:is_page_downloadable": True},
-                        }
-                        # TODO: refine logic
-                        role_tagged_link = self.sub_agent.execute(sub_agent_request)
-
                         return "Data Access"
         except requests.exceptions.RequestException:
             logger.error(f"Failed to crawl the link: {link['href']}")

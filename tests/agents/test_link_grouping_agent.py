@@ -397,8 +397,8 @@ class TestLinkGroupingAgent(unittest.TestCase):
         survey_link = next(l for l in links if "Survey" in l.get("title", ""))
 
         # verify downloadable links have ai:role set correctly
-        self.assertIn("ai:role", thredds_link)
-        self.assertIn("ai:role", wfs_link)
+        self.assertEqual(thredds_link["ai:role"], ["download"])
+        self.assertEqual(wfs_link["ai:role"], ["download"])
 
         # WMS should not be marked as downloadable
         self.assertNotIn("ai:role", wms_link)

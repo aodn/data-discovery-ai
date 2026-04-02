@@ -52,12 +52,11 @@ class DownloadableLinkAgent(BaseAgent):
         """
         link = request.get("link", {})
 
-        if link.get("ai:is_page_downloadable", False):
+        is_page_downloadable = link.pop("ai:is_page_downloadable", False)
+
+        if is_page_downloadable or self._is_downloadable(link):
             link[self.model_config["response_key"]] = [LinkAIRole.DOWNLOAD.value]
-            # remove temp flag used only by sub agent
-            link.pop("ai:is_page_downloadable", None)
-        if self._is_downloadable(link):
-            link[self.model_config["response_key"]] = [LinkAIRole.DOWNLOAD.value]
+
         return link
 
     def _is_downloadable(self, link: Dict[str, Any]) -> bool:
@@ -65,10 +64,7 @@ class DownloadableLinkAgent(BaseAgent):
         href = link.get("href", "").lower()
         title = link.get("title", "").lower()
         description = link.get("description", "").lower()
-        downloadable_flag = link.get("ai:is_page_downloadable", None)
 
-        if downloadable_flag:
-            return True
         # exclude invalid href
         if not self._is_valid_href(href):
             return False
