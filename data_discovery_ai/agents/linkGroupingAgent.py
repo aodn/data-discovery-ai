@@ -66,11 +66,11 @@ def subgroup_access_link(link: Dict[str, Any]) -> Dict[str, Any]:
 class LinkGroupingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
-        self.sub_agent = None
         self.type = AgentType.LINK_GROUPING.value
         self.config = ConfigUtil.get_config()
         self.model_config = self.config.get_link_grouping_config()
         self.supervisor = None
+        self.sub_agent = DownloadableLinkAgent()
 
     def set_supervisor(self, supervisor):
         self.supervisor = supervisor
@@ -147,7 +147,9 @@ class LinkGroupingAgent(BaseAgent):
             # Add subgroup for Data Access link. Inspects the link URL and adds a more specific subgroup in the format: "Data Access > [subgroup]".
             if link_group == "Data Access":
                 link = subgroup_access_link(link)
-
+                # call sub agent to check downloadability
+                sub_agent_request = {"link": link}
+                link = self.sub_agent.execute(sub_agent_request)
             if link_group == "Python Notebook":
                 # make sure the python notebook type is as required
                 link["type"] = "application/x-ipynb+json"
@@ -220,7 +222,6 @@ class LinkGroupingAgent(BaseAgent):
                 if resp.status_code == 200:
                     content = resp.text.lower()
                     if any(keyword in content for keyword in page_content_keywords):
-                        link["ai:is_page_downloadable"] = True
                         return "Data Access"
         except requests.exceptions.RequestException:
             logger.error(f"Failed to crawl the link: {link['href']}")
@@ -236,25 +237,6 @@ class LinkGroupingAgent(BaseAgent):
             links = request["links"]
             grouped_links = self.take_action(links)
 
-            # if contains data access links, call sub agent downloadable link agent to identify downloadable links
-            data_access_links = [
-                link
-                for link in grouped_links
-                if (link.get("ai:group") or "").startswith("Data Access")
-            ]
-            if data_access_links:
-                self.sub_agent = DownloadableLinkAgent()
-                self.sub_agent.execute(data_access_links)
-
-                # remove temp flag used only by sub agent
-                for link in data_access_links:
-                    link.pop("ai:is_page_downloadable", None)
-                self.response = {
-                    self.model_config["response_key"]: grouped_links,
-                    # adds "summaries.ai:assets" for downloadable links
-                    **self.sub_agent.response,
-                }
-            else:
-                self.response = {self.model_config["response_key"]: grouped_links}
+            self.response = {self.model_config["response_key"]: grouped_links}
 
         logger.debug(f"{self.type} agent finished, it responses: \n {self.response}")

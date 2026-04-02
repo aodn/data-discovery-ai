@@ -19,3 +19,8 @@ class AgentType(Enum):
 class HuggingfaceModel(Enum):
     NLI_MODEL_NAME = "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli"
     EMBEDDING_MODEL_NAME = "google-bert/bert-base-uncased"
+
+
+# role for links.link.ai:role
+class LinkAIRole(Enum):
+    DOWNLOAD = "download"

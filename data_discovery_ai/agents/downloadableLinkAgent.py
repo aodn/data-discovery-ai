@@ -5,8 +5,7 @@ from urllib.parse import urlparse
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai.enum.agent_enums import AgentType
-from data_discovery_ai.utils.agent_tools import parse_combined_title
+from data_discovery_ai.enum.agent_enums import AgentType, LinkAIRole
 
 logger = structlog.get_logger(__name__)
 
@@ -33,42 +32,39 @@ class DownloadableLinkAgent(BaseAgent):
             v.lower() for v in grouping.get("href", [])
         }
 
-    def execute(self, data_access_links: List[Dict[str, Any]]) -> None:
-        ai_assets: Dict[str, Any] = {}
+    def execute(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        The execution method for downloadable link agent to tag a link.
+        Input:
+            - request: should contains field `link` which is the link need to be tagged,
+                and `instruction` which is the instruction from link grouping agent (to tell a link is downloadable
+                or not through page content.
+        Output:
+            - Dict[str, Any]: the link with an extra field `ai:role`, e.g.:
+            {
+                "href": "https://geoserver.imas.utas.edu.au/geoserver/seamap/wfs?version=1.0.0&request=GetFeature&typeName=SeamapAus_VIC_statewide_habitats_2023&outputFormat=SHAPE-ZIP",
+                "rel": "wfs",
+                "type": "",
+                "title": "{"title":"SHAPE-ZIP","description":"DATA ACCESS - This OGC WFS service returns the data (Statewide marine habitats 2023) in Shapefile format"}",
+                "ai:group": "Data Access > wfs",
+                "ai:role": ["download"]
+            }
+        """
+        link = request.get("link", {})
 
-        for link in data_access_links:
-            if self._is_downloadable(link):
-                href = (link.get("href") or "").strip()
-                if href:
-                    # build asset dict
-                    # the original link title is a combined json string, e.g., "title": "{\"title\":\"Project summary - Recreational Fisheries Databases\",\"description\":\"Project summary - Recreational Fisheries Databases\"}"
-                    # we need to parse it to title and description field
-                    combined_title_description = link.get("title")
-                    title = parse_combined_title(combined_title_description)[0]
-                    description = parse_combined_title(combined_title_description)[1]
-                    ai_assets[href] = {
-                        "href": link.get("href"),
-                        "title": title,
-                        "description": description if description else "",
-                        "type": link.get("type", ""),
-                        "role": "DOWNLOAD",
-                    }
+        is_page_downloadable = link.pop("ai:is_page_downloadable", False)
 
-        self.response = {self.model_config["response_key"]: ai_assets}
-        logger.debug(
-            f"{self.type} agent finished, "
-            f"found {len(ai_assets)} downloadable assets"
-        )
+        if is_page_downloadable or self._is_downloadable(link):
+            link[self.model_config["response_key"]] = [LinkAIRole.DOWNLOAD.value]
+
+        return link
 
     def _is_downloadable(self, link: Dict[str, Any]) -> bool:
         group = link.get("ai:group", "").lower()
         href = link.get("href", "").lower()
         title = link.get("title", "").lower()
         description = link.get("description", "").lower()
-        downloadable_flag = link.get("ai:is_page_downloadable", None)
 
-        if downloadable_flag:
-            return True
         # exclude invalid href
         if not self._is_valid_href(href):
             return False
