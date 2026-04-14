@@ -168,7 +168,11 @@ async def event_stream_handler(
         # add delay to prevent busy waiting
         await asyncio.sleep(0.1)
 
-    await task
+    try:
+        await task
+    except Exception as e:
+        yield f"event: error\ndata: Processing failed: {str(e)}\n\n"
+        return
 
     # formatting response to align with data schema
     full_response = copy.deepcopy(stored_body)

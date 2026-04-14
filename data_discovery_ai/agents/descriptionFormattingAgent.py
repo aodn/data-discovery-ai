@@ -1,6 +1,7 @@
 # The agent model for description formatting task
 import asyncio
 from ollama import chat
+import openai
 
 from typing import Dict, Optional
 import re
@@ -10,6 +11,7 @@ import structlog
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import LlmModels, AgentType
+from data_discovery_ai.utils.customised_exceptions import LLMClientError, LLMServerError
 
 logger = structlog.get_logger(__name__)
 
@@ -197,10 +199,19 @@ async def format_chunk_async(
 
         return formatted["formatted_abstract"]
 
-    except json.JSONDecodeError as e:
+    except openai.APITimeoutError as e:
+        raise LLMServerError(0, str(e))
+    except openai.APIConnectionError as e:
+        raise LLMServerError(0, str(e))
+    except openai.APIStatusError as e:
+        # if the status code is 4xx, raise LLMClientError
+        if 400 <= e.status_code < 500:
+            raise LLMClientError(e.status_code, str(e))
+        # if the status code is 5xx, raise LLMServerError
+        else:
+            raise LLMServerError(e.status_code, str(e))
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
         raise ValueError(f"Failed to parse JSON response: {e}")
-    except Exception as e:
-        raise RuntimeError(f"Error formatting chunk: {e}")
 
 
 def build_system_prompt() -> str:
@@ -346,17 +357,28 @@ class DescriptionFormattingAgent(BaseAgent):
             chunks = chunk_text(abstract, max_length=1000)
 
             if len(chunks) == 1:
-                result = await format_chunk_async(
-                    client,
-                    system_prompt,
-                    chunks[0],
-                    model,
-                    temp,
-                    max_tokens,
-                    chunk_index=0,
-                    previous_formatted_tail=None,
-                )
-                return result
+                try:
+                    result = await format_chunk_async(
+                        client,
+                        system_prompt,
+                        chunks[0],
+                        model,
+                        temp,
+                        max_tokens,
+                        chunk_index=0,
+                        previous_formatted_tail=None,
+                    )
+                    return result
+                except (LLMClientError, LLMServerError) as e:
+                    logger.error(
+                        f"LLM error on single chunk, returning original abstract: {e}"
+                    )
+                    return abstract
+                except Exception as e:
+                    logger.error(
+                        f"Error on single chunk, returning original abstract: {e}"
+                    )
+                    return abstract
 
             results = []
             previous_tail = None
@@ -392,6 +414,19 @@ class DescriptionFormattingAgent(BaseAgent):
                     # Extract the last sentence for next chunk's context
                     previous_tail = extract_last_sentence(formatted)
 
+                except LLMClientError as e:
+                    # 4xx on any chunk - bad request won't get better, abort all remaining chunks
+                    logger.error(
+                        f"LLM client error on chunk {i+1}, aborting and returning original abstract: {e}"
+                    )
+                    return abstract
+                except LLMServerError as e:
+                    # 5xx on a chunk - use raw chunk as fallback, continue with remaining
+                    logger.error(
+                        f"LLM server error on chunk {i+1}, using raw chunk as fallback: {e}"
+                    )
+                    results.append(chunk)
+                    previous_tail = extract_last_sentence(chunk)
                 except Exception as e:
                     logger.error(f"Error processing chunk {i + 1}: {e}")
                     results.append(chunk)
