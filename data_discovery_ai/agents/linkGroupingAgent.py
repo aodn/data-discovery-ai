@@ -63,6 +63,33 @@ def subgroup_access_link(link: Dict[str, Any]) -> Dict[str, Any]:
     return link
 
 
+def subgroup_code_tutorial(link: Dict[str, Any]) -> Dict[str, Any]:
+    """Add a subgroup to a "Code Tutorials" link: "Code Tutorials > Video/Jupyter/R Markdown".
+
+    R Markdown and Video are recognised by title (the metadata convention guarantees the
+    title, e.g. "Access to R Markdown notebook to query ..."), with href as a secondary
+    signal; Jupyter is recognised by its .ipynb href. Video is checked first because
+    video-tutorial titles also mention the Jupyter/R notebook they demonstrate.
+    """
+    sep = " > "
+    href = link.get("href", "").lower()
+    title = link.get("title", "").lower()
+
+    if "video tutorial" in title or "youtube.com" in href:
+        sub = "Video"
+    elif "ipynb" in href:
+        sub = "Jupyter"
+        # make sure the jupyter notebook type is as required
+        link["type"] = "application/x-ipynb+json"
+    elif "r markdown notebook" in title or ".rmd" in href:
+        sub = "R Markdown"
+    else:
+        return link
+
+    link["ai:group"] = f"Code Tutorials{sep}{sub}"
+    return link
+
+
 class LinkGroupingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
@@ -150,9 +177,8 @@ class LinkGroupingAgent(BaseAgent):
                 # call sub agent to check downloadability
                 sub_agent_request = {"link": link}
                 link = self.sub_agent.execute(sub_agent_request)
-            if link_group == "Python Notebook":
-                # make sure the python notebook type is as required
-                link["type"] = "application/x-ipynb+json"
+            if link_group == "Code Tutorials":
+                link = subgroup_code_tutorial(link)
         return links
 
     def content_keyword(self) -> List[str]:
@@ -180,7 +206,7 @@ class LinkGroupingAgent(BaseAgent):
             link: Dict[str, Any]. A dictionary of link object. The link to be grouped.
             page_content_keywords: List[str]. A list of strings. Each string is a combination of keywords. These keywords are used to filter the content of the link page.
         Output:
-            str. The group of the link. It can be 'Data Access'/'Document'/'Python Notebook'/ 'Other'.
+            str. The group of the link. It can be 'Data Access'/'Document'/'Code Tutorials'/ 'Other'.
         """
         href = link.get("href", "").lower()
         combined_title = link.get("title", "").lower()
