@@ -150,9 +150,10 @@ class LinkGroupingAgent(BaseAgent):
                 # call sub agent to check downloadability
                 sub_agent_request = {"link": link}
                 link = self.sub_agent.execute(sub_agent_request)
-            if link_group == "Python Notebook" and "ipynb" in link.get(
-                "href", ""
-            ).lower():
+            if (
+                link_group == "Python Notebook"
+                and "ipynb" in link.get("href", "").lower()
+            ):
                 # make sure the jupyter notebook type is as required
                 link["type"] = "application/x-ipynb+json"
         return links

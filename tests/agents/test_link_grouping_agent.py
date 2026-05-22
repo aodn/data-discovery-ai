@@ -192,7 +192,8 @@ class TestLinkGroupingAgent(unittest.TestCase):
     def test_python_notebook_real_links(self):
         """Real-world links from the AC: Jupyter (.ipynb), R Markdown (.Rmd) and the two
         YouTube video tutorials all group as 'Python Notebook'. Only the .ipynb link gets
-        the notebook MIME type; the R Markdown and video links keep their original type."""
+        the notebook MIME type; the R Markdown and video links keep their original type.
+        """
         request = {
             "links": [
                 {
@@ -293,9 +294,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
         self.assertEqual(len(self.agent.response["links"]), 4)
         # expect output:
         # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
-        self.assertEqual(
-            self.agent.response["links"][1]["ai:group"], "Python Notebook"
-        )
+        self.assertEqual(self.agent.response["links"][1]["ai:group"], "Python Notebook")
         self.assertEqual(
             self.agent.response["links"][1]["type"], "application/x-ipynb+json"
         )
