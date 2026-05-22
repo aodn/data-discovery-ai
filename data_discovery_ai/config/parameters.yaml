@@ -63,7 +63,7 @@ model:
         - "GoGoDuck help documentation"
         - "ncUrlList help documentation"
     grouping_rules:
-      Code Tutorials:
+      Python Notebook:  # code tutorials: Jupyter + R Markdown + video tutorials
         href:
           - ipynb
           - .rmd
