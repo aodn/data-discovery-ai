@@ -150,8 +150,11 @@ class LinkGroupingAgent(BaseAgent):
                 # call sub agent to check downloadability
                 sub_agent_request = {"link": link}
                 link = self.sub_agent.execute(sub_agent_request)
-            if link_group == "Python Notebook":
-                # make sure the python notebook type is as required
+            if (
+                link_group == "Code Tutorials"
+                and "ipynb" in link.get("href", "").lower()
+            ):
+                # make sure the jupyter notebook type is as required
                 link["type"] = "application/x-ipynb+json"
         return links
 
@@ -180,7 +183,7 @@ class LinkGroupingAgent(BaseAgent):
             link: Dict[str, Any]. A dictionary of link object. The link to be grouped.
             page_content_keywords: List[str]. A list of strings. Each string is a combination of keywords. These keywords are used to filter the content of the link page.
         Output:
-            str. The group of the link. It can be 'Data Access'/'Document'/'Python Notebook'/ 'Other'.
+            str. The group of the link. It can be 'Data Access'/'Document'/'Code Tutorials'/ 'Other'.
         """
         href = link.get("href", "").lower()
         combined_title = link.get("title", "").lower()

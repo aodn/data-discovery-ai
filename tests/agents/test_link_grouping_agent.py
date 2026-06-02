@@ -163,6 +163,75 @@ class TestLinkGroupingAgent(unittest.TestCase):
         self.assertEqual(result[3]["ai:group"], "Data Access > wfs")  # wfs
         self.assertEqual(result[4]["ai:group"], "Data Access")  # no specific subgroup
 
+    def test_python_notebook_recognised_by_title(self):
+        """AC: R notebooks / video tutorials are discoverable under 'Code Tutorials'
+        even when recognised by title alone (href has no .Rmd / is not youtube)."""
+        request = {
+            "links": [
+                # R notebook: only the title signals it (AC-guaranteed wording)
+                {
+                    "href": "https://github.com/aodn/imos-user-code-library/blob/master/NESP/seabird",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Access to R Markdown notebook to query Cloud Optimised converted dataset",
+                },
+                # Video tutorial: only the title signals it (non-youtube href)
+                {
+                    "href": "https://example.com/tutorials/r-demo",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Video tutorials demonstrating the use of the associated R notebook",
+                },
+            ]
+        }
+        self.agent.execute(request)
+        grouped = self.agent.response["links"]
+        self.assertEqual(grouped[0]["ai:group"], "Code Tutorials")
+        self.assertEqual(grouped[1]["ai:group"], "Code Tutorials")
+
+    def test_python_notebook_real_links(self):
+        """Real-world links from the AC: Jupyter (.ipynb), R Markdown (.Rmd) and the two
+        YouTube video tutorials all group as 'Code Tutorials'. Only the .ipynb link gets
+        the notebook MIME type; the R Markdown and video links keep their original type.
+        """
+        request = {
+            "links": [
+                {
+                    "href": "https://github.com/aodn/imos-user-code-library/blob/master/NESP/seabird.ipynb",
+                    "rel": "related",
+                    "type": "application/x-ipynb+json",
+                    "title": "Access to Jupyter notebook to query Cloud Optimised converted dataset",
+                },
+                {
+                    "href": "https://github.com/aodn/imos-user-code-library/blob/master/NESP/seabird.Rmd",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Access to R Markdown notebook to query Cloud Optimised converted dataset",
+                },
+                # video tutorial whose title mentions "Jupyter notebook" but is a YouTube
+                # link: must NOT be restamped with the notebook MIME type
+                {
+                    "href": "https://youtube.com/playlist?list=PLHCEbETnUz5w2KXiON-8iSYpO3x1qJgxj",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Video tutorials demonstrating the use of the associated Python Jupyter notebook",
+                },
+                {
+                    "href": "https://youtube.com/playlist?list=PLHCEbETnUz5w0JYQ3BsDaMam-UZ42AA7w",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Video tutorials demonstrating the use of the associated R notebook",
+                },
+            ]
+        }
+        self.agent.execute(request)
+        grouped = self.agent.response["links"]
+        self.assertTrue(all(l["ai:group"] == "Code Tutorials" for l in grouped))
+        self.assertEqual(grouped[0]["type"], "application/x-ipynb+json")
+        self.assertEqual(grouped[1]["type"], "text/html")
+        self.assertEqual(grouped[2]["type"], "text/html")
+        self.assertEqual(grouped[3]["type"], "text/html")
+
     @patch("data_discovery_ai.agents.linkGroupingAgent.requests.get")
     def test_ungrouped_links_with_fallback(self, mock_get):
         valid_data_link = {
@@ -224,8 +293,8 @@ class TestLinkGroupingAgent(unittest.TestCase):
         # it should return all links with selected links to be grouped
         self.assertEqual(len(self.agent.response["links"]), 4)
         # expect output:
-        # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Python Notebook'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
-        self.assertEqual(self.agent.response["links"][1]["ai:group"], "Python Notebook")
+        # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Code Tutorials'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
+        self.assertEqual(self.agent.response["links"][1]["ai:group"], "Code Tutorials")
         self.assertEqual(
             self.agent.response["links"][1]["type"], "application/x-ipynb+json"
         )
