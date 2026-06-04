@@ -31,6 +31,9 @@ class DownloadableLinkAgent(BaseAgent):
         self._downloadable_href: set[str] = {
             v.lower() for v in grouping.get("href", [])
         }
+        self._downloadable_title: set[str] = {
+            v.lower() for v in grouping.get("title", [])
+        }
 
     def execute(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -86,6 +89,10 @@ class DownloadableLinkAgent(BaseAgent):
 
         # fall back to identify with href
         if any(kw in href for kw in self._downloadable_href):
+            return True
+
+        # fall back to identify with title
+        if any(kw in title for kw in self._downloadable_title):
             return True
 
         return False

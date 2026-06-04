@@ -112,6 +112,8 @@ model:
         content:
           - [data, dataset]
           - [download]
+        rel:
+          - data
   downloadable_link_grouping:
     # should be added as a link property
     response_key: "ai:role"
@@ -139,6 +141,9 @@ model:
         - mp4
         - outputformat
         - download
+      title:
+        - download raw data
+        - download data
 #  for training the pre-trained classification models
 trainer:
   keyword_classification:
