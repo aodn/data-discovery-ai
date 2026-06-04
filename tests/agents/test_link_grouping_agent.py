@@ -39,6 +39,12 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "text/html",
                     "title": '{"title": "Example Data Link", "description": "This is a data access link"}',
                 },
+                {
+                    "href": "https://data-uplift-public.s3.ap-southeast-2.amazonaws.com/stored/datauplift/nrmn/nrmn.parquet",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": '{"Data files via Amazon Web Services S3 storage - download link (full dataset)","description": "This is a data access link"}',
+                },
             ]
         }
 
@@ -278,7 +284,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
     def test_make_decision(self):
         result = self.agent.make_decision(self.valid_request)
         # expect to skip the first irrelated link
-        self.assertEqual(len(result), 3)
+        self.assertEqual(len(result), 4)
         self.assertEqual(
             result[0]["title"],
             '{"title": "Example Notebook Link", "description": "This is a Python Notebook link"}',
@@ -297,12 +303,24 @@ class TestLinkGroupingAgent(unittest.TestCase):
     def test_execute(self):
         self.agent.execute(self.valid_request)
         # it should return all links with selected links to be grouped
-        self.assertEqual(len(self.agent.response["links"]), 4)
+        self.assertEqual(len(self.agent.response["links"]), 5)
         # expect output:
         # [{'href': 'https://example.com', 'rel': 'excluded_irrelated_link', 'type': 'text/html'}, {'href': 'https://example.ipynb', 'rel': 'related', 'application/x-ipynb+json', 'title': 'Example Notebook Link', 'group': 'Code Tutorials'}, {'href': 'https://example.com', 'rel': 'related', 'type': 'text/html', 'title': 'Example Document Link', 'group': 'Document'}, {'href': 'https://example.wms', 'rel': 'related', 'type': 'text/html', 'title': 'Example Data Link', 'group': 'Data Access'}]
         self.assertEqual(self.agent.response["links"][1]["ai:group"], "Code Tutorials")
         self.assertEqual(
             self.agent.response["links"][1]["type"], "application/x-ipynb+json"
+        )
+
+        self.assertEqual(
+            self.agent.response["links"][4],
+            {
+                "href": "https://data-uplift-public.s3.ap-southeast-2.amazonaws.com/stored/datauplift/nrmn/nrmn.parquet",
+                "rel": "related",
+                "type": "text/html",
+                "title": '{"Data files via Amazon Web Services S3 storage - download link (full dataset)","description": "This is a data access link"}',
+                "ai:group": "Data Access",
+                "ai:role": ["download"],
+            },
         )
 
     def test_execute_with_protocol(self):
