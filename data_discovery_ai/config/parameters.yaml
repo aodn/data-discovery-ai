@@ -91,6 +91,8 @@ model:
           - json
           - nc
           - zip
+          - parquet
+          - zarr
           - wfs
           - wms
           - ows
@@ -137,6 +139,8 @@ model:
         - trawler
         - data_type
         - nc
+        - zarr
+        - parquet
         - xlsx
         - mp4
         - outputformat
