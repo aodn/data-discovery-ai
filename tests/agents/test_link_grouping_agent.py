@@ -62,6 +62,12 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "",
                     "title": '{"title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD], "description": "attachments"}',
                 },
+                {
+                    "href": "http://acoustic.aodn.org.au",
+                    "rel": "data",
+                    "type": "",
+                    "title": '"Acoustic Data Viewer (preview and download raw data)", "description": ""}',
+                },
             ]
         }
 
@@ -324,6 +330,14 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "rel": "data",
                     "type": "",
                     "title": '{"title": "Block 27 - 50cm bathymetry [Geotiff DOWNLOAD], "description": "attachments"}',
+                    "ai:group": "Data Access",
+                    "ai:role": ["download"],
+                },
+                {
+                    "href": "http://acoustic.aodn.org.au",
+                    "rel": "data",
+                    "type": "",
+                    "title": '"Acoustic Data Viewer (preview and download raw data)", "description": ""}',
                     "ai:group": "Data Access",
                     "ai:role": ["download"],
                 },
