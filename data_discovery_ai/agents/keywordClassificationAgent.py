@@ -1,7 +1,7 @@
 # The agent model for executing the keyword classification task
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional, Iterable
+from typing import Dict, List, Any, Iterable
 from keras.models import load_model  # type: ignore
 import structlog
 
@@ -177,7 +177,7 @@ class KeywordClassificationAgent(BaseAgent):
         else:
             return []
 
-    def load_saved_model(self) -> Optional[load_model]:
+    def load_saved_model(self):
         pretrained_model_name = self.model_config.pretrained_model
         model_file_path = (
             self.config.base_dir / "resources" / KEYWORD_FOLDER / pretrained_model_name

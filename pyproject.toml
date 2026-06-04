@@ -11,7 +11,7 @@ pre-commit = "3.8.0"
 requests = "2.33.0"
 fastapi = "0.120.1"
 uvicorn = "0.30.6"
-python-dotenv = "1.0.1"
+python-dotenv = "1.2.2"
 numpy = "1.26.4"
 pandas = "2.2.3"
 matplotlib = "3.9.2"
@@ -25,32 +25,33 @@ iterative-stratification = "^0.1.9"
 pyyaml = "^6.0.2"
 elasticsearch = "^8.15.1"
 # https://github.com/python-poetry/poetry/issues/8271#issuecomment-1712020965
-tensorflow-cpu = {version = "2.16.2" }
+tensorflow-cpu = {version = "2.21.0" }
 tensorflow-io-gcs-filesystem = [
     { version = ">= 0.23.1", markers = "platform_machine!='arm64' or platform_system!='Darwin'" },
     { version = "< 0.32.0", markers = "platform_system == 'Windows'" }
 ]
-tf-keras = "2.16.0"
+tf-keras = "2.21.0"
 openai = "^1.66.3"
 h11 = "0.16.0"
 ollama = "^0.4.8"
 setuptools = "78.1.1"
 mlflow = {extras = ["genai"], version = "3.11.1"}
-protobuf = "4.25.8"
-urllib3 = "2.6.3"
+urllib3 = "2.7.0"
 aiohttp = ">=3.13.4"
 keras = "3.13.2"
 structlog = "^25.5.0"
 fonttools = "4.61.0"
-werkzeug = "3.1.5"
+werkzeug = "3.1.6"
 pyasn1 = ">=0.6.3"
 filelock = "3.20.3"
 virtualenv = "20.36.1"
-gitpython = ">=3.1.47"
+gitpython = "3.1.50"
 cryptography = "46.0.7"
 wheel = ">=0.46.2"
 mako = ">=1.3.11"
 pygments = ">=2.20.0"
+pillow = "^12.2.0"
+idna = "^3.15"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "9.0.3"
