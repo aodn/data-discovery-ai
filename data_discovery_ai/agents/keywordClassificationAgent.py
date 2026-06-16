@@ -17,6 +17,7 @@ logger = structlog.get_logger(__name__)
 
 PLATFORM_VOCAB = "AODN Platform Vocabulary"
 
+
 def replace_with_column_names(
     row: Iterable[Any], column_names: Dict[int, Any]
 ) -> List[Any]:
@@ -197,6 +198,7 @@ class KeywordClassificationAgent(BaseAgent):
         )
         labels = load_from_file(labels_file_path)
         return labels
+
 
 def get_label_confidence(label: Dict[str, Any], model_config) -> float:
     if label.get("title") == PLATFORM_VOCAB:

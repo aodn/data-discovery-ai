@@ -308,7 +308,9 @@ class KeywordPreprocessor(BasePreprocessor):
         # clean rows with empty keywords
         return watched_df[watched_df["themes"].apply(lambda x: x != [])]
 
-    def customized_resample(self, X_train: np.ndarray, Y_train: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def customized_resample(
+        self, X_train: np.ndarray, Y_train: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Customised resampling strategy: duplicate records carrying rare labels
         so that each rare label reaches `num_copies` positive samples.
