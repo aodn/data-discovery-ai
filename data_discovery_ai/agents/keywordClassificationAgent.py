@@ -15,6 +15,8 @@ from data_discovery_ai.enum.agent_enums import AgentType
 logger = structlog.get_logger(__name__)
 
 
+PLATFORM_VOCAB = "AODN Platform Vocabulary"
+
 def replace_with_column_names(
     row: Iterable[Any], column_names: Dict[int, Any]
 ) -> List[Any]:
@@ -150,9 +152,6 @@ class KeywordClassificationAgent(BaseAgent):
         embedding_model = self.supervisor.embedding_model
         text_embedding = get_text_embedding(request_text, tokenizer, embedding_model)
 
-        # set up model parameters
-        confidence = self.model_config.confidence
-
         # load the pretrained model
         pretrained_model = self.load_saved_model()
         selective_labels = self.load_keyword_labels()
@@ -160,11 +159,13 @@ class KeywordClassificationAgent(BaseAgent):
             dimension = text_embedding.shape[0]
             target_X = text_embedding.reshape(1, dimension)
             predictions = pretrained_model.predict(target_X)
-            predicted_labels = (predictions > confidence).astype(int)
 
-            predicted_keywords = get_predicted_keywords(
-                predicted_labels, selective_labels
-            )
+            scores = predictions[0]
+            predicted_keywords = [
+                label
+                for index, label in selective_labels.items()
+                if scores[index] > get_label_confidence(label, self.model_config)
+            ]
 
             logger.debug(f"Keyword is being predicted by {self.type} agent")
             return predicted_keywords
@@ -196,3 +197,8 @@ class KeywordClassificationAgent(BaseAgent):
         )
         labels = load_from_file(labels_file_path)
         return labels
+
+def get_label_confidence(label: Dict[str, Any], model_config) -> float:
+    if label.get("title") == PLATFORM_VOCAB:
+        return model_config.platform_confidence
+    return model_config.parameter_confidence

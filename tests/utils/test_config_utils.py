@@ -10,7 +10,8 @@ elasticsearch:
 
 model:
   keyword_classification:
-    confidence: 0.5
+    parameter_confidence: 0.6
+    platform_confidence: 0.6
     separator: " [SEP] "
     model: development
 
@@ -34,7 +35,8 @@ class TestConfigUtil(unittest.TestCase):
 
     def test_get_keyword_classification_config(self):
         model_config = self.config_util.get_keyword_classification_config()
-        self.assertEqual(model_config.confidence, 0.5)
+        self.assertEqual(model_config.parameter_confidence, 0.6)
+        self.assertEqual(model_config.platform_confidence, 0.6)
 
     def test_get_ogcapi_config(self):
         ogcapi_config = self.config_util.get_ogcapi_config()
