@@ -152,7 +152,6 @@ class KeywordClassificationAgent(BaseAgent):
 
         # set up model parameters
         confidence = self.model_config.confidence
-        top_N = self.model_config.top_N
 
         # load the pretrained model
         pretrained_model = self.load_saved_model()
@@ -162,11 +161,6 @@ class KeywordClassificationAgent(BaseAgent):
             target_X = text_embedding.reshape(1, dimension)
             predictions = pretrained_model.predict(target_X)
             predicted_labels = (predictions > confidence).astype(int)
-
-            for i in range(predicted_labels.shape[0]):
-                if predicted_labels[i].sum() == 0:
-                    top_indices = np.argsort(predictions[i])[-top_N:]
-                    predicted_labels[i][top_indices] = 1
 
             predicted_keywords = get_predicted_keywords(
                 predicted_labels, selective_labels

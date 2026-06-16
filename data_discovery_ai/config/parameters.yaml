@@ -28,8 +28,7 @@ model:
         required_fields:
           - links
   keyword_classification:
-    confidence: 0.5
-    top_N: 2
+    confidence: 0.6
     separator: " [SEP] "
     pretrained_model: development
     response_key: "themes"

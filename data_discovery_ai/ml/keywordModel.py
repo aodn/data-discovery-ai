@@ -93,10 +93,10 @@ def train_keyword_model(
         min_lr=1e-6,
     )
 
-    mlflow.set_experiment("Keyword Classification Model")
     mlflow_config = keyword_preprocessor.mlflow_config
     port_num = mlflow_config.port
     mlflow.set_tracking_uri("http://localhost:{}".format(port_num))
+    mlflow.set_experiment("Keyword Classification Model")
 
     with mlflow.start_run():
         trainer_params = keyword_preprocessor.trainer_config
@@ -155,7 +155,7 @@ def get_predicted_keywords(prediction: np.ndarray, labels: Dict):
     return predicted_keywords
 
 
-def load_saved_model(trained_model: str) -> Optional[load_model]:
+def load_saved_model(trained_model: str):
     """
     Load a saved pretrained model from file, via a model name
     Input:

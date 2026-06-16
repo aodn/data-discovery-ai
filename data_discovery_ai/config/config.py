@@ -93,7 +93,6 @@ class TrainerConfig:
 @dataclass(frozen=True)
 class KeywordClassificationConfig:
     confidence: float
-    top_N: int
     separator: str
     pretrained_model: str
     response_key: str
@@ -369,7 +368,6 @@ class ConfigUtil:
         )
         return KeywordClassificationConfig(
             confidence=m.get("confidence", 0.0),
-            top_N=m.get("top_N", 0),
             separator=m.get("separator", ""),
             pretrained_model=m.get("pretrained_model", ""),
             response_key=m.get("response_key", ""),
