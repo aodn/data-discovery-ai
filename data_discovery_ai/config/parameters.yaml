@@ -160,7 +160,7 @@ trainer:
     learning_rate: 0.0005
     fl_gamma: 2
     fl_alpha: 0.8
-    epoch: 100
+    epoch: 200
     batch_size: 32
     early_stopping_patience: 10
     reduce_lr_patience: 10
