@@ -308,30 +308,39 @@ class KeywordPreprocessor(BasePreprocessor):
         # clean rows with empty keywords
         return watched_df[watched_df["themes"].apply(lambda x: x != [])]
 
-    def customized_resample(self):
+    def customized_resample(
+        self, X_train: np.ndarray, Y_train: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Customised resampling strategy: given a list of rare labels, i.e., the labels appears under a certain times in all records, duplicate the records which has these labels with a num_copies.
+        Customised resampling strategy: duplicate records carrying rare labels
+        so that each rare label reaches `num_copies` positive samples.
+        Operates ONLY on the passed-in training data — no access to self.data.
         Input:
-            X_train: np.ndarray. The feature matrix X to be augmented.
-            Y_train: np.ndarray. The target matrix Y to be augmented.
-            rare_class: List[int]. The index of rare labels.
+            X_train: np.ndarray. Training feature matrix to augment.
+            Y_train: np.ndarray. Training target matrix to augment.
         Output:
-            X_augmented, Y_augmented: Tuple[np.ndarray, np.ndarray]: The augmented training feature matrix and target matrix.
+            Tuple[np.ndarray, np.ndarray]: augmented (X, Y).
         """
-        X_augmented = self.data.X.copy()
-        Y_augmented = self.data.Y.copy()
+        X_augmented = X_train.copy()
+        Y_augmented = Y_train.copy()
         num_copies = self.trainer_config.rare_label_threshold
 
-        for label_idx in self.rare_labels:
-            positive_idx = np.where(self.data.Y[:, label_idx] == 1)[0]
-            count_pos = len(positive_idx)
-            if 0 < count_pos <= num_copies:
-                need = num_copies - count_pos
+        label_counts = Y_train.sum(axis=0)
+        rare_labels = np.where(label_counts <= num_copies)[0]
 
-                dup_idx = np.random.choice(positive_idx, size=need, replace=True)
-                for i in dup_idx:
-                    X_augmented = np.vstack([X_augmented, self.data.X[i]])
-                    Y_augmented = np.vstack([Y_augmented, self.data.Y[i]])
+        rng = np.random.default_rng(42)
+
+        for label_idx in rare_labels:
+            # Search within the TRAINING labels only
+            positive_idx = np.where(Y_train[:, label_idx] == 1)[0]
+            count_pos = len(positive_idx)
+
+            if 0 < count_pos < num_copies:
+                need = num_copies - count_pos
+                # Sample with replacement from TRAINING positives only
+                dup_idx = rng.choice(positive_idx, size=need, replace=True)
+                X_augmented = np.vstack([X_augmented, X_train[dup_idx]])
+                Y_augmented = np.vstack([Y_augmented, Y_train[dup_idx]])
 
         return X_augmented, Y_augmented
 
@@ -364,7 +373,7 @@ class KeywordPreprocessor(BasePreprocessor):
             X_train, X_test = X_copy[train_index], X_copy[test_index]
             Y_train, Y_test = Y_copy[train_index], Y_copy[test_index]
 
-        X_train, Y_train = self.customized_resample()
+        X_train, Y_train = self.customized_resample(X_train, Y_train)
 
         label_weight_dict = get_class_weights(Y_train)
 

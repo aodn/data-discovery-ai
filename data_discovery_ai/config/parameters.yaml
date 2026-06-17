@@ -28,8 +28,8 @@ model:
         required_fields:
           - links
   keyword_classification:
-    confidence: 0.5
-    top_N: 2
+    parameter_confidence: 0.6
+    platform_confidence: 0.6
     separator: " [SEP] "
     pretrained_model: development
     response_key: "themes"
@@ -161,7 +161,7 @@ trainer:
     learning_rate: 0.0005
     fl_gamma: 2
     fl_alpha: 0.8
-    epoch: 100
+    epoch: 200
     batch_size: 32
     early_stopping_patience: 10
     reduce_lr_patience: 10

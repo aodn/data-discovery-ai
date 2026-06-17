@@ -121,7 +121,16 @@ class BasePipeline:
             )
         )
         subprocess.Popen(
-            ["mlflow", "server", "--port", str(mlflow_config.port)],
+            [
+                "mlflow",
+                "server",
+                "--backend-store-uri",
+                "sqlite:///mlflow.db",
+                "--default-artifact-root",
+                "./mlruns",
+                "--port",
+                str(mlflow_config.port),
+            ],
             stdout=open("mlflow_server.log", "w"),
             stderr=subprocess.STDOUT,
         )

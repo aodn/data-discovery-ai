@@ -92,8 +92,8 @@ class TrainerConfig:
 
 @dataclass(frozen=True)
 class KeywordClassificationConfig:
-    confidence: float
-    top_N: int
+    parameter_confidence: float
+    platform_confidence: float
     separator: str
     pretrained_model: str
     response_key: str
@@ -368,8 +368,8 @@ class ConfigUtil:
             AgentType.KEYWORD_CLASSIFICATION.value, {}
         )
         return KeywordClassificationConfig(
-            confidence=m.get("confidence", 0.0),
-            top_N=m.get("top_N", 0),
+            parameter_confidence=m.get("parameter_confidence", 0.5),
+            platform_confidence=m.get("platform_confidence", 0.5),
             separator=m.get("separator", ""),
             pretrained_model=m.get("pretrained_model", ""),
             response_key=m.get("response_key", ""),
