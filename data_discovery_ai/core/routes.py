@@ -32,6 +32,7 @@ router = APIRouter(prefix=API_PREFIX)
 VERSION = os.getenv("APP_VERSION", "main-SNAPSHOT")
 GIT_SHA = os.getenv("GIT_SHA")
 
+
 async def ensure_ready():
     """
     Service check if the following requirements are met:
@@ -105,14 +106,11 @@ def get_info():
         "application": {
             "name": "data-discovery-ai",
             "description": "Data Discovery AI",
-            "version": VERSION
+            "version": VERSION,
         },
-        "git": {
-            "commit": {
-                "id": GIT_SHA
-            }
-        }
+        "git": {"commit": {"id": GIT_SHA}},
     }
+
 
 @router.delete(
     "/delete_doc", dependencies=[Depends(api_key_auth), Depends(ensure_ready)]
