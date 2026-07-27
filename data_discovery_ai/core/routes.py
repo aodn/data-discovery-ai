@@ -15,7 +15,6 @@ import time
 
 from data_discovery_ai.config.constants import (
     API_PREFIX,
-    FILTER_FOLDER,
     KEYWORD_FOLDER,
     KEYWORD_LABEL_FILE,
 )
@@ -29,6 +28,9 @@ from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
 router = APIRouter(prefix=API_PREFIX)
+
+VERSION = os.getenv("APP_VERSION", "main-SNAPSHOT")
+GIT_SHA = os.getenv("GIT_SHA")
 
 
 async def ensure_ready():
@@ -96,6 +98,18 @@ async def health_check() -> HealthCheckResponse:
         return HealthCheckResponse(status_code=HTTPStatus.OK, status="healthy")
     except HTTPException as e:
         return HealthCheckResponse(status_code=e.status_code, status=str(e.detail))
+
+
+@router.get("/manage/info")
+def get_info():
+    return {
+        "application": {
+            "name": "data-discovery-ai",
+            "description": "Data Discovery AI",
+            "version": VERSION,
+        },
+        "git": {"commit": {"id": GIT_SHA}},
+    }
 
 
 @router.delete(
