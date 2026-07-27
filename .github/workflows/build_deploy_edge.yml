@@ -46,6 +46,8 @@ jobs:
           tags: |
             ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
             ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:latest
+          build-args: |
+            GIT_SHA=${{ github.sha }}
   trigger_edge_deploy:
     needs: [build_push]
     uses: ./.github/workflows/trigger_deploy.yml

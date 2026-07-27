@@ -2,6 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Accept the build argument from GitHub Actions
+ARG APP_VERSION=unknown
+ARG GIT_SHA=unknown
+
+# Set it as an environment variable for Python to read
+ENV APP_VERSION=$APP_VERSION
+ENV GIT_SHA=$GIT_SHA
+
 RUN useradd -l -m -s /bin/bash appuser
 
 COPY pyproject.toml poetry.lock ./
