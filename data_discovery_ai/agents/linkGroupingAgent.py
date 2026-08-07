@@ -115,14 +115,21 @@ class LinkGroupingAgent(BaseAgent):
             return []
 
     def is_excluded(self, link: Dict[str, Any]) -> bool:
+        """
+        Check a link against exclude_rules: `title_contains` is a case-insensitive substring match on the parsed title; any other field is an exact match.
+        """
         exclude_rules = self.model_config.get("exclude_rules", {})
+        title, _ = parse_combined_title(link.get("title"))
+        title_lower = title.lower() if title else ""
 
         for field, exclude_values in exclude_rules.items():
-            field_value = link.get(field)
-            if field == "title" and field_value is not None:
-                field_value = parse_combined_title(field_value)[0]
-            if field_value in exclude_values:
-                return True
+            if field == "title_contains":
+                if any(phrase.lower() in title_lower for phrase in exclude_values):
+                    return True
+            else:
+                field_value = title if field == "title" else link.get(field)
+                if field_value in exclude_values:
+                    return True
 
         return False
 
