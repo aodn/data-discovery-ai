@@ -62,6 +62,8 @@ model:
         - "View and download data though the AODN Portal"
         - "GoGoDuck help documentation"
         - "ncUrlList help documentation"
+      title_contains:
+        - "(link to be added)"
     grouping_rules:
       Code Tutorials: # Jupyter + R Markdown + video tutorials
         href:

@@ -244,6 +244,38 @@ class TestLinkGroupingAgent(unittest.TestCase):
         self.assertEqual(grouped[2]["type"], "text/html")
         self.assertEqual(grouped[3]["type"], "text/html")
 
+    def test_placeholder_title_not_grouped(self):
+        """Links whose title contains "(link to be added)" are placeholders and must not be grouped (hidden from portal)."""
+        request = {
+            "links": [
+                {
+                    "href": "https://github.com/aodn/imos-user-code-library",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": '{"title": "Access to Jupyter notebook to query Cloud Optimised converted dataset (link to be added)", "description": ""}',
+                },
+                # plain (non-JSON) title with the placeholder
+                {
+                    "href": "https://github.com/aodn/imos-user-code-library",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Access to R Markdown notebook (link to be added)",
+                },
+                # real notebook link must still be grouped
+                {
+                    "href": "https://github.com/aodn/imos-user-code-library/blob/master/NESP/seabird.ipynb",
+                    "rel": "related",
+                    "type": "application/x-ipynb+json",
+                    "title": "Access to Jupyter notebook to query Cloud Optimised converted dataset",
+                },
+            ]
+        }
+        self.agent.execute(request)
+        links = self.agent.response["links"]
+        self.assertNotIn("ai:group", links[0])
+        self.assertNotIn("ai:group", links[1])
+        self.assertEqual(links[2]["ai:group"], "Code Tutorials")
+
     @patch("data_discovery_ai.agents.linkGroupingAgent.requests.get")
     def test_ungrouped_links_with_fallback(self, mock_get):
         valid_data_link = {
