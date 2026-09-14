@@ -91,7 +91,7 @@ class SupervisorAgent(BaseAgent):
 
     def take_action(self, request: Dict) -> Dict:
         """
-        Run the task agents in parallel using multiprocessing.
+        Run the task agents in sequence.
         Input: request: Dict. The request from API call
         Output: Dict. The combined response from all task agents.
         """
