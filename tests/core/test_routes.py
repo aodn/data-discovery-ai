@@ -3,7 +3,7 @@ import gzip
 import json
 from io import BytesIO
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from data_discovery_ai.core.routes import ensure_ready
 from data_discovery_ai.server import app
@@ -32,6 +32,9 @@ class TestRoutes(unittest.TestCase):
         app.state.index = MagicMock()
 
         app.state.llm_client = MagicMock()
+
+        app.state.model_status = "UP"
+        app.state.model_error = None
 
         app.dependency_overrides[api_key_auth] = override_dependency
         app.dependency_overrides[ensure_ready] = override_ensure_ready
@@ -148,3 +151,83 @@ class TestRoutes(unittest.TestCase):
         self.assertTrue(any("event: done" in line for line in lines))
 
         mock_store.assert_called_once()
+
+
+UP_COMPONENT = {"status": "UP", "detail": None}
+
+
+@patch(
+    "data_discovery_ai.utils.health_utils.check_llm",
+    new=AsyncMock(return_value=UP_COMPONENT),
+)
+@patch(
+    "data_discovery_ai.utils.health_utils.check_keyword_resources",
+    new=MagicMock(return_value=UP_COMPONENT),
+)
+class TestHealthAndReadiness(unittest.TestCase):
+    """
+    Health check and readiness gate without overriding ensure_ready.
+    """
+
+    def setUp(self):
+        app.state.client = MagicMock()
+        app.state.index = MagicMock()
+        app.dependency_overrides[api_key_auth] = override_dependency
+
+    def tearDown(self):
+        app.dependency_overrides = {}
+        app.state.model_status = "UP"
+        app.state.model_error = None
+
+    def test_health_starting_returns_200(self):
+        app.state.model_status = "STARTING"
+        response = client.get("/api/v1/ml/health")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "STARTING")
+        self.assertEqual(body["status_code"], 200)
+        self.assertEqual(body["components"]["models"]["status"], "STARTING")
+
+    def test_health_up_returns_200(self):
+        app.state.model_status = "UP"
+        response = client.get("/api/v1/ml/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "UP")
+
+    def test_health_down_still_returns_200(self):
+        app.state.model_status = "DOWN"
+        app.state.model_error = "download failed"
+        response = client.get("/api/v1/ml/health")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "DOWN")
+        self.assertEqual(body["components"]["models"]["detail"], "download failed")
+
+    def test_health_down_when_resource_missing(self):
+        app.state.model_status = "STARTING"
+        with patch(
+            "data_discovery_ai.utils.health_utils.check_keyword_resources",
+            return_value={"status": "DOWN", "detail": "missing"},
+        ):
+            response = client.get("/api/v1/ml/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "DOWN")
+
+    def test_process_record_rejected_while_models_starting(self):
+        app.state.model_status = "STARTING"
+        response = client.post(
+            "/api/v1/ml/process_record",
+            headers={"X-API-Key": "test-api-key"},
+            json={"selected_model": ["link_grouping"], "uuid": "test-uuid"},
+        )
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("models: STARTING", response.json()["detail"])
+
+    def test_delete_doc_rejected_while_models_starting(self):
+        app.state.model_status = "STARTING"
+        response = client.delete(
+            "/api/v1/ml/delete_doc",
+            params={"doc_id": "test_doc_id"},
+            headers={"X-API-Key": "test-api-key"},
+        )
+        self.assertEqual(response.status_code, 503)

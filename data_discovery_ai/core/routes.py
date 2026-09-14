@@ -8,22 +8,19 @@ from pydantic import BaseModel
 from http import HTTPStatus
 from dotenv import load_dotenv
 import os
-import httpx
 import copy
 import asyncio
 import time
+from typing import Any, Dict
 
-from data_discovery_ai.config.constants import (
-    API_PREFIX,
-    KEYWORD_FOLDER,
-    KEYWORD_LABEL_FILE,
-)
+from data_discovery_ai.config.constants import API_PREFIX, STATUS_DOWN, STATUS_UP
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.es_connector import (
     store_ai_generated_data,
     delete_es_document,
 )
+from data_discovery_ai.utils.health_utils import aggregate_status, collect_components
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
@@ -33,71 +30,50 @@ VERSION = os.getenv("APP_VERSION", "main-SNAPSHOT")
 GIT_SHA = os.getenv("GIT_SHA")
 
 
-async def ensure_ready():
+async def ensure_ready(request: Request):
     """
     Service check if the following requirements are met:
       - Pretrained model required resources exist.
       - OpenAI API key is set in production and staging.
       - Ollama server is running in development.
-    Raises HTTPException(503) if any check fails.
+      - Hugging Face models finished loading in the background.
+    Raises HTTPException(503) naming the components that are not UP.
     """
-    config = ConfigUtil.get_config()
-    base_path = config.base_dir / "resources"
-
-    # Paths for keyword classification
-    keyword_model = config.get_keyword_classification_config().pretrained_model
-    keyword_model_path = (base_path / KEYWORD_FOLDER / keyword_model).with_suffix(
-        ".keras"
-    )
-    keyword_label_path = base_path / KEYWORD_FOLDER / KEYWORD_LABEL_FILE
-
-    # Check resource existence
-    missing = []
-    if not keyword_model_path.exists():
-        missing.append(f"Keyword model resource not found at {keyword_model_path}")
-    if not keyword_label_path.exists():
-        missing.append(f"Keyword label resource not found at {keyword_label_path}")
-    if missing:
+    components = await collect_components(request.app)
+    not_ready = [
+        f"{name}: {component['status']}"
+        + (f" ({component['detail']})" if component["detail"] else "")
+        for name, component in components.items()
+        if component["status"] != STATUS_UP
+    ]
+    if not_ready:
         raise HTTPException(
-            status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="; ".join(missing)
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="; ".join(not_ready)
         )
-
-    # Environment-specific checks
-    env = os.getenv("PROFILE", "development")
-    if env != "development":
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if not openai_key:
-            raise HTTPException(
-                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                detail="OpenAI API key not set",
-            )
-    else:
-        ollama_base_url = "http://localhost:11434"
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.get(f"{ollama_base_url}/models", timeout=2)
-        except httpx.RequestError:
-            raise HTTPException(
-                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                detail="Ollama server not running",
-            )
 
 
 class HealthCheckResponse(BaseModel):
     status_code: int
     status: str
+    components: Dict[str, Dict[str, Any]] | None = None
 
 
 @router.get("/health", response_model=HealthCheckResponse)
-async def health_check() -> HealthCheckResponse:
+async def health_check(request: Request) -> HealthCheckResponse:
     """
-    Health endpoint: always returns a HealthCheckResponse, using status_code and status fields.
+    Health endpoint: always returns HTTP 200 so a slow start (Hugging Face model download) does not fail the AWS
+    health check. Readiness is carried in the body as status UP/STARTING/DOWN; requests are rejected with 503 by
+    ensure_ready until the service is UP.
     """
     try:
-        await ensure_ready()
-        return HealthCheckResponse(status_code=HTTPStatus.OK, status="healthy")
-    except HTTPException as e:
-        return HealthCheckResponse(status_code=e.status_code, status=str(e.detail))
+        components = await collect_components(request.app)
+        status = aggregate_status(components)
+    except Exception as e:
+        components = {"health_check": {"status": STATUS_DOWN, "detail": str(e)}}
+        status = STATUS_DOWN
+    return HealthCheckResponse(
+        status_code=HTTPStatus.OK, status=status, components=components
+    )
 
 
 @router.get("/manage/info")
