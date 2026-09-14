@@ -15,7 +15,8 @@
         "type": "keyword"
       },
       "description": {
-        "type": "keyword"
+        "type": "text",
+        "index": false
       },
       "themes": {
         "type": "nested",
@@ -85,10 +86,12 @@
       "summaries": {
         "properties": {
           "statement": {
-            "type": "keyword"
+            "type": "text",
+            "index": false
           },
           "ai:description": {
-            "type": "keyword"
+            "type": "text",
+            "index": false
           },
           "ai:update_frequency": {
             "type": "keyword"
