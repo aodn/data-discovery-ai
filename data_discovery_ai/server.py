@@ -22,12 +22,6 @@ from data_discovery_ai.config.constants import (
     STATUS_UP,
 )
 from data_discovery_ai.enum.agent_enums import HuggingfaceModel
-from data_discovery_ai.utils.health_utils import (
-    aggregate_status,
-    collect_components,
-    remove_health_status,
-    write_health_status,
-)
 
 logger = structlog.get_logger(__name__)
 
@@ -64,15 +58,6 @@ def load_llm_client():
         return None
 
 
-async def write_aggregated_health_status(app: FastAPI):
-    try:
-        components = await collect_components(app)
-        write_health_status(aggregate_status(components), components)
-    except Exception as e:
-        logger.warning(f"Failed to collect health components: {e}")
-        write_health_status(app.state.model_status)
-
-
 async def load_models_background(app: FastAPI):
     """
     Load the Hugging Face models without blocking server startup. The download can take minutes on a cold start,
@@ -100,14 +85,9 @@ async def load_models_background(app: FastAPI):
         app.state.model_error = f"Failed to load Hugging Face models: {e}"
         logger.error(app.state.model_error)
 
-    await write_aggregated_health_status(app)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # write a health file immediately so Nginx can answer the health check before the models are loaded
-    write_health_status(STATUS_STARTING)
-
     app.state.tokenizer = None
     app.state.embedding_model = None
     app.state.nli_tokenizer = None
@@ -134,8 +114,6 @@ async def lifespan(app: FastAPI):
             model_task.cancel()
             with suppress(asyncio.CancelledError):
                 await model_task
-        # remove the health file so a failed startup or a stopped process is not reported as healthy
-        remove_health_status()
 
 
 app = FastAPI(lifespan=lifespan)
