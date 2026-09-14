@@ -105,6 +105,12 @@ class DescriptionFormattingConfig:
     temperature: float
     max_tokens: int
     response_key: str
+    # Maximum number of characters sent to the LLM in a single chunk.
+    chunk_size: int
+    # Maximum time in seconds allowed for one LLM chunk request.
+    request_timeout: float
+    # Maximum time in seconds allowed for the complete description formatting task.
+    total_timeout: float
 
 
 @dataclass(frozen=True)
@@ -384,6 +390,9 @@ class ConfigUtil:
             temperature=m.get("temperature", 0.0),
             max_tokens=m.get("max_tokens", 4000),
             response_key=m.get("response_key", "summaries.ai:description"),
+            chunk_size=m.get("chunk_size", 4000),
+            request_timeout=m.get("request_timeout", 60),
+            total_timeout=m.get("total_timeout", 240),
         )
 
     def get_delivery_classification_config(self) -> DeliveryClassificationConfig:
