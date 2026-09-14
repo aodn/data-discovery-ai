@@ -10,8 +10,6 @@ FILTER_FOLDER = "DataDeliveryModeFilter"
 CACHED_RAW_DATA = "raw_data.pkl"
 RECORDS_ENHANCED_SCHEMA = "records_enhanced_schema.json"
 CONCEPT_AI_DESCRIPTION = "This is the prediction provided by AI model."
-# health status file served by Nginx in Docker, see ddai_site.conf
-HEALTH_JSON = "/tmp/status/health.json"
 STATUS_UP = "UP"
 STATUS_STARTING = "STARTING"
 STATUS_DOWN = "DOWN"

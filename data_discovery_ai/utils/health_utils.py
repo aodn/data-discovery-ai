@@ -1,23 +1,18 @@
-import json
 import os
 from typing import Any, Dict
 
 import httpx
-import structlog
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.config.constants import (
-    HEALTH_JSON,
     KEYWORD_FOLDER,
     KEYWORD_LABEL_FILE,
     STATUS_DOWN,
     STATUS_STARTING,
     STATUS_UP,
 )
-
-logger = structlog.get_logger(__name__)
 
 
 def _component(status: str, detail: str | None = None) -> Dict[str, Any]:
@@ -96,33 +91,3 @@ def aggregate_status(components: Dict[str, Dict[str, Any]]) -> str:
     if all(s in (STATUS_UP, STATUS_STARTING) for s in statuses):
         return STATUS_STARTING
     return STATUS_DOWN
-
-
-def write_health_status(
-    status: str, components: Dict[str, Dict[str, Any]] | None = None
-) -> None:
-    """
-    Write the health status file served by Nginx. The file is written to a temp file then renamed,
-    so Nginx never serves a partially written file. Errors are logged and never raised.
-    """
-    content = {"status": status, "status_code": 200}
-    if components is not None:
-        content["components"] = components
-    tmp_path = f"{HEALTH_JSON}.tmp"
-    try:
-        os.makedirs(os.path.dirname(HEALTH_JSON), exist_ok=True)
-        with open(tmp_path, "w") as f:
-            json.dump(content, f)
-        os.replace(tmp_path, HEALTH_JSON)
-    except Exception as e:
-        logger.warning(f"Failed to write health status file {HEALTH_JSON}: {e}")
-
-
-def remove_health_status() -> None:
-    """
-    Remove the health status file on shutdown so the health check fails once the process ends.
-    """
-    try:
-        os.remove(HEALTH_JSON)
-    except OSError:
-        pass
