@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import uvicorn
 from fastapi import FastAPI
 from data_discovery_ai.utils.es_connector import create_es_index
@@ -8,14 +9,25 @@ from transformers import (
     TFBertModel,
     TFAutoModelForSequenceClassification,
 )
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
 import structlog
 
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.config.constants import (
+    STATUS_DOWN,
+    STATUS_STARTING,
+    STATUS_UP,
+)
 from data_discovery_ai.enum.agent_enums import HuggingfaceModel
+from data_discovery_ai.utils.health_utils import (
+    aggregate_status,
+    collect_components,
+    remove_health_status,
+    write_health_status,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -52,24 +64,78 @@ def load_llm_client():
         return None
 
 
+async def write_aggregated_health_status(app: FastAPI):
+    try:
+        components = await collect_components(app)
+        write_health_status(aggregate_status(components), components)
+    except Exception as e:
+        logger.warning(f"Failed to collect health components: {e}")
+        write_health_status(app.state.model_status)
+
+
+async def load_models_background(app: FastAPI):
+    """
+    Load the Hugging Face models without blocking server startup. The download can take minutes on a cold start,
+    and uvicorn does not bind its port until the lifespan startup completes. The loaders are blocking, so they run
+    in a thread to keep the event loop (health check, SSE heartbeats) responsive.
+    """
+    try:
+        logger.info("Loading Hugging Face models in the background")
+        embedding_tokenizer, embedding_model = await asyncio.to_thread(
+            load_embedding_tokenizer_model
+        )
+        app.state.tokenizer = embedding_tokenizer
+        app.state.embedding_model = embedding_model
+
+        nli_tokenizer, nli_model = await asyncio.to_thread(load_nli_tokenizer_model)
+        app.state.nli_tokenizer = nli_tokenizer
+        app.state.nli_model = nli_model
+
+        app.state.model_status = STATUS_UP
+        logger.info("Hugging Face models loaded")
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        app.state.model_status = STATUS_DOWN
+        app.state.model_error = f"Failed to load Hugging Face models: {e}"
+        logger.error(app.state.model_error)
+
+    await write_aggregated_health_status(app)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    embedding_tokenizer, embedding_model = load_embedding_tokenizer_model()
-    app.state.tokenizer = embedding_tokenizer
-    app.state.embedding_model = embedding_model
+    # write a health file immediately so Nginx can answer the health check before the models are loaded
+    write_health_status(STATUS_STARTING)
 
-    nli_tokenizer, nli_model = load_nli_tokenizer_model()
-    app.state.nli_tokenizer = nli_tokenizer
-    app.state.nli_model = nli_model
+    app.state.tokenizer = None
+    app.state.embedding_model = None
+    app.state.nli_tokenizer = None
+    app.state.nli_model = None
+    app.state.model_status = STATUS_STARTING
+    app.state.model_error = None
 
-    # create Elasticsearch index
-    client, index = create_es_index()
-    app.state.client = client
-    app.state.index = index
+    model_task = None
+    try:
+        # create Elasticsearch index
+        client, index = create_es_index()
+        app.state.client = client
+        app.state.index = index
 
-    # create OpenAI client
-    app.state.llm_client = load_llm_client()
-    yield
+        # create OpenAI client
+        app.state.llm_client = load_llm_client()
+
+        model_task = asyncio.create_task(
+            load_models_background(app), name="hf_model_load"
+        )
+        yield
+    finally:
+        if model_task:
+            model_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await model_task
+        # remove the health file so a failed startup or a stopped process is not reported as healthy
+        remove_health_status()
 
 
 app = FastAPI(lifespan=lifespan)
