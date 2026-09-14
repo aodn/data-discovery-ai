@@ -155,6 +155,15 @@ Once the app is running, two routes are available:
 | `GET /api/v1/ml/health`          | Health check                                                                                   |
 | `POST /api/v1/ml/process_record` | One single point for calling AI models to process metadata record                              |
 | `DELETE /api/v1/ml/delete_doc`   | Deletes a document from the AI-related Elasticsearch index. Requires query parameter `doc_id`. |
+
+### Health Check
+`GET /api/v1/ml/health` always returns HTTP 200; readiness is in the body as `status`:
+- `STARTING`: the server is up and Hugging Face models are downloading/loading in the background.
+- `UP`: all components are ready.
+- `DOWN`: a component failed, see `components` for details.
+
+`process_record` and `delete_doc` return HTTP 503 until the status is `UP`.
+
 ### Example Request Body
 ```JSON
 {
