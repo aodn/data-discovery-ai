@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import patch, mock_open
 from data_discovery_ai.config.config import ConfigUtil
 
-
 MOCK_YAML_CONTENT = """
 elasticsearch:
   es_index_name: test_index
@@ -14,6 +13,14 @@ model:
     platform_confidence: 0.6
     separator: " [SEP] "
     model: development
+  description_formatting:
+    model: gpt
+    temperature: 0.01
+    max_tokens: 10000
+    response_key: "summaries.ai:description"
+    chunk_size: 4000
+    request_timeout: 20
+    total_timeout: 60
 
 ogcapi:
   host: "http://localhost:8080/"
@@ -37,6 +44,12 @@ class TestConfigUtil(unittest.TestCase):
         model_config = self.config_util.get_keyword_classification_config()
         self.assertEqual(model_config.parameter_confidence, 0.6)
         self.assertEqual(model_config.platform_confidence, 0.6)
+
+    def test_get_description_formatting_config(self):
+        model_config = self.config_util.get_description_formatting_config()
+        self.assertEqual(model_config.chunk_size, 4000)
+        self.assertEqual(model_config.request_timeout, 20)
+        self.assertEqual(model_config.total_timeout, 60)
 
     def test_get_ogcapi_config(self):
         ogcapi_config = self.config_util.get_ogcapi_config()

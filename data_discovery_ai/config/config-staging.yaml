@@ -15,7 +15,7 @@ mlflow:
 application:
   port: 8000
   reload: False
-  max_timeout: 150
+  max_timeout: 300
   sse_interval: 10
 model:
   description_formatting:
@@ -23,3 +23,6 @@ model:
     temperature: 0.01
     max_tokens: 10000
     response_key: "summaries.ai:description"
+    chunk_size: 4000
+    request_timeout: 60
+    total_timeout: 240

@@ -61,16 +61,14 @@ def manual_wrapper_description(abstract: str) -> str:
     url_pattern = r"(?P<url>(?:https?://|www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(?:[^\s<>()]*)?)"
     email_pattern = r"(?P<email>[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})"
 
-    combined_pattern = f"({email_pattern})|({url_pattern})"
+    combined_pattern = f"{email_pattern}|{url_pattern}"
     combined_re = re.compile(combined_pattern, flags=re.IGNORECASE)
 
     def combined_replacer(match):
-        if match.group(1):
-            email_match = re.match(email_pattern, match.group(1))
-            return _wrap_email(email_match)
-        elif match.group(2):
-            url_match = re.match(url_pattern, match.group(2))
-            return _wrap_url(url_match)
+        if match.group("email"):
+            return _wrap_email(match)
+        if match.group("url"):
+            return _wrap_url(match)
         return match.group(0)
 
     abstract = combined_re.sub(combined_replacer, abstract)
@@ -133,18 +131,55 @@ def retrieve_json(model: str, output: str) -> str:
 
 def chunk_text(text: str, max_length: int = 1000) -> list[str]:
     """
-    Splits text into chunks of max_length characters, at paragraph or sentence boundaries.
+    Split text into chunks no longer than max_length characters.
+
+    Paragraph boundaries are preferred. Oversized paragraphs are split at line,
+    sentence, or word boundaries, with a hard split as a final fallback.
     """
-    paragraphs = re.split(r"\n{2,}", text)
-    chunks = []
+    if max_length <= 0:
+        raise ValueError("max_length must be greater than zero")
+
+    def split_oversized_paragraph(paragraph: str) -> list[str]:
+        pieces = []
+        remaining = paragraph.strip()
+
+        while len(remaining) > max_length:
+            window = remaining[: max_length + 1]
+            split_at = 0
+
+            for pattern in (r"\n", r"(?<=[.!?])\s+", r"\s+"):
+                matches = list(re.finditer(pattern, window))
+                if matches:
+                    split_at = matches[-1].end()
+                    break
+
+            if split_at <= 0 or split_at > max_length:
+                split_at = max_length
+
+            piece = remaining[:split_at].strip()
+            if piece:
+                pieces.append(piece)
+            remaining = remaining[split_at:].strip()
+
+        if remaining:
+            pieces.append(remaining)
+        return pieces
+
+    paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
+    chunks: list[str] = []
     current_chunk = ""
+
     for para in paragraphs:
-        if len(current_chunk) + len(para) + 2 < max_length:
-            current_chunk += ("\n\n" if current_chunk else "") + para
-        else:
+        for piece in split_oversized_paragraph(para):
+            candidate = f"{current_chunk}\n\n{piece}" if current_chunk else piece
+            if len(candidate) <= max_length:
+                current_chunk = candidate
+                continue
+
             if current_chunk:
                 chunks.append(current_chunk)
-            current_chunk = para
+            current_chunk = piece
+
     if current_chunk:
         chunks.append(current_chunk)
     return chunks
@@ -157,6 +192,7 @@ async def format_chunk_async(
     model,
     temp,
     max_tokens,
+    request_timeout,
     chunk_index=None,
     previous_formatted_tail=None,
 ):
@@ -170,16 +206,17 @@ async def format_chunk_async(
         model: Model name
         temp: Temperature
         max_tokens: Max tokens
-        chunk_index: Current chunk number (0-indexed), None for first chunk
-        previous_formatted_tail: the last sentence of the previous chunk, None for the first chunk
+        request_timeout: Maximum duration of this OpenAI request in seconds
+        chunk_index: Current chunk number (0-indexed), None for the first chunk
+        previous_formatted_tail: Last formatted sentence from the previous chunk
     """
     try:
-        if chunk_index is None or chunk_index == 0:
-            input_text = build_user_prompt(chunk_text=chunk, previous_tail=None)
-        else:
-            input_text = build_user_prompt(
-                chunk_text=chunk, previous_tail=previous_formatted_tail
-            )
+        previous_tail = (
+            previous_formatted_tail
+            if chunk_index is not None and chunk_index > 0
+            else None
+        )
+        input_text = build_user_prompt(chunk_text=chunk, previous_tail=previous_tail)
 
         completion = await client.chat.completions.create(
             model=model,
@@ -190,6 +227,7 @@ async def format_chunk_async(
             temperature=temp,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
+            timeout=request_timeout,
         )
 
         formatted = json.loads(completion.choices[0].message.content)
@@ -344,7 +382,11 @@ class DescriptionFormattingAgent(BaseAgent):
 
     async def take_action_async(self, abstract: str) -> str:
         """
-        Processes long abstracts in parallel chunks for faster LLM formatting.
+        Process long abstracts sequentially within a fixed time budget.
+
+        Each formatted chunk supplies context to the next chunk. Failed or
+        unfinished chunks fall back to their original text so the returned
+        description always contains the complete abstract.
         """
         system_prompt = build_system_prompt()
 
@@ -353,77 +395,59 @@ class DescriptionFormattingAgent(BaseAgent):
             model = self.model_config.model
             temp = self.model_config.temperature
             max_tokens = self.model_config.max_tokens
+            request_timeout = self.model_config.request_timeout
+            total_timeout = self.model_config.total_timeout
 
-            chunks = chunk_text(abstract, max_length=1000)
-
-            if len(chunks) == 1:
-                try:
-                    result = await format_chunk_async(
-                        client,
-                        system_prompt,
-                        chunks[0],
-                        model,
-                        temp,
-                        max_tokens,
-                        chunk_index=0,
-                        previous_formatted_tail=None,
-                    )
-                    return result
-                except (LLMClientError, LLMServerError) as e:
-                    logger.error(
-                        f"LLM error on single chunk, returning original abstract: {e}"
-                    )
-                    return abstract
-                except Exception as e:
-                    logger.error(
-                        f"Error on single chunk, returning original abstract: {e}"
-                    )
-                    return abstract
-
+            chunks = chunk_text(abstract, max_length=self.model_config.chunk_size)
             results = []
             previous_tail = None
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + total_timeout
 
             for i, chunk in enumerate(chunks):
+                remaining_time = deadline - loop.time()
+                if remaining_time <= 0:
+                    logger.error(
+                        f"Description formatting exceeded {total_timeout} seconds; "
+                        f"using raw text for {len(chunks) - i} unfinished chunks"
+                    )
+                    results.extend(chunks[i:])
+                    break
+
+                chunk_timeout = min(request_timeout, remaining_time)
                 try:
-                    if i == 0:
-                        # First chunk - no previous tail
-                        formatted = await format_chunk_async(
+                    formatted = await asyncio.wait_for(
+                        format_chunk_async(
                             client,
                             system_prompt,
                             chunk,
                             model,
                             temp,
                             max_tokens,
-                            chunk_index=0,
-                            previous_formatted_tail=None,
-                        )
-                    else:
-                        # Subsequent chunks - include previous tail
-                        formatted = await format_chunk_async(
-                            client,
-                            system_prompt,
-                            chunk,
-                            model,
-                            temp,
-                            max_tokens,
+                            chunk_timeout,
                             chunk_index=i,
                             previous_formatted_tail=previous_tail,
-                        )
-
+                        ),
+                        timeout=chunk_timeout,
+                    )
                     results.append(formatted)
-                    # Extract the last sentence for next chunk's context
                     previous_tail = extract_last_sentence(formatted)
-
                 except LLMClientError as e:
-                    # 4xx on any chunk - bad request won't get better, abort all remaining chunks
                     logger.error(
-                        f"LLM client error on chunk {i+1}, aborting and returning original abstract: {e}"
+                        f"LLM client error on chunk {i + 1}, "
+                        f"returning original abstract: {e}"
                     )
                     return abstract
                 except LLMServerError as e:
-                    # 5xx on a chunk - use raw chunk as fallback, continue with remaining
                     logger.error(
-                        f"LLM server error on chunk {i+1}, using raw chunk as fallback: {e}"
+                        f"LLM server error on chunk {i + 1}, using raw chunk as fallback: {e}"
+                    )
+                    results.append(chunk)
+                    previous_tail = extract_last_sentence(chunk)
+                except asyncio.TimeoutError:
+                    logger.error(
+                        f"LLM request timed out on chunk {i + 1} after "
+                        f"{chunk_timeout:.2f} seconds; using raw chunk as fallback"
                     )
                     results.append(chunk)
                     previous_tail = extract_last_sentence(chunk)
