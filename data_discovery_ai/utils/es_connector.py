@@ -29,6 +29,7 @@ def _es_status_retryable(exc: BaseException) -> bool:
     # 429 and 5xx are raised as plain ApiError, so check the status code
     return isinstance(exc, ApiError) and exc.meta.status in RETRYABLE_HTTP_STATUS
 
+
 # for startup connection, e.g., connecting ES, creating index
 ES_STARTUP_RETRY = RetryPolicy(
     name="elasticsearch_startup_retry_policy",
@@ -127,7 +128,9 @@ def _delete_document(client: Elasticsearch, index: str, uuid: str) -> str:
 
 
 @ES_REQUEST_RETRY
-def search_es_documents(client: Elasticsearch, index: str, query: dict) -> ObjectApiResponse[Any]:
+def search_es_documents(
+    client: Elasticsearch, index: str, query: dict
+) -> ObjectApiResponse[Any]:
     """Search Elasticsearch using the request-path retry budget."""
     request_client = client.options(request_timeout=ES_REQUEST_TIMEOUT)
     return request_client.search(index=index, body=query)

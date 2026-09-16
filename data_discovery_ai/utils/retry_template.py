@@ -43,6 +43,13 @@ class RetryPolicy:
             self.retry_if is not None and self.retry_if(exc)
         )
 
+    def _log_before_sleep(self, retry_state) -> None:
+        """Log a retry using the structlog configuration active at call time."""
+        before_sleep_log(
+            logger.bind(retry_policy=self.name),
+            logging.WARNING,
+        )(retry_state)
+
     def __call__(self, func):
         stop = stop_after_attempt(self.max_attempts)
         if self.max_elapsed is not None:
@@ -53,11 +60,7 @@ class RetryPolicy:
             retry=retry_if_exception(self.is_retryable),
             stop=stop,
             wait=wait_exponential_jitter(initial=self.initial, max=self.max_wait),
-            # bind log name in log
-            before_sleep=before_sleep_log(
-                logger.bind(retry_policy=self.name),
-                logging.WARNING,
-            ),
+            before_sleep=self._log_before_sleep,
             # Raise the original exception instead of tenacity.RetryError
             reraise=True,
         )(func)
