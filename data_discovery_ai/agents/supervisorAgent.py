@@ -15,6 +15,7 @@ from data_discovery_ai.agents.linkGroupingAgent import LinkGroupingAgent
 from data_discovery_ai.agents.deliveryClassificationAgent import (
     DeliveryClassificationAgent,
 )
+from data_discovery_ai.utils.es_connector import search_es_documents
 
 logger = structlog.get_logger(__name__)
 
@@ -202,7 +203,7 @@ class SupervisorAgent(BaseAgent):
         uuid = request.get("uuid", None)
 
         query = {"query": {"term": {"id.keyword": uuid}}}
-        resp = client.search(index=index, body=query)
+        resp = search_es_documents(client, index, query)
         hits = resp.get("hits", {}).get("hits", [])
         if not hits:
             return {}, []
