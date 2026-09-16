@@ -22,9 +22,7 @@ from data_discovery_ai.utils.es_connector import (
 
 class TestESConnector(unittest.TestCase):
     def setUp(self):
-        retry_logger_patcher = patch(
-            "data_discovery_ai.utils.retry_template.logger"
-        )
+        retry_logger_patcher = patch("data_discovery_ai.utils.retry_template.logger")
         retry_logger_patcher.start()
         self.addCleanup(retry_logger_patcher.stop)
 
