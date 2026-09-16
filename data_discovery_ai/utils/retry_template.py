@@ -53,8 +53,11 @@ class RetryPolicy:
             retry=retry_if_exception(self.is_retryable),
             stop=stop,
             wait=wait_exponential_jitter(initial=self.initial, max=self.max_wait),
-            # Built-in hook: logs "Retrying <func> in <n> seconds as it raised <exc>."
-            before_sleep=before_sleep_log(logger, logging.WARNING),
+            # bind log name in log
+            before_sleep=before_sleep_log(
+                logger.bind(retry_policy=self.name),
+                logging.WARNING,
+            ),
             # Raise the original exception instead of tenacity.RetryError
             reraise=True,
         )(func)

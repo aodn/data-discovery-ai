@@ -142,7 +142,7 @@ def connect_es() -> Elasticsearch | None:
                         end_point="elasticsearch_end_point"
                         api_key="elasticsearch_api_key"
     Output:
-        client:Elasticsearch. An initialised Elasticsearch client instance.
+        client:Elasticsearch. An initialised Elasticsearch client instance. Or None if connection failed after retry policy.
     """
     load_dotenv()
 
