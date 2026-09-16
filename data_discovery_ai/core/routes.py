@@ -127,8 +127,11 @@ async def event_stream_handler(
     original_request: dict,
     background_tasks: BackgroundTasks,
 ):
-    stored_body, matched_models = supervisor.search_stored_data(
-        body, client=client, index=index
+    stored_body, matched_models = await asyncio.to_thread(
+        supervisor.search_stored_data,
+        body,
+        client=client,
+        index=index,
     )
 
     body_selected_models = set(body.get("selected_model", []))
