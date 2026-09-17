@@ -1,11 +1,12 @@
 import unittest
 import gzip
 import json
+import threading
 from io import BytesIO
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from data_discovery_ai.core.routes import ensure_ready
+from data_discovery_ai.core.routes import delete_doc, ensure_ready, event_stream_handler
 from data_discovery_ai.server import app
 from data_discovery_ai.utils.api_utils import api_key_auth
 
@@ -151,6 +152,61 @@ class TestRoutes(unittest.TestCase):
         self.assertTrue(any("event: done" in line for line in lines))
 
         mock_store.assert_called_once()
+
+
+class TestEventStreamHandler(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_doc_runs_off_event_loop(self):
+        event_loop_thread = threading.get_ident()
+        delete_threads = []
+        request = MagicMock()
+        request.app.state.client = MagicMock()
+        request.app.state.index = "test-index"
+
+        def delete_document(*args, **kwargs):
+            delete_threads.append(threading.get_ident())
+            return True
+
+        with patch(
+            "data_discovery_ai.core.routes.delete_es_document",
+            side_effect=delete_document,
+        ) as mock_delete:
+            response = await delete_doc(request, "document-id")
+
+        self.assertEqual(response.status_code, 200)
+        mock_delete.assert_called_once_with(
+            "document-id", request.app.state.client, "test-index"
+        )
+        self.assertEqual(len(delete_threads), 1)
+        self.assertNotEqual(delete_threads[0], event_loop_thread)
+
+    async def test_search_stored_data_runs_off_event_loop(self):
+        event_loop_thread = threading.get_ident()
+        search_threads = []
+        supervisor = MagicMock()
+
+        def search_stored_data(*args, **kwargs):
+            search_threads.append(threading.get_ident())
+            return {}, []
+
+        supervisor.search_stored_data.side_effect = search_stored_data
+        stream = event_stream_handler(
+            supervisor=supervisor,
+            body={"selected_model": []},
+            client=MagicMock(),
+            index="test-index",
+            max_timeout=1,
+            sse_interval=0.1,
+            uuid="test-uuid",
+            original_request={},
+            background_tasks=MagicMock(),
+        )
+
+        event = await anext(stream)
+        await stream.aclose()
+
+        self.assertEqual(event, "event: done\ndata: {}\n\n")
+        self.assertEqual(len(search_threads), 1)
+        self.assertNotEqual(search_threads[0], event_loop_thread)
 
 
 UP_COMPONENT = {"status": "UP", "detail": None}

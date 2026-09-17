@@ -136,6 +136,7 @@ class TestSupervisorAgent(unittest.TestCase):
 
     def test_search_stored_data_hit(self):
         mock_es_client = MagicMock()
+        mock_es_client.options.return_value = mock_es_client
         mock_es_client.search.return_value = {
             "hits": {
                 "hits": [
