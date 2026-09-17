@@ -36,10 +36,9 @@ ES_STARTUP_RETRY = RetryPolicy(
     # Network-level failures: node unreachable, connection reset, request timeout
     retry_on=(ESConnectionError, ConnectionTimeout),
     retry_if=_es_status_retryable,
-    max_attempts=5,
+    max_attempts=10,
     initial=1.0,
-    max_wait=8.0,
-    max_elapsed=30.0,
+    max_wait=60.0
 )
 
 # for querying ES, e.g., querying, deleting, storing data
