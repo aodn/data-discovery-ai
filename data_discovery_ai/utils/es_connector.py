@@ -47,8 +47,9 @@ _es_retryable = (
 es_startup_retry = retry(
     retry=_es_retryable,
     # max_attempts includes the first call; stop_before_delay caps total elapsed time
-    stop=stop_after_attempt(6) | stop_before_delay(60),
-    wait=wait_exponential_jitter(initial=1, max=10),
+    # Waits 2, 4, 8, 16, then 30s (+ up to 1s jitter): ~180s of waiting in total
+    stop=stop_after_attempt(10) | stop_before_delay(300),
+    wait=wait_exponential_jitter(initial=2, max=30),
     before_sleep=log_retry,
     # Raise the original exception instead of tenacity.RetryError
     reraise=True,
