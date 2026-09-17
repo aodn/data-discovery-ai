@@ -13,10 +13,18 @@ from dotenv import load_dotenv
 import json
 from typing import Tuple, Dict, Any
 import structlog
+from tenacity import (
+    retry,
+    retry_if_exception,
+    retry_if_exception_type,
+    stop_after_attempt,
+    stop_before_delay,
+    wait_exponential_jitter,
+)
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.config.constants import RECORDS_ENHANCED_SCHEMA
-from data_discovery_ai.utils.retry_template import RETRYABLE_HTTP_STATUS, RetryPolicy
+from data_discovery_ai.utils.retry_template import RETRYABLE_HTTP_STATUS, log_retry
 
 logger = structlog.get_logger(__name__)
 
@@ -29,27 +37,30 @@ def _es_status_retryable(exc: BaseException) -> bool:
     return isinstance(exc, ApiError) and exc.meta.status in RETRYABLE_HTTP_STATUS
 
 
-# for startup connection, e.g., connecting ES, creating index
-ES_STARTUP_RETRY = RetryPolicy(
-    name="elasticsearch_startup_retry_policy",
+_es_retryable = (
     # Network-level failures: node unreachable, connection reset, request timeout
-    retry_on=(ESConnectionError, ConnectionTimeout),
-    retry_if=_es_status_retryable,
-    max_attempts=6,
-    initial=1.0,
-    max_wait=10.0,
-    max_elapsed=60.0,
+    retry_if_exception_type((ESConnectionError, ConnectionTimeout))
+    | retry_if_exception(_es_status_retryable)
+)
+
+# for startup connection, e.g., connecting ES, creating index
+es_startup_retry = retry(
+    retry=_es_retryable,
+    # max_attempts includes the first call; stop_before_delay caps total elapsed time
+    stop=stop_after_attempt(6) | stop_before_delay(60),
+    wait=wait_exponential_jitter(initial=1, max=10),
+    before_sleep=log_retry,
+    # Raise the original exception instead of tenacity.RetryError
+    reraise=True,
 )
 
 # for querying ES, e.g., querying, deleting, storing data
-ES_REQUEST_RETRY = RetryPolicy(
-    name="elasticsearch_request_retry_policy",
-    retry_on=(ESConnectionError, ConnectionTimeout),
-    retry_if=_es_status_retryable,
-    max_attempts=3,
-    initial=1.0,
-    max_wait=4.0,
-    max_elapsed=15.0,
+es_request_retry = retry(
+    retry=_es_retryable,
+    stop=stop_after_attempt(3) | stop_before_delay(15),
+    wait=wait_exponential_jitter(initial=1, max=4),
+    before_sleep=log_retry,
+    reraise=True,
 )
 
 
@@ -60,13 +71,13 @@ def _error_type(exc: ApiError) -> str | None:
     return error.get("type") if isinstance(error, dict) else None
 
 
-@ES_STARTUP_RETRY
+@es_startup_retry
 def _index_exists(client: Elasticsearch, index: str) -> bool:
     startup_client = client.options(request_timeout=ES_STARTUP_REQUEST_TIMEOUT)
     return bool(startup_client.indices.exists(index=index))
 
 
-@ES_STARTUP_RETRY
+@es_startup_retry
 def _get_stored_hash(client: Elasticsearch, index_name: str) -> str | None:
     try:
         startup_client = client.options(request_timeout=ES_STARTUP_REQUEST_TIMEOUT)
@@ -77,7 +88,7 @@ def _get_stored_hash(client: Elasticsearch, index_name: str) -> str | None:
     return mappings[index_name]["mappings"].get("_meta", {}).get("mapping_hash")
 
 
-@ES_STARTUP_RETRY
+@es_startup_retry
 def _delete_index(client: Elasticsearch, index: str) -> None:
     try:
         startup_client = client.options(request_timeout=ES_STARTUP_REQUEST_TIMEOUT)
@@ -87,7 +98,7 @@ def _delete_index(client: Elasticsearch, index: str) -> None:
         logger.info(f"Elasticsearch index '{index}' already absent, skip deleting.")
 
 
-@ES_STARTUP_RETRY
+@es_startup_retry
 def _create_index(client: Elasticsearch, index: str, mapping: dict) -> None:
     try:
         startup_client = client.options(request_timeout=ES_STARTUP_REQUEST_TIMEOUT)
@@ -100,7 +111,7 @@ def _create_index(client: Elasticsearch, index: str, mapping: dict) -> None:
         raise
 
 
-@ES_REQUEST_RETRY
+@es_request_retry
 def _index_document(
     client: Elasticsearch, index: str, doc_id: str, data: Dict[Any, Any]
 ) -> None:
@@ -113,7 +124,7 @@ def _delete_document(client: Elasticsearch, index: str, uuid: str) -> str:
     request_client = client.options(request_timeout=ES_REQUEST_TIMEOUT)
     attempted = False
 
-    @ES_REQUEST_RETRY
+    @es_request_retry
     def _attempt() -> str:
         nonlocal attempted
         try:
@@ -128,7 +139,7 @@ def _delete_document(client: Elasticsearch, index: str, uuid: str) -> str:
     return _attempt()
 
 
-@ES_REQUEST_RETRY
+@es_request_retry
 def search_es_documents(
     client: Elasticsearch, index: str, query: dict
 ) -> ObjectApiResponse[Any]:

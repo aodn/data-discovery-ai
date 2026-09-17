@@ -1,18 +1,11 @@
-"""Reusable retry policy with exponential backoff and jitter."""
+"""Shared helpers for building tenacity retry decorators.
 
-from dataclasses import dataclass
-import logging
-from typing import Callable
+Retry decorators are defined with ``tenacity.retry(...)`` next to the code they
+protect. Each call must still have its own timeout because a retry decorator
+cannot interrupt a call that is already in progress.
+"""
 
 import structlog
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception,
-    stop_after_attempt,
-    stop_before_delay,
-    wait_exponential_jitter,
-)
 
 logger = structlog.get_logger(__name__)
 
@@ -20,47 +13,13 @@ logger = structlog.get_logger(__name__)
 RETRYABLE_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 
 
-@dataclass(frozen=True)
-class RetryPolicy:
-    """Retry matching exceptions with bounded exponential backoff.
-
-    ``max_attempts`` includes the first call. ``max_elapsed`` prevents a wait
-    that would begin the next attempt at or beyond the elapsed-time budget.
-    Individual calls must still have their own timeout because a retry policy
-    cannot interrupt a call that is already in progress.
-    """
-
-    name: str
-    retry_on: tuple[type[BaseException], ...] = ()
-    retry_if: Callable[[BaseException], bool] | None = None
-    max_attempts: int = 10
-    initial: float = 1.0
-    max_wait: float = 30.0
-    max_elapsed: float | None = None
-
-    def is_retryable(self, exc: BaseException) -> bool:
-        return isinstance(exc, self.retry_on) or (
-            self.retry_if is not None and self.retry_if(exc)
-        )
-
-    def _log_before_sleep(self, retry_state) -> None:
-        """Log a retry using the structlog configuration active at call time."""
-        before_sleep_log(
-            logger.bind(retry_policy=self.name),
-            logging.WARNING,
-        )(retry_state)
-
-    def __call__(self, func):
-        stop = stop_after_attempt(self.max_attempts)
-        if self.max_elapsed is not None:
-            stop |= stop_before_delay(self.max_elapsed)
-
-        # Works as a decorator for both sync and async functions
-        return retry(
-            retry=retry_if_exception(self.is_retryable),
-            stop=stop,
-            wait=wait_exponential_jitter(initial=self.initial, max=self.max_wait),
-            before_sleep=self._log_before_sleep,
-            # Raise the original exception instead of tenacity.RetryError
-            reraise=True,
-        )(func)
+def log_retry(retry_state) -> None:
+    """``before_sleep`` callback: log the failed attempt and the next wait."""
+    fn = retry_state.fn
+    logger.warning(
+        "Retrying after transient failure",
+        function=getattr(fn, "__name__", repr(fn)),
+        attempt=retry_state.attempt_number,
+        next_wait_seconds=round(retry_state.next_action.sleep, 2),
+        error=repr(retry_state.outcome.exception()),
+    )

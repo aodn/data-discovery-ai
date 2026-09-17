@@ -12,7 +12,6 @@ from elasticsearch import (
 from tenacity import wait_none
 
 from data_discovery_ai.utils.es_connector import (
-    ES_REQUEST_RETRY,
     ES_REQUEST_TIMEOUT,
     ES_STARTUP_REQUEST_TIMEOUT,
     RETRYABLE_HTTP_STATUS,
