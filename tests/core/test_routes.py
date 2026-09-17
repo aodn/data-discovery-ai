@@ -36,6 +36,8 @@ class TestRoutes(unittest.TestCase):
 
         app.state.model_status = "UP"
         app.state.model_error = None
+        app.state.es_status = "UP"
+        app.state.es_error = None
 
         app.dependency_overrides[api_key_auth] = override_dependency
         app.dependency_overrides[ensure_ready] = override_ensure_ready
@@ -228,12 +230,18 @@ class TestHealthAndReadiness(unittest.TestCase):
     def setUp(self):
         app.state.client = MagicMock()
         app.state.index = MagicMock()
+        app.state.model_status = "UP"
+        app.state.model_error = None
+        app.state.es_status = "UP"
+        app.state.es_error = None
         app.dependency_overrides[api_key_auth] = override_dependency
 
     def tearDown(self):
         app.dependency_overrides = {}
         app.state.model_status = "UP"
         app.state.model_error = None
+        app.state.es_status = "UP"
+        app.state.es_error = None
 
     def test_health_starting_returns_200(self):
         app.state.model_status = "STARTING"
@@ -249,6 +257,14 @@ class TestHealthAndReadiness(unittest.TestCase):
         response = client.get("/api/v1/ml/health")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "UP")
+
+    def test_health_starting_while_elasticsearch_starting(self):
+        app.state.es_status = "STARTING"
+        response = client.get("/api/v1/ml/health")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "STARTING")
+        self.assertEqual(body["components"]["elasticsearch"]["status"], "STARTING")
 
     def test_health_down_still_returns_200(self):
         app.state.model_status = "DOWN"
@@ -278,6 +294,16 @@ class TestHealthAndReadiness(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 503)
         self.assertIn("models: STARTING", response.json()["detail"])
+
+    def test_process_record_rejected_while_elasticsearch_starting(self):
+        app.state.es_status = "STARTING"
+        response = client.post(
+            "/api/v1/ml/process_record",
+            headers={"X-API-Key": "test-api-key"},
+            json={"selected_model": ["link_grouping"], "uuid": "test-uuid"},
+        )
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("elasticsearch: STARTING", response.json()["detail"])
 
     def test_delete_doc_rejected_while_models_starting(self):
         app.state.model_status = "STARTING"

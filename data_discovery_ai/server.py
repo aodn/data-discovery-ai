@@ -115,8 +115,7 @@ async def setup_elasticsearch_background(app: FastAPI):
 
         app.state.es_status = STATUS_DOWN
         app.state.es_error = (
-            f"Elasticsearch {error}; retrying in "
-            f"{ES_SETUP_RETRY_INTERVAL_SECONDS}s"
+            f"Elasticsearch {error}; retrying in " f"{ES_SETUP_RETRY_INTERVAL_SECONDS}s"
         )
         logger.warning(app.state.es_error)
         await asyncio.sleep(ES_SETUP_RETRY_INTERVAL_SECONDS)
