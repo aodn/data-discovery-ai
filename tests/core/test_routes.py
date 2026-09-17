@@ -6,7 +6,7 @@ from io import BytesIO
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from data_discovery_ai.core.routes import ensure_ready, event_stream_handler
+from data_discovery_ai.core.routes import delete_doc, ensure_ready, event_stream_handler
 from data_discovery_ai.server import app
 from data_discovery_ai.utils.api_utils import api_key_auth
 
@@ -155,6 +155,30 @@ class TestRoutes(unittest.TestCase):
 
 
 class TestEventStreamHandler(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_doc_runs_off_event_loop(self):
+        event_loop_thread = threading.get_ident()
+        delete_threads = []
+        request = MagicMock()
+        request.app.state.client = MagicMock()
+        request.app.state.index = "test-index"
+
+        def delete_document(*args, **kwargs):
+            delete_threads.append(threading.get_ident())
+            return True
+
+        with patch(
+            "data_discovery_ai.core.routes.delete_es_document",
+            side_effect=delete_document,
+        ) as mock_delete:
+            response = await delete_doc(request, "document-id")
+
+        self.assertEqual(response.status_code, 200)
+        mock_delete.assert_called_once_with(
+            "document-id", request.app.state.client, "test-index"
+        )
+        self.assertEqual(len(delete_threads), 1)
+        self.assertNotEqual(delete_threads[0], event_loop_thread)
+
     async def test_search_stored_data_runs_off_event_loop(self):
         event_loop_thread = threading.get_ident()
         search_threads = []

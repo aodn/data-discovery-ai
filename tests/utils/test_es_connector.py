@@ -3,7 +3,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch, mock_open
 
-from elasticsearch import ApiError, ConnectionError as ESConnectionError
+from elasticsearch import (
+    ApiError,
+    ConnectionError as ESConnectionError,
+    ConnectionTimeout,
+    NotFoundError,
+)
 from tenacity import wait_none
 
 from data_discovery_ai.utils.es_connector import (
@@ -11,10 +16,11 @@ from data_discovery_ai.utils.es_connector import (
     ES_REQUEST_TIMEOUT,
     ES_STARTUP_REQUEST_TIMEOUT,
     RETRYABLE_HTTP_STATUS,
-    _check_connection,
+    _index_exists,
     _index_document,
     connect_es,
     create_es_index,
+    delete_es_document,
     search_es_documents,
     store_ai_generated_data,
 )
@@ -38,18 +44,14 @@ class TestESConnector(unittest.TestCase):
             body={"status": status},
         )
 
-    @patch("data_discovery_ai.utils.es_connector._check_connection")
     @patch("data_discovery_ai.utils.es_connector.logger")
-    @patch("data_discovery_ai.utils.es_connector.logging.info")
     @patch("data_discovery_ai.utils.es_connector.Elasticsearch")
     @patch("data_discovery_ai.utils.es_connector.os.getenv")
     def test_connect_es_success(
         self,
         mock_getenv,
         mock_es_class,
-        mock_logging_info,
         mock_logger,
-        mock_check_connection,
     ):
         mock_getenv.side_effect = lambda key: {
             "ES_ENDPOINT": "http://example.com:9200",
@@ -66,8 +68,7 @@ class TestESConnector(unittest.TestCase):
             api_key="mock_api_key",
             max_retries=0,
         )
-        mock_check_connection.assert_called_once_with(mock_client)
-        mock_logging_info.assert_called_once_with("Connected to ElasticSearch")
+        mock_logger.info.assert_called_once_with("Elasticsearch client initialised")
         mock_logger.error.assert_not_called()
 
     @patch("data_discovery_ai.utils.es_connector.logger")
@@ -87,43 +88,47 @@ class TestESConnector(unittest.TestCase):
         mock_logger.error.assert_called_once()
         self.assertIn("Connection Failed", mock_logger.error.call_args[0][0])
 
-    @patch("data_discovery_ai.utils.es_connector.logging.info")
-    @patch("data_discovery_ai.utils.es_connector.Elasticsearch")
-    @patch("data_discovery_ai.utils.es_connector.os.getenv")
-    def test_connect_es_retries_connection_error_without_client_level_retries(
-        self, mock_getenv, mock_es_class, mock_logging_info
+    @patch("data_discovery_ai.utils.es_connector._create_index")
+    @patch("data_discovery_ai.utils.es_connector.connect_es")
+    @patch("data_discovery_ai.utils.es_connector.ConfigUtil.get_config")
+    @patch("builtins.open", new_callable=mock_open, read_data='{"mappings": {}}')
+    @patch("os.path.exists", return_value=True)
+    def test_create_es_index_retries_exists_connection_error(
+        self,
+        mock_exists,
+        mock_open_file,
+        mock_configutil,
+        mock_connect_es,
+        mock_create_index,
     ):
-        mock_getenv.side_effect = lambda key: {
-            "ES_ENDPOINT": "http://example.com:9200",
-            "ES_API_KEY": "mock_api_key",
-        }[key]
+        mock_config = MagicMock()
+        mock_config.get_es_config.return_value.es_ai_index_name = "test-index"
+        mock_config.base_dir = Path("/tmp")
+        mock_configutil.return_value = mock_config
+
         client = MagicMock()
         request_client = MagicMock()
         client.options.return_value = request_client
-        request_client.info.side_effect = [
+        request_client.indices.exists.side_effect = [
             ESConnectionError("temporary failure"),
-            {},
+            False,
         ]
-        mock_es_class.return_value = client
+        mock_connect_es.return_value = client
 
         with patch(
-            "data_discovery_ai.utils.es_connector._check_connection",
-            self._without_wait(_check_connection),
+            "data_discovery_ai.utils.es_connector._index_exists",
+            self._without_wait(_index_exists),
         ):
-            result = connect_es()
+            result = create_es_index()
 
-        self.assertIs(result, client)
-        self.assertEqual(request_client.info.call_count, 2)
+        self.assertEqual(result, (client, "test-index"))
+        self.assertEqual(request_client.indices.exists.call_count, 2)
         self.assertEqual(
             client.options.call_args_list,
             [call(request_timeout=ES_STARTUP_REQUEST_TIMEOUT)] * 2,
         )
-        mock_es_class.assert_called_once_with(
-            "http://example.com:9200",
-            api_key="mock_api_key",
-            max_retries=0,
-        )
-        mock_logging_info.assert_called_once_with("Connected to ElasticSearch")
+        mock_create_index.assert_called_once()
+        mock_open_file.assert_called_once()
 
     def test_search_retries_connection_error_and_applies_request_timeout(self):
         client = MagicMock()
@@ -223,11 +228,53 @@ class TestESConnector(unittest.TestCase):
             )
 
         self.assertIs(raised.exception, original_error)
-        self.assertEqual(request_client.index.call_count, ES_REQUEST_RETRY.max_attempts)
+        self.assertEqual(request_client.index.call_count, 3)
         self.assertEqual(
             client.options.call_count,
-            ES_REQUEST_RETRY.max_attempts,
+            3,
         )
+
+    @patch("tenacity.nap.time.sleep")
+    def test_delete_reports_success_when_retry_finds_document_absent(self, mock_sleep):
+        client = MagicMock()
+        request_client = MagicMock()
+        client.options.return_value = request_client
+        request_client.delete.side_effect = [
+            ConnectionTimeout("temporary timeout"),
+            NotFoundError(
+                "not found",
+                meta=MagicMock(status=404),
+                body={"status": 404},
+            ),
+        ]
+
+        result = delete_es_document("document-id", client, "test-index")
+
+        self.assertTrue(result)
+        self.assertEqual(request_client.delete.call_count, 2)
+        client.options.assert_called_once_with(request_timeout=ES_REQUEST_TIMEOUT)
+        mock_sleep.assert_called_once()
+
+    @patch("tenacity.nap.time.sleep")
+    def test_delete_reports_not_found_without_an_earlier_failed_attempt(
+        self, mock_sleep
+    ):
+        client = MagicMock()
+        request_client = MagicMock()
+        client.options.return_value = request_client
+        request_client.delete.side_effect = NotFoundError(
+            "not found",
+            meta=MagicMock(status=404),
+            body={"status": 404},
+        )
+
+        result = delete_es_document("document-id", client, "test-index")
+
+        self.assertFalse(result)
+        request_client.delete.assert_called_once_with(
+            index="test-index", id="document-id"
+        )
+        mock_sleep.assert_not_called()
 
     @patch("data_discovery_ai.utils.es_connector._create_index")
     @patch("data_discovery_ai.utils.es_connector._index_exists", return_value=False)

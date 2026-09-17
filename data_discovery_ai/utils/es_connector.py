@@ -7,7 +7,6 @@ from elasticsearch import (
     ConnectionError as ESConnectionError,
     ConnectionTimeout,
 )
-import logging
 import hashlib
 import os
 from dotenv import load_dotenv
@@ -22,7 +21,7 @@ from data_discovery_ai.utils.retry_template import RETRYABLE_HTTP_STATUS, RetryP
 logger = structlog.get_logger(__name__)
 
 ES_STARTUP_REQUEST_TIMEOUT = 5.0
-ES_REQUEST_TIMEOUT = 1.0
+ES_REQUEST_TIMEOUT = 5.0
 
 
 def _es_status_retryable(exc: BaseException) -> bool:
@@ -36,9 +35,10 @@ ES_STARTUP_RETRY = RetryPolicy(
     # Network-level failures: node unreachable, connection reset, request timeout
     retry_on=(ESConnectionError, ConnectionTimeout),
     retry_if=_es_status_retryable,
-    max_attempts=10,
+    max_attempts=6,
     initial=1.0,
-    max_wait=60.0,
+    max_wait=10.0,
+    max_elapsed=60.0,
 )
 
 # for querying ES, e.g., querying, deleting, storing data
@@ -46,8 +46,8 @@ ES_REQUEST_RETRY = RetryPolicy(
     name="elasticsearch_request_retry_policy",
     retry_on=(ESConnectionError, ConnectionTimeout),
     retry_if=_es_status_retryable,
-    max_attempts=5,
-    initial=1,
+    max_attempts=3,
+    initial=1.0,
     max_wait=4.0,
     max_elapsed=15.0,
 )
@@ -58,12 +58,6 @@ def _error_type(exc: ApiError) -> str | None:
     body = exc.body if isinstance(exc.body, dict) else {}
     error = body.get("error")
     return error.get("type") if isinstance(error, dict) else None
-
-
-@ES_STARTUP_RETRY
-def _check_connection(client: Elasticsearch) -> None:
-    # info() raises on failure; ping() would return False and bypass the retry
-    client.options(request_timeout=ES_STARTUP_REQUEST_TIMEOUT).info()
 
 
 @ES_STARTUP_RETRY
@@ -115,15 +109,23 @@ def _index_document(
     request_client.index(index=index, document=data, id=doc_id)
 
 
-@ES_REQUEST_RETRY
 def _delete_document(client: Elasticsearch, index: str, uuid: str) -> str:
-    try:
-        request_client = client.options(request_timeout=ES_REQUEST_TIMEOUT)
-        resp = request_client.delete(index=index, id=uuid)
-        return resp.get("result")
-    except NotFoundError:
-        # Could mean "never existed" or "deleted by a previous attempt"
-        return "not_found"
+    request_client = client.options(request_timeout=ES_REQUEST_TIMEOUT)
+    attempted = False
+
+    @ES_REQUEST_RETRY
+    def _attempt() -> str:
+        nonlocal attempted
+        try:
+            return request_client.delete(index=index, id=uuid).get("result")
+        except NotFoundError:
+            # A 404 after an ambiguous failure means the earlier attempt deleted it.
+            return "deleted" if attempted else "not_found"
+        except Exception:
+            attempted = True
+            raise
+
+    return _attempt()
 
 
 @ES_REQUEST_RETRY
@@ -144,22 +146,16 @@ def connect_es() -> Elasticsearch | None:
                         end_point="elasticsearch_end_point"
                         api_key="elasticsearch_api_key"
     Output:
-        client:Elasticsearch. An initialised Elasticsearch client instance. Or None if connection failed after retry policy.
+        client:Elasticsearch. An initialised Elasticsearch client instance. Or None if initialisation failed.
     """
     load_dotenv()
 
     end_point = os.getenv("ES_ENDPOINT")
     api_key = os.getenv("ES_API_KEY")
     try:
-        client = Elasticsearch(
-            end_point,
-            api_key=api_key,
-            # Disable client-level retries so our policies are the single retry layer.
-            max_retries=0,
-        )
-        # verify with retry policy
-        _check_connection(client)
-        logging.info("Connected to ElasticSearch")
+        # Connectivity is verified by the first retried index call in create_es_index.
+        client = Elasticsearch(end_point, api_key=api_key, max_retries=0)
+        logger.info("Elasticsearch client initialised")
         return client
     except Exception as e:
         logger.error(f"Elasticsearch connection failed: {e}")

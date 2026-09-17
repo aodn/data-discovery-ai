@@ -103,7 +103,7 @@ async def delete_doc(request: Request, doc_id: str):
     client = request.app.state.client
     index = request.app.state.index
 
-    is_deleted = delete_es_document(doc_id, client, index)
+    is_deleted = await asyncio.to_thread(delete_es_document, doc_id, client, index)
     if is_deleted:
         return JSONResponse(
             status_code=HTTPStatus.OK,
