@@ -37,6 +37,7 @@ async def ensure_ready(request: Request):
       - OpenAI API key is set in production and staging.
       - Ollama server is running in development.
       - Hugging Face models finished loading in the background.
+      - Elasticsearch index is set up.
     Raises HTTPException(503) naming the components that are not UP.
     """
     components = await collect_components(request.app)

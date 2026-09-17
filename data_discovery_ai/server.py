@@ -25,6 +25,8 @@ from data_discovery_ai.enum.agent_enums import HuggingfaceModel
 
 logger = structlog.get_logger(__name__)
 
+ES_SETUP_RETRY_INTERVAL_SECONDS = 60
+
 
 def load_embedding_tokenizer_model():
     # https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/bert#transformers.TFBertModel
@@ -86,6 +88,40 @@ async def load_models_background(app: FastAPI):
         logger.error(app.state.model_error)
 
 
+async def setup_elasticsearch_background(app: FastAPI):
+    """Set up Elasticsearch without blocking server startup, retrying failures."""
+    while True:
+        try:
+            client, index = await asyncio.to_thread(create_es_index)
+        except asyncio.CancelledError:
+            raise
+        except FileNotFoundError as e:
+            app.state.es_status = STATUS_DOWN
+            app.state.es_error = f"Elasticsearch setup failed: {e}"
+            logger.error(app.state.es_error)
+            return
+        except Exception as e:
+            client, index, error = None, None, str(e)
+        else:
+            error = "index setup failed"
+
+        if client is not None:
+            app.state.client = client
+            app.state.index = index
+            app.state.es_status = STATUS_UP
+            app.state.es_error = None
+            logger.info("Elasticsearch ready")
+            return
+
+        app.state.es_status = STATUS_DOWN
+        app.state.es_error = (
+            f"Elasticsearch {error}; retrying in "
+            f"{ES_SETUP_RETRY_INTERVAL_SECONDS}s"
+        )
+        logger.warning(app.state.es_error)
+        await asyncio.sleep(ES_SETUP_RETRY_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.tokenizer = None
@@ -94,26 +130,30 @@ async def lifespan(app: FastAPI):
     app.state.nli_model = None
     app.state.model_status = STATUS_STARTING
     app.state.model_error = None
+    app.state.client = None
+    app.state.index = None
+    app.state.es_status = STATUS_STARTING
+    app.state.es_error = None
 
     model_task = None
+    es_task = None
     try:
-        # create Elasticsearch index
-        client, index = create_es_index()
-        app.state.client = client
-        app.state.index = index
-
         # create OpenAI client
         app.state.llm_client = load_llm_client()
 
         model_task = asyncio.create_task(
             load_models_background(app), name="hf_model_load"
         )
+        es_task = asyncio.create_task(
+            setup_elasticsearch_background(app), name="es_setup"
+        )
         yield
     finally:
-        if model_task:
-            model_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await model_task
+        for task in (model_task, es_task):
+            if task:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
 
 app = FastAPI(lifespan=lifespan)

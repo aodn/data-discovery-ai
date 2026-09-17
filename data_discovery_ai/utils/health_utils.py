@@ -73,11 +73,21 @@ def check_models(app: FastAPI) -> Dict[str, Any]:
     return _component(status, getattr(app.state, "model_error", None))
 
 
+def check_elasticsearch(app: FastAPI) -> Dict[str, Any]:
+    """
+    Check the Elasticsearch index set up in the background by the server lifespan.
+    Defaults to DOWN if the lifespan has not run.
+    """
+    status = getattr(app.state, "es_status", STATUS_DOWN)
+    return _component(status, getattr(app.state, "es_error", None))
+
+
 async def collect_components(app: FastAPI) -> Dict[str, Dict[str, Any]]:
     return {
         "keyword_resources": check_keyword_resources(),
         "llm": await check_llm(),
         "models": check_models(app),
+        "elasticsearch": check_elasticsearch(app),
     }
 
 
