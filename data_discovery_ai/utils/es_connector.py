@@ -38,7 +38,7 @@ ES_STARTUP_RETRY = RetryPolicy(
     retry_if=_es_status_retryable,
     max_attempts=10,
     initial=1.0,
-    max_wait=60.0
+    max_wait=60.0,
 )
 
 # for querying ES, e.g., querying, deleting, storing data
