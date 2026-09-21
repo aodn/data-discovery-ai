@@ -275,13 +275,15 @@ class ConfigUtil:
               "threadPriority":5,
               "service":"es-indexer"
             }
+
+        Applies to *every* log record reaching the root logger, not just ones emitted via
+        structlog: plain `logging.getLogger(...)` calls (uvicorn, httpx, urllib3, tensorflow,
+        etc.) are routed through the same processor chain via `foreign_pre_chain`, using
+        `structlog.stdlib.ProcessorFormatter` as the root handler's formatter. Without this,
+        only structlog-originated messages come out as JSON and everything else falls back to
+        that library's own default (plain-text) formatting on the same root handler.
         """
         self.log_config_path = None
-
-        logging.root.handlers.clear()
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logging.root.addHandler(handler)
 
         # add key-value mapping
         def add_service_name(logger, method_name, event_dict):
@@ -307,41 +309,47 @@ class ConfigUtil:
             event_dict["threadPriority"] = 5  # use default priority
             return event_dict
 
-        def add_logger_name(logger, method_name, event_dict):
-            event_dict["loggerName"] = (
-                logger.name if hasattr(logger, "name") else __name__
-            )
-            return event_dict
-
         def add_end_of_batch(logger, method_name, event_dict):
             event_dict["endOfBatch"] = False
             return event_dict
 
+        # shared by both structlog-native events and "foreign" (plain stdlib logging) records,
+        # so every log line ends up with the same fields before being JSON-rendered
+        shared_processors = [
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
+            rename_logger_name,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            rename_timestamp,
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.EventRenamer("message"),
+            add_end_of_batch,
+            add_thread_info,
+            add_service_name,
+        ]
+
         structlog.configure(
-            processors=[
-                # instant field (timestamp use UTC timezone)
-                structlog.processors.TimeStamper(fmt="iso", utc=True),
-                rename_timestamp,
-                # level field
-                structlog.stdlib.add_log_level,
-                # loggerName field
-                structlog.stdlib.add_logger_name,
-                rename_logger_name,
-                # message field
-                structlog.processors.EventRenamer("message"),
-                # endOfBatch field
-                add_end_of_batch,
-                # threadId and threadPriority fields
-                add_thread_info,
-                # service field
-                add_service_name,
-                # in JSON format
-                structlog.processors.JSONRenderer(),
-            ],
+            processors=shared_processors
+            + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
             cache_logger_on_first_use=True,
         )
+
+        formatter = structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=shared_processors,
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.processors.JSONRenderer(),
+            ],
+        )
+
+        logging.root.handlers.clear()
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logging.root.addHandler(handler)
 
     def get_es_config(self) -> ElasticsearchConfig:
         sub = "elasticsearch"
