@@ -210,6 +210,7 @@ def test_reinitializing_config_does_not_duplicate_output(profile):
 
 LOG_CONFIG_PATH = REPO_ROOT / "log_config.yaml"
 
+
 def _dictconfig_snippet(*log_calls: str) -> str:
     return (
         "import logging.config, yaml\n"
