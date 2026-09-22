@@ -282,55 +282,20 @@ class ConfigUtil:
         `structlog.stdlib.ProcessorFormatter` as the root handler's formatter. Without this,
         only structlog-originated messages come out as JSON and everything else falls back to
         that library's own default (plain-text) formatting on the same root handler.
+
+        This does not cover handlers configured directly from log_config.yaml (uvicorn's own
+        uvicorn.error/uvicorn.access handlers have propagate: no and so never reach the root
+        handler set up here) - see log_formatter.build_formatter, which the "()" factory in
+        log_config.yaml's formatters points at, using this same SHARED_PROCESSORS chain.
         """
         self.log_config_path = None
 
-        # add key-value mapping
-        def add_service_name(logger, method_name, event_dict):
-            event_dict["service"] = "data-discovery-ai"
-            return event_dict
-
-        def rename_timestamp(logger, method_name, event_dict):
-            if "timestamp" in event_dict:
-                event_dict["instant"] = event_dict.pop("timestamp")
-            return event_dict
-
-        def rename_logger_name(logger, method_name, event_dict):
-            if "logger" in event_dict:
-                event_dict["loggerName"] = event_dict.pop("logger")
-            return event_dict
-
-        def add_thread_info(logger, method_name, event_dict):
-            """Add thread ID and priority information"""
-            import threading
-
-            thread = threading.current_thread()
-            event_dict["threadId"] = thread.ident
-            event_dict["threadPriority"] = 5  # use default priority
-            return event_dict
-
-        def add_end_of_batch(logger, method_name, event_dict):
-            event_dict["endOfBatch"] = False
-            return event_dict
-
-        # shared by both structlog-native events and "foreign" (plain stdlib logging) records,
-        # so every log line ends up with the same fields before being JSON-rendered
-        shared_processors = [
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.add_logger_name,
-            rename_logger_name,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
-            rename_timestamp,
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.EventRenamer("message"),
-            add_end_of_batch,
-            add_thread_info,
-            add_service_name,
-        ]
+        # deferred import: avoids a config.py <-> log_formatter.py circular import, since
+        # log_formatter imports EnvType from this module at its own top level
+        from data_discovery_ai.config.log_formatter import SHARED_PROCESSORS
 
         structlog.configure(
-            processors=shared_processors
+            processors=SHARED_PROCESSORS
             + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
@@ -339,7 +304,7 @@ class ConfigUtil:
         )
 
         formatter = structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=shared_processors,
+            foreign_pre_chain=SHARED_PROCESSORS,
             processors=[
                 structlog.stdlib.ProcessorFormatter.remove_processors_meta,
                 structlog.processors.JSONRenderer(),
