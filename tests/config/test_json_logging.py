@@ -165,7 +165,17 @@ def test_multiline_message_stays_one_physical_output_line(profile):
 def test_log_config_path_is_none_so_uvicorn_logging_is_not_bypassed(profile):
     """On JSON profiles uvicorn.run(log_config=...) must get None so uvicorn
     does not install its own non-propagating text handlers on uvicorn.error/
-    uvicorn.access - they must fall through to the JSON root handler instead."""
+    uvicorn.access - they must fall through to the JSON root handler instead.
+
+    This only covers the `python -m data_discovery_ai.server` startup path.
+    docker-compose.yml is local-dev only, never used by CI/CD. The actually
+    deployed path is the ECS `app_container_command` set per environment in
+    aodn/appdeploy (tg/{edge,staging,production,dr-production}/
+    data-discovery-ai/ecs/variables.yaml, identical in all four): `uvicorn
+    --reload --log-config=log_config.yaml data_discovery_ai.server:app` -
+    that applies log_config.yaml unconditionally regardless of this value.
+    See the test_yaml_uvicorn_loggers_* cases below, which cover that path
+    directly."""
     snippet = (
         "from data_discovery_ai.config.config import ConfigUtil\n"
         "config = ConfigUtil.get_config()\n"
@@ -196,3 +206,78 @@ def test_reinitializing_config_does_not_duplicate_output(profile):
     lines = _lines(_run(profile, snippet))
 
     assert len(lines) == 1
+
+
+LOG_CONFIG_PATH = REPO_ROOT / "log_config.yaml"
+
+def _dictconfig_snippet(*log_calls: str) -> str:
+    return (
+        "import logging.config, yaml\n"
+        f"with open({str(LOG_CONFIG_PATH)!r}) as f:\n"
+        "    config = yaml.safe_load(f)\n"
+        "logging.config.dictConfig(config)\n" + "\n".join(log_calls) + "\n"
+    )
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_yaml_uvicorn_loggers_emit_json_despite_no_propagate(profile):
+    """The regression test: uvicorn.error/uvicorn.access have propagate: no
+    and their own handlers straight from log_config.yaml - they must still
+    come out as JSON, not the plain text log_config.yaml used to hardcode.
+    default (uvicorn.error) -> stderr, access (uvicorn.access) -> stdout."""
+    snippet = _dictconfig_snippet(
+        "logging.getLogger('uvicorn.error').info('Application startup complete.')",
+        "logging.getLogger('uvicorn.access').info('some access line')",
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", snippet],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PROFILE": profile},
+        cwd=REPO_ROOT,
+    )
+    assert result.returncode == 0, result.stderr
+    err_lines = _lines(result.stderr)
+    out_lines = _lines(result.stdout)
+
+    assert len(err_lines) == 1
+    assert len(out_lines) == 1
+    error_payload = json.loads(err_lines[0])
+    access_payload = json.loads(out_lines[0])
+    assert error_payload["loggerName"] == "uvicorn.error"
+    assert error_payload["message"] == "Application startup complete."
+    assert access_payload["loggerName"] == "uvicorn.access"
+    assert access_payload["message"] == "some access line"
+    for payload in (error_payload, access_payload):
+        assert payload["service"] == "data-discovery-ai"
+        assert "instant" in payload
+        assert "threadId" in payload
+
+
+def test_yaml_uvicorn_loggers_stay_plain_text_on_development():
+    snippet = _dictconfig_snippet(
+        "logging.getLogger('uvicorn.error').warning('Will watch for changes')"
+    )
+    lines = _lines(_run("development", snippet))
+
+    assert len(lines) == 1
+    assert "Will watch for changes" in lines[0]
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(lines[0])
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_yaml_and_root_handler_json_have_the_same_shape(profile):
+    """build_formatter (YAML path) and _init_json_logging (root path) must
+    render identically - they share the same SHARED_PROCESSORS chain."""
+    snippet = _dictconfig_snippet(
+        "logging.getLogger('uvicorn.error').info('from uvicorn logger')",
+        "from data_discovery_ai.config.config import ConfigUtil\n"
+        "ConfigUtil.get_config()  # re-runs _init_json_logging on root\n"
+        "logging.getLogger('app.module').info('from root logger')",
+    )
+    lines = _lines(_run(profile, snippet))
+
+    assert len(lines) == 2
+    uvicorn_payload, root_payload = (json.loads(line) for line in lines)
+    assert set(uvicorn_payload.keys()) == set(root_payload.keys())

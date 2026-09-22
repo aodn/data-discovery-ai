@@ -2,10 +2,10 @@ version: 1
 disable_existing_loggers: False
 formatters:
   default:
-    # "()": uvicorn.logging.DefaultFormatter
+    "()": data_discovery_ai.config.log_formatter.build_formatter
     format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
   access:
-    # "()": uvicorn.logging.AccessFormatter
+    "()": data_discovery_ai.config.log_formatter.build_formatter
     format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 handlers:
   default:
