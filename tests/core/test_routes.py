@@ -275,6 +275,23 @@ class TestHealthAndReadiness(unittest.TestCase):
         self.assertEqual(body["status"], "DOWN")
         self.assertEqual(body["components"]["models"]["detail"], "download failed")
 
+    def test_health_reports_elasticsearch_down_after_startup_retries(self):
+        app.state.es_status = "DOWN"
+        app.state.es_error = "Elasticsearch setup failed after startup retries"
+
+        response = client.get("/api/v1/ml/health")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "DOWN")
+        self.assertEqual(
+            body["components"]["elasticsearch"],
+            {
+                "status": "DOWN",
+                "detail": "Elasticsearch setup failed after startup retries",
+            },
+        )
+
     def test_health_down_when_resource_missing(self):
         app.state.model_status = "STARTING"
         with patch(

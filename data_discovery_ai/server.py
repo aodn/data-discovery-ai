@@ -25,8 +25,6 @@ from data_discovery_ai.enum.agent_enums import HuggingfaceModel
 
 logger = structlog.get_logger(__name__)
 
-ES_SETUP_RETRY_INTERVAL_SECONDS = 60
-
 
 def load_embedding_tokenizer_model():
     # https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/bert#transformers.TFBertModel
@@ -89,36 +87,28 @@ async def load_models_background(app: FastAPI):
 
 
 async def setup_elasticsearch_background(app: FastAPI):
-    """Set up Elasticsearch without blocking server startup, retrying failures."""
-    while True:
-        try:
-            client, index = await asyncio.to_thread(create_es_index)
-        except asyncio.CancelledError:
-            raise
-        except FileNotFoundError as e:
-            app.state.es_status = STATUS_DOWN
-            app.state.es_error = f"Elasticsearch setup failed: {e}"
-            logger.error(app.state.es_error)
-            return
-        except Exception as e:
-            client, index, error = None, None, str(e)
-        else:
-            error = "index setup failed"
-
-        if client is not None:
-            app.state.client = client
-            app.state.index = index
-            app.state.es_status = STATUS_UP
-            app.state.es_error = None
-            logger.info("Elasticsearch ready")
-            return
-
+    """Set up Elasticsearch once without blocking server startup."""
+    try:
+        client, index = await asyncio.to_thread(create_es_index)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
         app.state.es_status = STATUS_DOWN
-        app.state.es_error = (
-            f"Elasticsearch {error}; retrying in " f"{ES_SETUP_RETRY_INTERVAL_SECONDS}s"
-        )
-        logger.warning(app.state.es_error)
-        await asyncio.sleep(ES_SETUP_RETRY_INTERVAL_SECONDS)
+        app.state.es_error = f"Elasticsearch setup failed: {e}"
+        logger.error(app.state.es_error)
+        return
+
+    if client is None:
+        app.state.es_status = STATUS_DOWN
+        app.state.es_error = "Elasticsearch setup failed after startup retries"
+        logger.error(app.state.es_error)
+        return
+
+    app.state.client = client
+    app.state.index = index
+    app.state.es_status = STATUS_UP
+    app.state.es_error = None
+    logger.info("Elasticsearch ready")
 
 
 @asynccontextmanager

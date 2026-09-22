@@ -1,7 +1,7 @@
 import asyncio
 import threading
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 
@@ -55,41 +55,28 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
         self.assertIs(self.app.state.client, es_client)
         self.assertEqual(self.app.state.index, "idx")
 
-    @patch("data_discovery_ai.server.asyncio.sleep", new_callable=AsyncMock)
     @patch("data_discovery_ai.server.create_es_index")
-    async def test_setup_elasticsearch_background_retries_until_success(
-        self, mock_es, mock_sleep
+    async def test_setup_elasticsearch_background_reports_down_after_retries(
+        self, mock_es
     ):
-        es_client = MagicMock()
-        mock_es.side_effect = [
-            (None, None),
-            ConnectionError("x"),
-            (es_client, "idx"),
-        ]
+        mock_es.return_value = (None, None)
 
         await server.setup_elasticsearch_background(self.app)
 
-        self.assertEqual(mock_es.call_count, 3)
-        self.assertEqual(mock_sleep.await_count, 2)
-        self.assertEqual(self.app.state.es_status, "UP")
-        self.assertIsNone(self.app.state.es_error)
-        self.assertIs(self.app.state.client, es_client)
-        self.assertEqual(self.app.state.index, "idx")
+        mock_es.assert_called_once_with()
+        self.assertEqual(self.app.state.es_status, "DOWN")
+        self.assertIn("failed after startup retries", self.app.state.es_error)
 
-    @patch("data_discovery_ai.server.asyncio.sleep", new_callable=AsyncMock)
     @patch(
         "data_discovery_ai.server.create_es_index",
         side_effect=FileNotFoundError("schema missing"),
     )
-    async def test_setup_elasticsearch_background_missing_schema_stops(
-        self, mock_es, mock_sleep
-    ):
+    async def test_setup_elasticsearch_background_missing_schema_stops(self, mock_es):
         await server.setup_elasticsearch_background(self.app)
 
         self.assertEqual(self.app.state.es_status, "DOWN")
         self.assertIn("schema missing", self.app.state.es_error)
         mock_es.assert_called_once_with()
-        mock_sleep.assert_not_awaited()
 
     @patch("data_discovery_ai.server.load_llm_client", return_value=MagicMock())
     @patch(

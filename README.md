@@ -15,7 +15,7 @@ API_KEY="your_actual_api_key_here"
 OPENAI_API_KEY="your_actual_openai_api_key_here"
 PROFILE="your_actual_environment_here"
 ```
-If you plan to train models, also include:
+Elasticsearch is required to process requests and store generated data. Also include:
 ```shell
 ES_ENDPOINT="your_actual_elasticsearch_endpoint"
 ES_API_KEY="your_actual_es_api_key"
@@ -163,6 +163,11 @@ Once the app is running, two routes are available:
 - `DOWN`: a component failed, see `components` for details.
 
 `process_record` and `delete_doc` return HTTP 503 until the status is `UP`.
+
+Elasticsearch setup runs in the background with a bounded retry policy. If those
+retries are exhausted, the `elasticsearch` component changes to `DOWN` and setup
+stops. The health endpoint remains available; correct the Elasticsearch
+configuration or service and restart the application to try again.
 
 ### Example Request Body
 ```JSON
