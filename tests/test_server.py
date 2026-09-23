@@ -96,7 +96,10 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
         self.health_writer.assert_awaited_once_with(self.app)
 
     @patch("data_discovery_ai.server.load_llm_client", return_value=MagicMock())
-    @patch("data_discovery_ai.server.setup_elasticsearch_background", new_callable=AsyncMock)
+    @patch(
+        "data_discovery_ai.server.setup_elasticsearch_background",
+        new_callable=AsyncMock,
+    )
     @patch("data_discovery_ai.server.load_models_background", new_callable=AsyncMock)
     async def test_lifespan_publishes_starting_health_and_removes_it_on_exit(
         self, mock_models, mock_es, mock_llm

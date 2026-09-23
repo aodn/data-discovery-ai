@@ -20,7 +20,10 @@ from data_discovery_ai.utils.es_connector import (
     store_ai_generated_data,
     delete_es_document,
 )
-from data_discovery_ai.utils.health_utils import build_health_payload, collect_components
+from data_discovery_ai.utils.health_utils import (
+    build_health_payload,
+    collect_components,
+)
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
