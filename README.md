@@ -162,6 +162,12 @@ Once the app is running, two routes are available:
 - `UP`: all components are ready.
 - `DOWN`: a component failed, see `components` for details.
 
+In Docker, Nginx serves this endpoint from `/tmp/status/health.json`, so the
+health check remains responsive while Python is busy. The application writes
+the same response body when component state changes and removes the file during
+shutdown, after which Nginx returns 404. When running Uvicorn directly, the
+FastAPI health route returns the same response.
+
 `process_record` and `delete_doc` return HTTP 503 until the status is `UP`.
 
 Elasticsearch setup runs in the background with a bounded retry policy. If those
