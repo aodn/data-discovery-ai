@@ -10,8 +10,6 @@ ARG GIT_SHA=unknown
 ENV APP_VERSION=$APP_VERSION
 ENV GIT_SHA=$GIT_SHA
 
-RUN useradd -l -m -s /bin/bash appuser
-
 COPY pyproject.toml poetry.lock ./
 
 RUN apt update && \
@@ -24,12 +22,10 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . /app
-COPY nginx.conf /etc/nginx/nginx.conf
-
-RUN rm -f /etc/nginx/sites-enabled/default && \
-    nginx -t && \
-    chown -R appuser:appuser /app
-USER appuser
+COPY ddai_site.conf /etc/nginx/sites-available/
+RUN ln -s /etc/nginx/sites-available/ddai_site.conf /etc/nginx/sites-enabled/ && \
+    rm -f /etc/nginx/sites-enabled/default && \
+    nginx -t
 
 EXPOSE 8000
 
