@@ -1,3 +1,5 @@
+import asyncio
+import json
 import os
 from typing import Any, Dict
 
@@ -7,12 +9,19 @@ from fastapi import FastAPI
 
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.config.constants import (
+    HEALTH_FILE,
     KEYWORD_FOLDER,
     KEYWORD_LABEL_FILE,
     STATUS_DOWN,
     STATUS_STARTING,
     STATUS_UP,
 )
+
+import structlog
+
+
+logger = structlog.get_logger(__name__)
+_health_file_lock = asyncio.Lock()
 
 
 def _component(status: str, detail: str | None = None) -> Dict[str, Any]:
@@ -101,3 +110,41 @@ def aggregate_status(components: Dict[str, Dict[str, Any]]) -> str:
     if all(s in (STATUS_UP, STATUS_STARTING) for s in statuses):
         return STATUS_STARTING
     return STATUS_DOWN
+
+
+async def build_health_payload(app: FastAPI) -> Dict[str, Any]:
+    """Build the response shared by FastAPI and the Nginx status file."""
+    try:
+        components = await collect_components(app)
+        status = aggregate_status(components)
+    except Exception as e:
+        components = {"health_check": {"status": STATUS_DOWN, "detail": str(e)}}
+        status = STATUS_DOWN
+
+    return {"status_code": 200, "status": status, "components": components}
+
+
+async def write_health_file(app: FastAPI) -> None:
+    """Atomically publish the current health payload without blocking startup."""
+    temp_file = f"{HEALTH_FILE}.tmp"
+    try:
+        async with _health_file_lock:
+            payload = await build_health_payload(app)
+            os.makedirs(os.path.dirname(HEALTH_FILE), exist_ok=True)
+            with open(temp_file, "w", encoding="utf-8") as file:
+                json.dump(payload, file, separators=(",", ":"))
+            os.replace(temp_file, HEALTH_FILE)
+    except Exception as e:
+        logger.error("Failed to write health file", error=str(e))
+        try:
+            os.remove(temp_file)
+        except OSError:
+            pass
+
+
+def remove_health_file() -> None:
+    """Remove the health file so Nginx reports 404 after app shutdown."""
+    try:
+        os.remove(HEALTH_FILE)
+    except OSError:
+        pass

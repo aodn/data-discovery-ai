@@ -22,6 +22,7 @@ from data_discovery_ai.config.constants import (
     STATUS_UP,
 )
 from data_discovery_ai.enum.agent_enums import HuggingfaceModel
+from data_discovery_ai.utils.health_utils import remove_health_file, write_health_file
 
 logger = structlog.get_logger(__name__)
 
@@ -77,13 +78,16 @@ async def load_models_background(app: FastAPI):
         app.state.nli_model = nli_model
 
         app.state.model_status = STATUS_UP
+        app.state.model_error = None
         logger.info("Hugging Face models loaded")
+        await write_health_file(app)
     except asyncio.CancelledError:
         raise
     except Exception as e:
         app.state.model_status = STATUS_DOWN
         app.state.model_error = f"Failed to load Hugging Face models: {e}"
         logger.error(app.state.model_error)
+        await write_health_file(app)
 
 
 async def setup_elasticsearch_background(app: FastAPI):
@@ -96,12 +100,14 @@ async def setup_elasticsearch_background(app: FastAPI):
         app.state.es_status = STATUS_DOWN
         app.state.es_error = f"Elasticsearch setup failed: {e}"
         logger.error(app.state.es_error)
+        await write_health_file(app)
         return
 
     if client is None:
         app.state.es_status = STATUS_DOWN
         app.state.es_error = "Elasticsearch setup failed after startup retries"
         logger.error(app.state.es_error)
+        await write_health_file(app)
         return
 
     app.state.client = client
@@ -109,6 +115,7 @@ async def setup_elasticsearch_background(app: FastAPI):
     app.state.es_status = STATUS_UP
     app.state.es_error = None
     logger.info("Elasticsearch ready")
+    await write_health_file(app)
 
 
 @asynccontextmanager
@@ -130,6 +137,8 @@ async def lifespan(app: FastAPI):
         # create OpenAI client
         app.state.llm_client = load_llm_client()
 
+        await write_health_file(app)
+
         model_task = asyncio.create_task(
             load_models_background(app), name="hf_model_load"
         )
@@ -143,6 +152,7 @@ async def lifespan(app: FastAPI):
                 task.cancel()
                 with suppress(asyncio.CancelledError):
                     await task
+        remove_health_file()
 
 
 app = FastAPI(lifespan=lifespan)
