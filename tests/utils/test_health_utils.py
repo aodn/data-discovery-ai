@@ -92,6 +92,38 @@ class TestHealthPayload(unittest.IsolatedAsyncioTestCase):
             {"status": "DOWN", "detail": "check failed"},
         )
 
+    async def test_build_health_payload_without_live_checks_skips_llm(self):
+        app = FastAPI()
+        app.state.model_status = "UP"
+        app.state.es_status = "UP"
+        mock_llm = AsyncMock()
+        with patch.object(
+            health_utils,
+            "check_keyword_resources",
+            return_value={"status": "UP", "detail": None},
+        ), patch.object(health_utils, "check_llm", new=mock_llm):
+            payload = await health_utils.build_health_payload(app, include_live=False)
+
+        mock_llm.assert_not_awaited()
+        self.assertEqual(payload["status"], "UP")
+        self.assertEqual(
+            list(payload["components"]),
+            ["keyword_resources", "models", "elasticsearch"],
+        )
+
+    async def test_write_health_file_excludes_live_checks(self):
+        payload = {"status_code": 200, "status": "STARTING", "components": {}}
+        mock_build = AsyncMock(return_value=payload)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            health_file = os.path.join(temp_dir, "health.json")
+            with patch.object(health_utils, "HEALTH_FILE", health_file), patch.object(
+                health_utils, "build_health_payload", new=mock_build
+            ):
+                app = FastAPI()
+                await health_utils.write_health_file(app)
+
+        mock_build.assert_awaited_once_with(app, include_live=False)
+
     async def test_write_health_file_creates_directory_and_writes_payload(self):
         payload = {
             "status_code": 200,

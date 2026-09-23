@@ -91,12 +91,26 @@ def check_elasticsearch(app: FastAPI) -> Dict[str, Any]:
     return _component(status, getattr(app.state, "es_error", None))
 
 
-async def collect_components(app: FastAPI) -> Dict[str, Dict[str, Any]]:
+def collect_startup_components(app: FastAPI) -> Dict[str, Dict[str, Any]]:
+    """
+    Components that only change when a startup task finishes (or never at runtime), so a snapshot of them cannot
+    go stale between health file writes.
+    """
     return {
         "keyword_resources": check_keyword_resources(),
-        "llm": await check_llm(),
         "models": check_models(app),
         "elasticsearch": check_elasticsearch(app),
+    }
+
+
+async def collect_components(app: FastAPI) -> Dict[str, Dict[str, Any]]:
+    """All components, including the live LLM check."""
+    startup = collect_startup_components(app)
+    return {
+        "keyword_resources": startup["keyword_resources"],
+        "llm": await check_llm(),
+        "models": startup["models"],
+        "elasticsearch": startup["elasticsearch"],
     }
 
 
@@ -112,10 +126,18 @@ def aggregate_status(components: Dict[str, Dict[str, Any]]) -> str:
     return STATUS_DOWN
 
 
-async def build_health_payload(app: FastAPI) -> Dict[str, Any]:
-    """Build the response shared by FastAPI and the Nginx status file."""
+async def build_health_payload(
+    app: FastAPI, include_live: bool = True
+) -> Dict[str, Any]:
+    """
+    Build the health response. The FastAPI route includes live checks; the Nginx status file passes
+    include_live=False so it only holds startup state, as in data-access-service.
+    """
     try:
-        components = await collect_components(app)
+        if include_live:
+            components = await collect_components(app)
+        else:
+            components = collect_startup_components(app)
         status = aggregate_status(components)
     except Exception as e:
         components = {"health_check": {"status": STATUS_DOWN, "detail": str(e)}}
@@ -125,11 +147,14 @@ async def build_health_payload(app: FastAPI) -> Dict[str, Any]:
 
 
 async def write_health_file(app: FastAPI) -> None:
-    """Atomically publish the current health payload without blocking startup."""
+    """
+    Atomically publish the startup health payload for Nginx without blocking startup. Live checks (LLM) are left out
+    because the file is only rewritten when a startup task finishes, so they would go stale.
+    """
     temp_file = f"{HEALTH_FILE}.tmp"
     try:
         async with _health_file_lock:
-            payload = await build_health_payload(app)
+            payload = await build_health_payload(app, include_live=False)
             os.makedirs(os.path.dirname(HEALTH_FILE), exist_ok=True)
             with open(temp_file, "w", encoding="utf-8") as file:
                 json.dump(payload, file, separators=(",", ":"))

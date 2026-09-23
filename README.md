@@ -163,10 +163,18 @@ Once the app is running, two routes are available:
 - `DOWN`: a component failed, see `components` for details.
 
 In Docker, Nginx serves this endpoint from `/tmp/status/health.json`, so the
-health check remains responsive while Python is busy. The application writes
-the same response body when component state changes and removes the file during
-shutdown, after which Nginx returns 404. When running Uvicorn directly, the
-FastAPI health route returns the same response.
+health check remains responsive while Python is busy (the same approach as
+data-access-service). The file only holds startup state (`keyword_resources`,
+`models`, `elasticsearch`): the application writes it at startup and when each
+background startup task finishes, and removes it during graceful shutdown, after
+which Nginx returns 404. The live `llm` check is not in the file, because the
+file is not rewritten when it changes; it is only reported by the FastAPI health
+route (when running Uvicorn directly) and enforced by `process_record` and
+`delete_doc`, which can therefore still return 503 while the file says `UP`.
+
+If the application is killed without a graceful shutdown (e.g. OOM or SIGKILL),
+the last file stays in place until supervisord restarts the application and it
+writes `STARTING` again. This is an accepted limitation, as in data-access-service.
 
 `process_record` and `delete_doc` return HTTP 503 until the status is `UP`.
 
