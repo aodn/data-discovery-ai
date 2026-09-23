@@ -453,7 +453,7 @@ class EdgeConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-edge.yaml"
         super().__init__(config_file)
-        self._init_json_logging()
+        self.set_logging_level()
 
 
 class StagingConfig(ConfigUtil):
@@ -462,7 +462,7 @@ class StagingConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-staging.yaml"
         super().__init__(config_file)
-        self._init_json_logging()
+        self.set_logging_level()
 
 
 class ProdConfig(ConfigUtil):
@@ -471,4 +471,4 @@ class ProdConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-prod.yaml"
         super().__init__(config_file)
-        self._init_json_logging()
+        self.set_logging_level()

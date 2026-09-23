@@ -76,14 +76,16 @@ def test_foreign_stdlib_call_produces_valid_json(profile):
         "from data_discovery_ai.config.config import ConfigUtil\n"
         "ConfigUtil.get_config()\n"
         "logging.getLogger().setLevel(logging.INFO)\n"
-        "logging.getLogger('uvicorn.error').info('hello from stdlib logging')\n"
+        # not 'uvicorn.error'/httpx/httpcore/urllib3: set_logging_level() pins
+        # those to WARNING on purpose, which would swallow this INFO call
+        "logging.getLogger('some_foreign_library').info('hello from stdlib logging')\n"
     )
     lines = _lines(_run(profile, snippet))
 
     assert len(lines) == 1
     payload = json.loads(lines[0])  # raises json.JSONDecodeError on plain text
     assert payload["message"] == "hello from stdlib logging"
-    assert payload["loggerName"] == "uvicorn.error"
+    assert payload["loggerName"] == "some_foreign_library"
     assert payload["service"] == "data-discovery-ai"
 
 
@@ -271,11 +273,13 @@ def test_yaml_uvicorn_loggers_stay_plain_text_on_development():
 def test_yaml_and_root_handler_json_have_the_same_shape(profile):
     """build_formatter (YAML path) and _init_json_logging (root path) must
     render identically - they share the same SHARED_PROCESSORS chain."""
+    # warning, not info: ProdConfig's root level is WARNING (see #9310's
+    # set_logging_level() fix), so an info call would be dropped on production
     snippet = _dictconfig_snippet(
-        "logging.getLogger('uvicorn.error').info('from uvicorn logger')",
+        "logging.getLogger('uvicorn.error').warning('from uvicorn logger')",
         "from data_discovery_ai.config.config import ConfigUtil\n"
         "ConfigUtil.get_config()  # re-runs _init_json_logging on root\n"
-        "logging.getLogger('app.module').info('from root logger')",
+        "logging.getLogger('app.module').warning('from root logger')",
     )
     lines = _lines(_run(profile, snippet))
 
