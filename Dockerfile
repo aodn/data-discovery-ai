@@ -30,3 +30,5 @@ USER appuser
 COPY log_config.yaml /app/log_config.yaml
 
 EXPOSE 8000
+
+CMD ["python", "-m", "data_discovery_ai.server"]
