@@ -164,7 +164,9 @@ Once the app is running, two routes are available:
 
 In Docker, Nginx serves this endpoint from `/tmp/status/health.json`, so the
 health check remains responsive while Python is busy (the same approach as
-data-access-service). The file only holds startup state (`keyword_resources`,
+data-access-service). Uvicorn runs behind Nginx on `127.0.0.1:9000` as `appuser`
+under supervisord; `APP_HOST` and `APP_PORT` override its host and port. The file
+only holds startup state (`keyword_resources`,
 `models`, `elasticsearch`): the application writes it at startup and when each
 background startup task finishes, and removes it during graceful shutdown, after
 which Nginx returns 404. The live `llm` check is not in the file, because the

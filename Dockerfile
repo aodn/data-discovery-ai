@@ -10,6 +10,8 @@ ARG GIT_SHA=unknown
 ENV APP_VERSION=$APP_VERSION
 ENV GIT_SHA=$GIT_SHA
 
+RUN useradd -l -m -s /bin/bash appuser
+
 COPY pyproject.toml poetry.lock ./
 
 RUN apt update && \
@@ -22,6 +24,10 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . /app
+
+RUN chown -R appuser:appuser /app
+
+COPY log_config.yaml /app/log_config.yaml
 COPY ddai_site.conf /etc/nginx/sites-available/
 RUN ln -s /etc/nginx/sites-available/ddai_site.conf /etc/nginx/sites-enabled/ && \
     rm -f /etc/nginx/sites-enabled/default && \

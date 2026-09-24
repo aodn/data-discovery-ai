@@ -275,73 +275,46 @@ class ConfigUtil:
               "threadPriority":5,
               "service":"es-indexer"
             }
+
+        Applies to *every* log record reaching the root logger, not just ones emitted via
+        structlog: plain `logging.getLogger(...)` calls (uvicorn, httpx, urllib3, tensorflow,
+        etc.) are routed through the same processor chain via `foreign_pre_chain`, using
+        `structlog.stdlib.ProcessorFormatter` as the root handler's formatter. Without this,
+        only structlog-originated messages come out as JSON and everything else falls back to
+        that library's own default (plain-text) formatting on the same root handler.
+
+        This does not cover handlers configured directly from log_config.yaml (uvicorn's own
+        uvicorn.error/uvicorn.access handlers have propagate: no and so never reach the root
+        handler set up here) - see log_formatter.build_formatter, which the "()" factory in
+        log_config.yaml's formatters points at, using this same SHARED_PROCESSORS chain.
         """
         self.log_config_path = None
 
-        logging.root.handlers.clear()
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logging.root.addHandler(handler)
-
-        # add key-value mapping
-        def add_service_name(logger, method_name, event_dict):
-            event_dict["service"] = "data-discovery-ai"
-            return event_dict
-
-        def rename_timestamp(logger, method_name, event_dict):
-            if "timestamp" in event_dict:
-                event_dict["instant"] = event_dict.pop("timestamp")
-            return event_dict
-
-        def rename_logger_name(logger, method_name, event_dict):
-            if "logger" in event_dict:
-                event_dict["loggerName"] = event_dict.pop("logger")
-            return event_dict
-
-        def add_thread_info(logger, method_name, event_dict):
-            """Add thread ID and priority information"""
-            import threading
-
-            thread = threading.current_thread()
-            event_dict["threadId"] = thread.ident
-            event_dict["threadPriority"] = 5  # use default priority
-            return event_dict
-
-        def add_logger_name(logger, method_name, event_dict):
-            event_dict["loggerName"] = (
-                logger.name if hasattr(logger, "name") else __name__
-            )
-            return event_dict
-
-        def add_end_of_batch(logger, method_name, event_dict):
-            event_dict["endOfBatch"] = False
-            return event_dict
+        # deferred import: avoids a config.py <-> log_formatter.py circular import, since
+        # log_formatter imports EnvType from this module at its own top level
+        from data_discovery_ai.config.log_formatter import SHARED_PROCESSORS
 
         structlog.configure(
-            processors=[
-                # instant field (timestamp use UTC timezone)
-                structlog.processors.TimeStamper(fmt="iso", utc=True),
-                rename_timestamp,
-                # level field
-                structlog.stdlib.add_log_level,
-                # loggerName field
-                structlog.stdlib.add_logger_name,
-                rename_logger_name,
-                # message field
-                structlog.processors.EventRenamer("message"),
-                # endOfBatch field
-                add_end_of_batch,
-                # threadId and threadPriority fields
-                add_thread_info,
-                # service field
-                add_service_name,
-                # in JSON format
-                structlog.processors.JSONRenderer(),
-            ],
+            processors=SHARED_PROCESSORS
+            + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
             cache_logger_on_first_use=True,
         )
+
+        formatter = structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=SHARED_PROCESSORS,
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.processors.JSONRenderer(),
+            ],
+        )
+
+        logging.root.handlers.clear()
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logging.root.addHandler(handler)
 
     def get_es_config(self) -> ElasticsearchConfig:
         sub = "elasticsearch"
@@ -480,7 +453,7 @@ class EdgeConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-edge.yaml"
         super().__init__(config_file)
-        self._init_json_logging()
+        self.set_logging_level()
 
 
 class StagingConfig(ConfigUtil):
@@ -489,7 +462,7 @@ class StagingConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-staging.yaml"
         super().__init__(config_file)
-        self._init_json_logging()
+        self.set_logging_level()
 
 
 class ProdConfig(ConfigUtil):
@@ -498,4 +471,4 @@ class ProdConfig(ConfigUtil):
     def __init__(self):
         config_file = "config-prod.yaml"
         super().__init__(config_file)
-        self._init_json_logging()
+        self.set_logging_level()

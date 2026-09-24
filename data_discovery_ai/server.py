@@ -164,8 +164,8 @@ if __name__ == "__main__":
     app_config = config.get_application_config()
     uvicorn.run(
         "data_discovery_ai.server:app",
-        host="0.0.0.0",
-        port=app_config.port,
+        host=os.getenv("APP_HOST", "0.0.0.0"),
+        port=int(os.getenv("APP_PORT", app_config.port)),
         reload=app_config.reload,
         log_config=log_config_path,
         timeout_keep_alive=900,
