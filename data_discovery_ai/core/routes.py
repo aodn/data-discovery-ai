@@ -13,14 +13,17 @@ import asyncio
 import time
 from typing import Any, Dict
 
-from data_discovery_ai.config.constants import API_PREFIX, STATUS_DOWN, STATUS_UP
+from data_discovery_ai.config.constants import API_PREFIX, STATUS_UP
 from data_discovery_ai.utils.api_utils import api_key_auth
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.utils.es_connector import (
     store_ai_generated_data,
     delete_es_document,
 )
-from data_discovery_ai.utils.health_utils import aggregate_status, collect_components
+from data_discovery_ai.utils.health_utils import (
+    build_health_payload,
+    collect_components,
+)
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
@@ -37,6 +40,7 @@ async def ensure_ready(request: Request):
       - OpenAI API key is set in production and staging.
       - Ollama server is running in development.
       - Hugging Face models finished loading in the background.
+      - Elasticsearch index is set up.
     Raises HTTPException(503) naming the components that are not UP.
     """
     components = await collect_components(request.app)
@@ -65,15 +69,7 @@ async def health_check(request: Request) -> HealthCheckResponse:
     health check. Readiness is carried in the body as status UP/STARTING/DOWN; requests are rejected with 503 by
     ensure_ready until the service is UP.
     """
-    try:
-        components = await collect_components(request.app)
-        status = aggregate_status(components)
-    except Exception as e:
-        components = {"health_check": {"status": STATUS_DOWN, "detail": str(e)}}
-        status = STATUS_DOWN
-    return HealthCheckResponse(
-        status_code=HTTPStatus.OK, status=status, components=components
-    )
+    return HealthCheckResponse(**await build_health_payload(request.app))
 
 
 @router.get("/manage/info")

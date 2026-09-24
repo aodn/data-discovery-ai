@@ -1,5 +1,6 @@
 API_PREFIX = "/api/v1/ml"
 API_KEY_NAME = "X-API-Key"
+HEALTH_FILE = "/tmp/status/health.json"
 AVAILABLE_MODELS = ["development", "staging", "production", "experimental", "benchmark"]
 PARAMETER_FILE = "parameters.yaml"
 KEYWORD_FOLDER = "KeywordClassifier"

@@ -22,6 +22,7 @@ from data_discovery_ai.config.constants import (
     STATUS_UP,
 )
 from data_discovery_ai.enum.agent_enums import HuggingfaceModel
+from data_discovery_ai.utils.health_utils import remove_health_file, write_health_file
 
 logger = structlog.get_logger(__name__)
 
@@ -77,13 +78,44 @@ async def load_models_background(app: FastAPI):
         app.state.nli_model = nli_model
 
         app.state.model_status = STATUS_UP
+        app.state.model_error = None
         logger.info("Hugging Face models loaded")
+        await write_health_file(app)
     except asyncio.CancelledError:
         raise
     except Exception as e:
         app.state.model_status = STATUS_DOWN
         app.state.model_error = f"Failed to load Hugging Face models: {e}"
         logger.error(app.state.model_error)
+        await write_health_file(app)
+
+
+async def setup_elasticsearch_background(app: FastAPI):
+    """Set up Elasticsearch once without blocking server startup."""
+    try:
+        client, index = await asyncio.to_thread(create_es_index)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        app.state.es_status = STATUS_DOWN
+        app.state.es_error = f"Elasticsearch setup failed: {e}"
+        logger.error(app.state.es_error)
+        await write_health_file(app)
+        return
+
+    if client is None:
+        app.state.es_status = STATUS_DOWN
+        app.state.es_error = "Elasticsearch setup failed after startup retries"
+        logger.error(app.state.es_error)
+        await write_health_file(app)
+        return
+
+    app.state.client = client
+    app.state.index = index
+    app.state.es_status = STATUS_UP
+    app.state.es_error = None
+    logger.info("Elasticsearch ready")
+    await write_health_file(app)
 
 
 @asynccontextmanager
@@ -94,26 +126,33 @@ async def lifespan(app: FastAPI):
     app.state.nli_model = None
     app.state.model_status = STATUS_STARTING
     app.state.model_error = None
+    app.state.client = None
+    app.state.index = None
+    app.state.es_status = STATUS_STARTING
+    app.state.es_error = None
 
     model_task = None
+    es_task = None
     try:
-        # create Elasticsearch index
-        client, index = create_es_index()
-        app.state.client = client
-        app.state.index = index
-
         # create OpenAI client
         app.state.llm_client = load_llm_client()
+
+        await write_health_file(app)
 
         model_task = asyncio.create_task(
             load_models_background(app), name="hf_model_load"
         )
+        es_task = asyncio.create_task(
+            setup_elasticsearch_background(app), name="es_setup"
+        )
         yield
     finally:
-        if model_task:
-            model_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await model_task
+        for task in (model_task, es_task):
+            if task:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+        remove_health_file()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -125,8 +164,8 @@ if __name__ == "__main__":
     app_config = config.get_application_config()
     uvicorn.run(
         "data_discovery_ai.server:app",
-        host="0.0.0.0",
-        port=app_config.port,
+        host=os.getenv("APP_HOST", "0.0.0.0"),
+        port=int(os.getenv("APP_PORT", app_config.port)),
         reload=app_config.reload,
         log_config=log_config_path,
         timeout_keep_alive=900,
