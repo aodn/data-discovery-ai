@@ -163,19 +163,34 @@ Once the app is running, two routes are available:
 - `DOWN`: a component failed, see `components` for details.
 
 In Docker, Nginx serves this endpoint from `/tmp/status/health.json`, so the
-health check remains responsive while Python is busy (the same approach as
-data-access-service). Uvicorn runs behind Nginx on `127.0.0.1:9000` as `appuser`
-under supervisord; `APP_HOST` and `APP_PORT` override its host and port. The file
-only holds startup state (`keyword_resources`,
-`models`, `elasticsearch`): the application writes it at startup and when each
-background startup task finishes, and removes it during graceful shutdown, after
-which Nginx returns 404. The live `llm` check is not in the file, because the
-file is not rewritten when it changes; it is only reported by the FastAPI health
-route (when running Uvicorn directly) and enforced by `process_record` and
+health check stays responsive while Python is busy (the same approach as
+data-access-service). Why Nginx is needed: startup work (Hugging Face model
+downloads, Elasticsearch setup) and CPU-bound inference can keep the event loop
+from answering in time, and the orchestrator would kill a container that fails
+its health check; a static file served by Nginx cannot be blocked by Python.
+Nginx also absorbs slow or large client connections in front of the single
+Uvicorn worker.
+
+Uvicorn listens on `127.0.0.1:9000` (`APP_HOST`/`APP_PORT`, set in the
+Dockerfile) and Nginx is the only listener on port 8000, proxying everything
+except the health path. Both processes run as `appuser`:
+`docker-entrypoint.sh` starts Nginx in the background and then `exec`s the
+container command, so `CMD ["python", "-m", "data_discovery_ai.server"]` is
+still PID 1 and still receives `SIGTERM` directly, as it did before Nginx was
+introduced. No supervisord or root process is involved. If Nginx dies, port 8000
+stops answering and the orchestrator replaces the container, the same signal a
+dead Python process gives.
+
+The health file only holds startup state (`keyword_resources`, `models`,
+`elasticsearch`): the application writes it at startup and when each background
+startup task finishes, and removes it during graceful shutdown, after which
+Nginx returns 404. The live `llm` check is not in the file, because the file is
+not rewritten when it changes; it is only reported by the FastAPI health route
+(when running Uvicorn directly) and enforced by `process_record` and
 `delete_doc`, which can therefore still return 503 while the file says `UP`.
 
 If the application is killed without a graceful shutdown (e.g. OOM or SIGKILL),
-the last file stays in place until supervisord restarts the application and it
+the last file stays in place until the container restarts and the application
 writes `STARTING` again. This is an accepted limitation, as in data-access-service.
 
 `process_record` and `delete_doc` return HTTP 503 until the status is `UP`.
