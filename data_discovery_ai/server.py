@@ -13,9 +13,10 @@ from contextlib import asynccontextmanager, suppress
 from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
-import structlog
+import logging
 
 from data_discovery_ai.config.config import ConfigUtil
+from data_discovery_ai.core.middleware import configure_request_context_middleware
 from data_discovery_ai.config.constants import (
     STATUS_DOWN,
     STATUS_STARTING,
@@ -24,7 +25,7 @@ from data_discovery_ai.config.constants import (
 from data_discovery_ai.enum.agent_enums import HuggingfaceModel
 from data_discovery_ai.utils.health_utils import remove_health_file, write_health_file
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def load_embedding_tokenizer_model():
@@ -156,6 +157,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+configure_request_context_middleware(app)
 app.include_router(api_router)
 
 if __name__ == "__main__":

@@ -17,10 +17,10 @@ from data_discovery_ai.config.constants import (
     STATUS_UP,
 )
 
-import structlog
+import logging
 
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 _health_file_lock = asyncio.Lock()
 
 
@@ -160,7 +160,7 @@ async def write_health_file(app: FastAPI) -> None:
                 json.dump(payload, file, separators=(",", ":"))
             os.replace(temp_file, HEALTH_FILE)
     except Exception as e:
-        logger.error("Failed to write health file", error=str(e))
+        logger.error("Failed to write health file", extra={"error": str(e)})
         try:
             os.remove(temp_file)
         except OSError:

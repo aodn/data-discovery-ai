@@ -5,7 +5,6 @@ from enum import Enum
 from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import yaml
-import structlog
 from dotenv import load_dotenv
 
 from data_discovery_ai.config.constants import PARAMETER_FILE
@@ -153,6 +152,7 @@ class ConfigUtil:
     """
 
     LOGLEVEL = "DEBUG"
+    PROFILE = EnvType.DEV
 
     def __init__(self, config_file: str) -> None:
         load_dotenv()
@@ -168,40 +168,56 @@ class ConfigUtil:
         env_val = os.getenv("PROFILE")
         self.env = env_val.lower() if env_val else "development"
 
+        # uvicorn log config for `python -m data_discovery_ai.server`; only
+        # DevConfig sets it, JSON profiles rely on the root handler instead.
+        self.log_config_path = None
+
     def set_logging_level(self):
         """
-        In dev environment, log level is set to DEBUG, output in String format.
-        In edge/staging/production environments, log level is set to INFO (for edge and staging) or WARNING (for production),
-        output in JSON format.
+        development logs plain text at DEBUG; edge/staging (INFO) and production
+        (WARNING) log one JSON object per line in the schema shared with
+        es-indexer/ogcapi-java - see log_formatter.JsonLogFormatter. Same shape
+        as data-access-service's init_log().
         """
+        # deferred import: log_formatter imports EnvType from this module
+        from data_discovery_ai.config.log_formatter import (
+            TEXT_LOG_DATE_FORMAT,
+            TEXT_LOG_FORMAT,
+            JsonLogFormatter,
+            use_json_logs,
+        )
+        from data_discovery_ai.utils.log_context import install_context_filter
+
+        root = logging.getLogger()
+        if use_json_logs(self.PROFILE):
+            # Replace root's (text) handlers once. get_config() runs on every
+            # request, so leave an existing JSON handler - ours, or the one
+            # log_config.yaml installs via log_formatter.build_formatter -
+            # alone rather than rebuilding it and duplicating or dropping
+            # output.
+            if not any(
+                isinstance(h.formatter, JsonLogFormatter) for h in root.handlers
+            ):
+                root.handlers.clear()
+                handler = logging.StreamHandler()
+                handler.setFormatter(JsonLogFormatter())
+                root.addHandler(handler)
+        else:
+            # no-op when root already has handlers (e.g. from log_config.yaml)
+            logging.basicConfig(format=TEXT_LOG_FORMAT, datefmt=TEXT_LOG_DATE_FORMAT)
+
+        # request_id bound by RequestContextMiddleware; idempotent
+        for handler in root.handlers:
+            install_context_filter(handler)
+
         level_str = getattr(self, "LOGLEVEL", "DEBUG")
-        numeric_level = getattr(logging, level_str.upper(), logging.INFO)
-        logging.getLogger().setLevel(numeric_level)
+        root.setLevel(getattr(logging, level_str.upper(), logging.INFO))
 
         # set third party libraries' logging level
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
         logging.getLogger("uvicorn").setLevel(logging.WARNING)
-
-        if self.env == "development":
-            # set up logging for local development environment
-            structlog.configure(
-                processors=[
-                    structlog.stdlib.filter_by_level,
-                    structlog.stdlib.add_log_level,
-                    structlog.stdlib.PositionalArgumentsFormatter(),
-                    structlog.processors.StackInfoRenderer(),
-                    structlog.processors.format_exc_info,
-                    structlog.dev.ConsoleRenderer(colors=False),
-                ],
-                wrapper_class=structlog.stdlib.BoundLogger,
-                context_class=dict,
-                logger_factory=structlog.stdlib.LoggerFactory(),
-                cache_logger_on_first_use=True,
-            )
-        else:
-            self._init_json_logging()
 
     @staticmethod
     def get_config(profile: EnvType = None):
@@ -226,7 +242,7 @@ class ConfigUtil:
 
         Returns:
             str: Path to log_config.yaml for DEV
-            None: For PROD/STAGING/EDGE (use structlog JSON)
+            None: For PROD/STAGING/EDGE (root JSON handler from set_logging_level)
         """
         if self.env == "development":
             log_config_path = self.base_dir / "log_config.yaml"
@@ -261,60 +277,6 @@ class ConfigUtil:
             else:
                 return default
         return data
-
-    def _init_json_logging(self):
-        """
-        logging config to output in json format, example format:
-            {
-              "instant":"2025-06-06T00:01:44.529Z",
-              "level":"INFO",
-              "loggerName":"au.org.aodn.esindexer.BaseTestClass",
-              "message":"Triggered indexer successfully",
-              "endOfBatch":false,
-              "threadId":1,
-              "threadPriority":5,
-              "service":"es-indexer"
-            }
-
-        Applies to *every* log record reaching the root logger, not just ones emitted via
-        structlog: plain `logging.getLogger(...)` calls (uvicorn, httpx, urllib3, tensorflow,
-        etc.) are routed through the same processor chain via `foreign_pre_chain`, using
-        `structlog.stdlib.ProcessorFormatter` as the root handler's formatter. Without this,
-        only structlog-originated messages come out as JSON and everything else falls back to
-        that library's own default (plain-text) formatting on the same root handler.
-
-        This does not cover handlers configured directly from log_config.yaml (uvicorn's own
-        uvicorn.error/uvicorn.access handlers have propagate: no and so never reach the root
-        handler set up here) - see log_formatter.build_formatter, which the "()" factory in
-        log_config.yaml's formatters points at, using this same SHARED_PROCESSORS chain.
-        """
-        self.log_config_path = None
-
-        # deferred import: avoids a config.py <-> log_formatter.py circular import, since
-        # log_formatter imports EnvType from this module at its own top level
-        from data_discovery_ai.config.log_formatter import SHARED_PROCESSORS
-
-        structlog.configure(
-            processors=SHARED_PROCESSORS
-            + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
-            context_class=dict,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            wrapper_class=structlog.stdlib.BoundLogger,
-            cache_logger_on_first_use=True,
-        )
-
-        formatter = structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=SHARED_PROCESSORS,
-            processors=[
-                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                structlog.processors.JSONRenderer(),
-            ],
-        )
-
-        logging.root.handlers.clear()
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-        logging.root.addHandler(handler)
 
     def get_es_config(self) -> ElasticsearchConfig:
         sub = "elasticsearch"
@@ -421,25 +383,12 @@ class ConfigUtil:
 
 class DevConfig(ConfigUtil):
     LOGLEVEL = "DEBUG"
+    PROFILE = EnvType.DEV
 
     def __init__(self):
         config_file = "config-dev.yaml"
         super().__init__(config_file)
 
-        structlog.configure(
-            processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                structlog.dev.ConsoleRenderer(colors=False),
-            ],
-            wrapper_class=structlog.stdlib.BoundLogger,
-            context_class=dict,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
         self.set_logging_level()
         log_config_path = self.base_dir / "log_config.yaml"
         self.log_config_path = (
@@ -449,6 +398,7 @@ class DevConfig(ConfigUtil):
 
 class EdgeConfig(ConfigUtil):
     LOGLEVEL = "INFO"
+    PROFILE = EnvType.EDGE
 
     def __init__(self):
         config_file = "config-edge.yaml"
@@ -458,6 +408,7 @@ class EdgeConfig(ConfigUtil):
 
 class StagingConfig(ConfigUtil):
     LOGLEVEL = "INFO"
+    PROFILE = EnvType.STAGING
 
     def __init__(self):
         config_file = "config-staging.yaml"
@@ -467,6 +418,7 @@ class StagingConfig(ConfigUtil):
 
 class ProdConfig(ConfigUtil):
     LOGLEVEL = "WARNING"
+    PROFILE = EnvType.PRODUCTION
 
     def __init__(self):
         config_file = "config-prod.yaml"
