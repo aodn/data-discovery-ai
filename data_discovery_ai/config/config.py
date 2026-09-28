@@ -184,6 +184,7 @@ class ConfigUtil:
             TEXT_LOG_DATE_FORMAT,
             TEXT_LOG_FORMAT,
             JsonLogFormatter,
+            install_exception_hooks,
             use_json_logs,
         )
         from data_discovery_ai.utils.log_context import install_context_filter
@@ -210,6 +211,8 @@ class ConfigUtil:
 
             hf_logging.disable_default_handler()
             hf_logging.enable_propagation()
+
+            install_exception_hooks()
         else:
             # no-op when root already has handlers (e.g. from log_config.yaml)
             logging.basicConfig(format=TEXT_LOG_FORMAT, datefmt=TEXT_LOG_DATE_FORMAT)

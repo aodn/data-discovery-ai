@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import sys
+import threading
 from datetime import datetime, timezone
 
 # config.py imports this module lazily (inside set_logging_level), so this
@@ -107,3 +109,41 @@ def build_formatter(
     if use_json_logs():
         return JsonLogFormatter()
     return logging.Formatter(fmt or TEXT_LOG_FORMAT, datefmt, style)
+
+
+def install_exception_hooks() -> None:
+    """Log uncaught exceptions - on the main thread (sys.excepthook) and in
+    threading.Thread workers (threading.excepthook) - as one record with
+    thrown, instead of a raw multi-line traceback on stderr. Exit codes are
+    unchanged; KeyboardInterrupt keeps the default behaviour.
+
+    Bound request_id/job_id are usually absent from these records: by the
+    time a hook runs, the exception has already left bind_log_context /
+    copy_context().run and the context is reset."""
+    logger = logging.getLogger("uncaught")
+
+    def excepthook(exc_type, exc_value, exc_tb):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_tb)
+            return
+        try:
+            logger.critical(
+                "Uncaught exception", exc_info=(exc_type, exc_value, exc_tb)
+            )
+        except Exception:
+            sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+    def thread_excepthook(args):
+        if args.exc_type is SystemExit:  # ignored by the default hook too
+            return
+        try:
+            logger.error(
+                "Uncaught exception in thread %s",
+                args.thread.name if args.thread else "<unknown>",
+                exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+            )
+        except Exception:
+            threading.__excepthook__(args)
+
+    sys.excepthook = excepthook
+    threading.excepthook = thread_excepthook

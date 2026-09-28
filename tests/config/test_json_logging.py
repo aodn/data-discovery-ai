@@ -397,3 +397,59 @@ def test_transformers_logs_keep_their_own_output_on_development():
     lines = _lines(_run("development", TRANSFORMERS_SNIPPET))
 
     assert lines[0] == "Some weights of the PyTorch model were not used"
+
+
+def _run_raw(profile: str, snippet: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-c", snippet],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PROFILE": profile},
+        cwd=REPO_ROOT,
+        timeout=120,
+    )
+
+
+HOOK_PRELUDE = (
+    "import threading\n"
+    "from data_discovery_ai.config.config import ConfigUtil\n"
+    "ConfigUtil.get_config()\n"
+)
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_uncaught_main_thread_exception_is_one_json_record(profile):
+    result = _run_raw(profile, HOOK_PRELUDE + "raise ValueError('boom in main')\n")
+
+    assert result.returncode == 1  # exit status unchanged by the hook
+    (line,) = _lines(result.stderr)
+    payload = json.loads(line)
+    assert payload["level"] == "CRITICAL"
+    assert payload["loggerName"] == "uncaught"
+    assert payload["thrown"]["name"] == "ValueError"
+    assert payload["thrown"]["message"] == "boom in main"
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_uncaught_thread_exception_is_one_json_record(profile):
+    result = _run_raw(
+        profile,
+        HOOK_PRELUDE + "def work():\n"
+        "    raise RuntimeError('boom in worker')\n"
+        "t = threading.Thread(target=work, name='worker-1')\n"
+        "t.start(); t.join()\n",
+    )
+
+    assert result.returncode == 0
+    (line,) = _lines(result.stderr)
+    payload = json.loads(line)
+    assert payload["message"] == "Uncaught exception in thread worker-1"
+    assert payload["thrown"]["name"] == "RuntimeError"
+
+
+def test_uncaught_exception_keeps_default_traceback_on_development():
+    result = _run_raw("development", HOOK_PRELUDE + "raise ValueError('boom')\n")
+
+    assert result.returncode == 1
+    assert "Traceback (most recent call last):" in result.stderr
+    assert result.stderr.rstrip().endswith("ValueError: boom")
