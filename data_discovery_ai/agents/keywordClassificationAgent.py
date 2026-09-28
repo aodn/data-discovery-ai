@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Iterable
 from keras.models import load_model  # type: ignore
-import structlog
+import logging
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
@@ -12,7 +12,7 @@ from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FIL
 from data_discovery_ai.ml.preprocessor import Concept
 from data_discovery_ai.enum.agent_enums import AgentType
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 PLATFORM_VOCAB = "AODN Platform Vocabulary"

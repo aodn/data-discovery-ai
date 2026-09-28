@@ -1,7 +1,7 @@
 # The data delivery mode filter model to classify the metadata records based on their titles, abstracts, and lineages.
 # decision logic documented here: https://utas.atlassian.net/wiki/spaces/IMOS/pages/1353023492/Delivery+Mode+Classfication
 import numpy as np
-import structlog
+import logging
 import re
 from typing import Any, Dict, List, Optional, Pattern
 from dataclasses import dataclass, field
@@ -9,7 +9,7 @@ import tensorflow as tf
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

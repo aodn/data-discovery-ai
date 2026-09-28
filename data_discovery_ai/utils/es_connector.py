@@ -12,7 +12,7 @@ import os
 from dotenv import load_dotenv
 import json
 from typing import Tuple, Dict, Any
-import structlog
+import logging
 from tenacity import (
     retry,
     retry_if_exception,
@@ -26,7 +26,7 @@ from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.config.constants import RECORDS_ENHANCED_SCHEMA
 from data_discovery_ai.utils.retry_template import RETRYABLE_HTTP_STATUS, log_retry
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 ES_STARTUP_REQUEST_TIMEOUT = 5.0
 ES_REQUEST_TIMEOUT = 5.0

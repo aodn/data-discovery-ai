@@ -6,14 +6,14 @@ import openai
 from typing import Dict, Optional
 import re
 import json
-import structlog
+import logging
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import LlmModels, AgentType
 from data_discovery_ai.utils.customised_exceptions import LLMClientError, LLMServerError
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def needs_formatting(abstract: str) -> bool:

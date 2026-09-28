@@ -1,5 +1,5 @@
 # The agent-based model for data delivery mode classification task, the classes include: {completed, real-time, delayed, other, both}
-import structlog
+import logging
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
@@ -13,7 +13,7 @@ from data_discovery_ai.ml.filteringModel import (
 
 from typing import Dict
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DeliveryClassificationAgent(BaseAgent):

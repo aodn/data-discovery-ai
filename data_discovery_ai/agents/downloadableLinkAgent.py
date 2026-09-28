@@ -1,4 +1,4 @@
-import structlog
+import logging
 from typing import Dict, Any, List
 import re
 from urllib.parse import urlparse
@@ -7,7 +7,7 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType, LinkAIRole
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DownloadableLinkAgent(BaseAgent):
