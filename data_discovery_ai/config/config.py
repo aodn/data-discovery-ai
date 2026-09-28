@@ -202,6 +202,14 @@ class ConfigUtil:
                 handler = logging.StreamHandler()
                 handler.setFormatter(JsonLogFormatter())
                 root.addHandler(handler)
+
+            # transformers logs through its own plain-text stderr handler on
+            # the "transformers" logger with propagate=False; hand its records
+            # to root's JSON handler instead. Both calls are idempotent.
+            from transformers.utils import logging as hf_logging
+
+            hf_logging.disable_default_handler()
+            hf_logging.enable_propagation()
         else:
             # no-op when root already has handlers (e.g. from log_config.yaml)
             logging.basicConfig(format=TEXT_LOG_FORMAT, datefmt=TEXT_LOG_DATE_FORMAT)

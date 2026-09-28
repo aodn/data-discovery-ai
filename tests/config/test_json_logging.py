@@ -367,3 +367,33 @@ def test_repeated_get_config_keeps_other_root_handlers(profile):
     assert result.returncode == 0, result.stderr
     assert _lines(result.stdout) == ["still here"]
     assert json.loads(_lines(result.stderr)[0])["message"] == "still here"
+
+
+TRANSFORMERS_SNIPPET = (
+    "import logging\n"
+    "from data_discovery_ai.config.config import ConfigUtil\n"
+    "ConfigUtil.get_config()\n"
+    "ConfigUtil.get_config()  # runs per request; must stay idempotent\n"
+    "from transformers.utils import logging as hf_logging\n"
+    "hf_logging.get_logger('transformers.modeling_tf_pytorch_utils')"
+    ".warning('Some weights of the PyTorch model were not used\\n- This IS expected')\n"
+)
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_transformers_logs_come_out_as_json_once(profile):
+    """transformers installs its own stderr text handler on the 'transformers'
+    logger with propagate=False; on JSON profiles its records must go through
+    root's JSON handler instead, exactly once."""
+    lines = _lines(_run(profile, TRANSFORMERS_SNIPPET))
+
+    assert len(lines) == 1, lines
+    payload = json.loads(lines[0])
+    assert payload["loggerName"] == "transformers.modeling_tf_pytorch_utils"
+    assert payload["message"].startswith("Some weights of the PyTorch model")
+
+
+def test_transformers_logs_keep_their_own_output_on_development():
+    lines = _lines(_run("development", TRANSFORMERS_SNIPPET))
+
+    assert lines[0] == "Some weights of the PyTorch model were not used"
