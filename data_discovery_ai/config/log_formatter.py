@@ -5,8 +5,6 @@ import sys
 import threading
 from datetime import datetime, timezone
 
-# config.py imports this module lazily (inside set_logging_level), so this
-# top-level import of EnvType is not circular.
 from data_discovery_ai.config.config import EnvType
 
 JSON_LOG_PROFILES = (EnvType.EDGE, EnvType.STAGING, EnvType.PRODUCTION)
@@ -15,9 +13,8 @@ SERVICE_NAME = "data-discovery-ai"
 TEXT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 TEXT_LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# Standard LogRecord attributes. Anything else on a record came from a caller's
-# extra={...} or from ContextFilter (request_id/job_id) and is emitted as a
-# top-level JSON field.
+# Standard LogRecord attributes; any other attribute (extra={...}, request_id)
+# becomes a top-level JSON field.
 _RESERVED_RECORD_ATTRS = frozenset(
     {
         "args",
@@ -43,26 +40,15 @@ _RESERVED_RECORD_ATTRS = frozenset(
         "taskName",
         "thread",
         "threadName",
-        # uvicorn attaches an ANSI-coloured copy of some messages via extra=
-        "color_message",
+        "color_message",  # uvicorn's ANSI-coloured copy
     }
 )
 
 
 class JsonLogFormatter(logging.Formatter):
-    """Field names match what es-indexer/ogcapi-java already emit via log4j2's
-    JsonTemplateLayout (instant/level/loggerName/message/service/threadId, plus
-    thrown on exceptions) so CloudWatch queries work across services. A real
-    es-indexer line for reference:
-        {"instant":"2025-06-06T00:01:44.529Z","level":"INFO",
-         "loggerName":"au.org.aodn.esindexer.BaseTestClass",
-         "message":"Triggered indexer successfully","endOfBatch":false,
-         "threadId":1,"threadPriority":5,"service":"es-indexer"}
-    endOfBatch/threadPriority are Log4j2/JVM internals and are not copied.
-
-    Kept identical to data-access-service's
-    data_access_service/utils/log_formatter.py apart from SERVICE_NAME and
-    use_json_logs."""
+    """JSON schema shared with es-indexer/ogcapi-java/data-access-service:
+    instant/level/loggerName/message/service/threadId, plus thrown on
+    exceptions."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload = {
@@ -90,7 +76,6 @@ class JsonLogFormatter(logging.Formatter):
             if key not in _RESERVED_RECORD_ATTRS and key not in payload:
                 payload[key] = value
 
-        # default=str so a stray non-string value cannot kill the log line.
         return json.dumps(payload, default=str)
 
 
@@ -104,22 +89,15 @@ def use_json_logs(profile: EnvType = None) -> bool:
 def build_formatter(
     fmt: str = None, datefmt: str = None, style: str = "%"
 ) -> logging.Formatter:
-    """Formatter for the active profile. fmt/datefmt/style only apply to the
-    text profiles; ignored for JSON."""
+    """Formatter for the active profile; fmt/datefmt/style are text-only."""
     if use_json_logs():
         return JsonLogFormatter()
     return logging.Formatter(fmt or TEXT_LOG_FORMAT, datefmt, style)
 
 
 def install_exception_hooks() -> None:
-    """Log uncaught exceptions - on the main thread (sys.excepthook) and in
-    threading.Thread workers (threading.excepthook) - as one record with
-    thrown, instead of a raw multi-line traceback on stderr. Exit codes are
-    unchanged; KeyboardInterrupt keeps the default behaviour.
-
-    Bound request_id/job_id are usually absent from these records: by the
-    time a hook runs, the exception has already left bind_log_context /
-    copy_context().run and the context is reset."""
+    """Log uncaught main-thread and thread exceptions as one JSON record
+    instead of a raw traceback."""
     logger = logging.getLogger("uncaught")
 
     def excepthook(exc_type, exc_value, exc_tb):

@@ -168,18 +168,15 @@ class ConfigUtil:
         env_val = os.getenv("PROFILE")
         self.env = env_val.lower() if env_val else "development"
 
-        # uvicorn log config for `python -m data_discovery_ai.server`; only
-        # DevConfig sets it, JSON profiles rely on the root handler instead.
+        # uvicorn log config; only DevConfig sets it
         self.log_config_path = None
 
     def set_logging_level(self):
         """
-        development logs plain text at DEBUG; edge/staging (INFO) and production
-        (WARNING) log one JSON object per line in the schema shared with
-        es-indexer/ogcapi-java - see log_formatter.JsonLogFormatter. Same shape
-        as data-access-service's init_log().
+        development logs plain text; edge/staging/production log JSON
+        (see log_formatter.JsonLogFormatter).
         """
-        # deferred import: log_formatter imports EnvType from this module
+        # deferred import: avoids a circular import
         from data_discovery_ai.config.log_formatter import (
             TEXT_LOG_DATE_FORMAT,
             TEXT_LOG_FORMAT,
@@ -191,11 +188,7 @@ class ConfigUtil:
 
         root = logging.getLogger()
         if use_json_logs(self.PROFILE):
-            # Replace root's (text) handlers once. get_config() runs on every
-            # request, so leave an existing JSON handler - ours, or the one
-            # log_config.yaml installs via log_formatter.build_formatter -
-            # alone rather than rebuilding it and duplicating or dropping
-            # output.
+            # get_config() runs per request: keep an existing JSON handler
             if not any(
                 isinstance(h.formatter, JsonLogFormatter) for h in root.handlers
             ):
@@ -204,9 +197,7 @@ class ConfigUtil:
                 handler.setFormatter(JsonLogFormatter())
                 root.addHandler(handler)
 
-            # transformers logs through its own plain-text stderr handler on
-            # the "transformers" logger with propagate=False; hand its records
-            # to root's JSON handler instead. Both calls are idempotent.
+            # route transformers' own text handler through root's JSON handler
             from transformers.utils import logging as hf_logging
 
             hf_logging.disable_default_handler()
@@ -214,10 +205,9 @@ class ConfigUtil:
 
             install_exception_hooks()
         else:
-            # no-op when root already has handlers (e.g. from log_config.yaml)
             logging.basicConfig(format=TEXT_LOG_FORMAT, datefmt=TEXT_LOG_DATE_FORMAT)
 
-        # request_id bound by RequestContextMiddleware; idempotent
+        # adds request_id to every record
         for handler in root.handlers:
             install_context_filter(handler)
 
@@ -253,7 +243,7 @@ class ConfigUtil:
 
         Returns:
             str: Path to log_config.yaml for DEV
-            None: For PROD/STAGING/EDGE (root JSON handler from set_logging_level)
+            None: For PROD/STAGING/EDGE (JSON root handler)
         """
         if self.env == "development":
             log_config_path = self.base_dir / "log_config.yaml"

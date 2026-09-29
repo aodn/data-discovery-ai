@@ -14,7 +14,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import starlette
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from data_discovery_ai.config.log_formatter import JsonLogFormatter
@@ -89,6 +89,14 @@ class TestMiddlewareBoundary(_CapturingTestCase):
             log.info("sync handler")
             return current_context().get("request_id")
 
+        @mini.get("/boom")
+        async def boom_route():
+            raise RuntimeError("handler failed")
+
+        @mini.get("/missing")
+        async def missing_route():
+            raise HTTPException(status_code=404, detail="nope")
+
         return mini
 
     def test_one_fresh_request_id_per_request(self):
@@ -102,6 +110,25 @@ class TestMiddlewareBoundary(_CapturingTestCase):
         self.assertEqual(self.handler.by_message("async handler")["request_id"], first)
         self.assertEqual(self.handler.by_message("sync handler")["request_id"], second)
         self.assertEqual(dict(current_context()), {})
+
+    def test_unhandled_exception_logged_once_with_request_id(self):
+        # raise_server_exceptions defaults to True: nothing may escape
+        response = TestClient(self._app()).get("/boom")
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.text, "Internal Server Error")
+        errors = [p for p in self.handler.payloads if p["level"] == "ERROR"]
+        self.assertEqual(len(errors), 1, errors)
+        self.assertEqual(errors[0]["message"], "Unhandled error processing GET /boom")
+        self.assertRegex(errors[0]["request_id"], UUID4)
+        self.assertEqual(errors[0]["thrown"]["name"], "RuntimeError")
+        self.assertEqual(dict(current_context()), {})
+
+    def test_handled_errors_are_left_to_fastapi(self):
+        response = TestClient(self._app()).get("/missing")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse([p for p in self.handler.payloads if p["level"] == "ERROR"])
 
 
 class TestProcessRecordCorrelation(_CapturingTestCase):
@@ -167,3 +194,34 @@ class TestProcessRecordCorrelation(_CapturingTestCase):
         self.assertEqual(len(ids), 1, ids)
         self.assertRegex(ids.pop(), UUID4)
         self.assertEqual(dict(current_context()), {})
+
+    def test_supervisor_failure_is_logged_with_thrown_and_request_id(self):
+        def fake_search(self, body, client=None, index=None):
+            return {}, []
+
+        def failing_execute(self, body):
+            raise RuntimeError("llm timeout")
+
+        with patch(
+            "data_discovery_ai.core.routes.SupervisorAgent.search_stored_data",
+            fake_search,
+        ), patch(
+            "data_discovery_ai.core.routes.SupervisorAgent.execute", failing_execute
+        ), patch(
+            "data_discovery_ai.core.routes.SupervisorAgent.is_valid_request",
+            return_value=True,
+        ):
+            response = TestClient(app).post(
+                "/api/v1/ml/process_record",
+                json={"uuid": "u-2", "selected_model": ["description_formatting"]},
+            )
+
+        # the client still gets the SSE error event, as before
+        self.assertIn(
+            "event: error\ndata: Processing failed: llm timeout", response.text
+        )
+        failed = self.handler.by_message("Processing failed for record u-2")
+        self.assertEqual(failed["level"], "ERROR")
+        self.assertRegex(failed["request_id"], UUID4)
+        self.assertEqual(failed["thrown"]["name"], "RuntimeError")
+        self.assertEqual(failed["thrown"]["message"], "llm timeout")
