@@ -7,13 +7,21 @@ formatters:
   access:
     "()": data_discovery_ai.config.log_formatter.build_formatter
     format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+filters:
+  # Adds request_id bound via data_discovery_ai.utils.log_context
+  context:
+    "()": data_discovery_ai.utils.log_context.ContextFilter
 handlers:
   default:
     formatter: default
+    filters:
+      - context
     class: logging.StreamHandler
     stream: ext://sys.stderr
   access:
     formatter: access
+    filters:
+      - context
     class: logging.StreamHandler
     stream: ext://sys.stdout
 loggers:

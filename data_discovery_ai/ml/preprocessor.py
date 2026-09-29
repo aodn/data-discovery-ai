@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 import numpy as np
 import tempfile
-import structlog
+import logging
 
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
@@ -22,7 +22,7 @@ from data_discovery_ai.utils.agent_tools import get_text_embedding
 from data_discovery_ai.config.constants import CONCEPT_AI_DESCRIPTION
 from data_discovery_ai.enum.delivery_mode_enum import UpdateFrequency
 
-logger = structlog.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BasePreprocessor:

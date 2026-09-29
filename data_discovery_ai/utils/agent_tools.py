@@ -1,12 +1,12 @@
 #  toolbox contains common tools shared by agents
 from typing import Any, Union
 import pickle
-import structlog
+import logging
 import numpy as np
 from pathlib import Path
 import json
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def save_to_file(obj: Any, full_path: Union[str, Path]) -> None:

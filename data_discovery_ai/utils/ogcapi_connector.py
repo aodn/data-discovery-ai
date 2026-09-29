@@ -5,12 +5,12 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 import pandas as pd
 
-import structlog
+import logging
 import requests
 
 from data_discovery_ai.config.config import ConfigUtil
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class OGCAPIConnector:
@@ -128,8 +128,7 @@ class OGCAPIConnector:
         if resp.status_code != requests.codes.ok:
             logger.error(
                 "Failed to fetch collections from ogcapi",
-                status=resp.status_code,
-                url=initial_url,
+                extra={"status": resp.status_code, "url": initial_url},
             )
             resp.raise_for_status()
 
@@ -160,8 +159,7 @@ class OGCAPIConnector:
             if resp.status_code != requests.codes.ok:
                 logger.error(
                     "Failed to fetch collections from ogcapi",
-                    status=resp.status_code,
-                    url=query_url,
+                    extra={"status": resp.status_code, "url": query_url},
                 )
                 resp.raise_for_status()
 

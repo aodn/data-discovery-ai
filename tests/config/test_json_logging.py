@@ -1,19 +1,19 @@
-# unit test for config.py's JSON logging setup (issue 9257)
+# unit test for config.py's JSON logging setup (issues 9257, 9305)
 """
-Regression coverage for the foreign_pre_chain bug: before the fix, JSON
-encoding only happened inside structlog.processors.JSONRenderer(), which
-only structlog-originated events reached. The handler actually attached to
-logging.root was a plain logging.Formatter("%(message)s") pass-through, so
-any plain logging.getLogger(...) call (uvicorn, httpx, urllib3, etc.) printed
-as raw un-JSON'd text on edge/staging/production. Each case here runs in a
-fresh subprocess: structlog.configure() and logging.root are global,
-cache_logger_on_first_use=True caches loggers process-wide, and ConfigUtil
-subclasses install different root handlers, so state must not leak between
-profile cases.
+Every log line on edge/staging/production must be one JSON object in the
+schema shared with es-indexer/ogcapi-java (instant/level/loggerName/message/
+service/threadId, thrown on exceptions) - whether it comes from this
+package, a third-party library logging through the root logger, or uvicorn's
+own non-propagating loggers configured from log_config.yaml. Each case runs
+in a fresh subprocess: logging.root is global and ConfigUtil subclasses
+install different root handlers, so state must not leak between profile
+cases.
 """
 
+import ast
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -44,27 +44,30 @@ def _lines(output: str) -> list:
 JSON_PROFILES = ["edge", "staging", "production"]
 
 
+CORE_FIELDS = {"instant", "level", "loggerName", "message", "service", "threadId"}
+INSTANT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
+
+
 @pytest.mark.parametrize("profile", JSON_PROFILES)
-def test_structlog_call_produces_valid_json(profile):
+def test_package_logger_produces_java_aligned_json(profile):
     snippet = (
         "import logging\n"
         "from data_discovery_ai.config.config import ConfigUtil\n"
         "ConfigUtil.get_config()\n"
         "logging.getLogger().setLevel(logging.INFO)\n"
-        "import structlog\n"
-        "structlog.get_logger('test.logger').info('hello from structlog')\n"
+        "logging.getLogger('data_discovery_ai.agents.x').info('hello %s', 'world')\n"
     )
     lines = _lines(_run(profile, snippet))
 
     assert len(lines) == 1
     payload = json.loads(lines[0])
-    assert payload["message"] == "hello from structlog"
-    assert payload["level"].lower() == "info"
+    assert set(payload) == CORE_FIELDS
+    assert payload["message"] == "hello world"
+    assert payload["level"] == "INFO"
+    assert payload["loggerName"] == "data_discovery_ai.agents.x"
     assert payload["service"] == "data-discovery-ai"
-    assert "instant" in payload
-    assert "loggerName" in payload
-    assert "threadId" in payload
-    assert payload["endOfBatch"] is False
+    assert INSTANT.match(payload["instant"])
+    assert isinstance(payload["threadId"], int)
 
 
 @pytest.mark.parametrize("profile", JSON_PROFILES)
@@ -90,19 +93,19 @@ def test_foreign_stdlib_call_produces_valid_json(profile):
 
 
 def test_development_profile_stays_plain_text():
-    # development installs no explicit root handler (pre-existing, out of
-    # scope here); Python's logging.lastResort fallback only fires at
-    # WARNING+, so use that rather than accepting empty output at INFO.
     snippet = (
-        "import structlog\n"
+        "import logging\n"
         "from data_discovery_ai.config.config import ConfigUtil\n"
         "ConfigUtil.get_config()\n"
-        "structlog.get_logger('test.logger').warning('hello from dev')\n"
+        "logging.getLogger('test.logger').info('hello from dev')\n"
     )
     lines = _lines(_run("development", snippet))
 
     assert len(lines) == 1
-    assert "hello from dev" in lines[0]
+    assert re.match(
+        r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - test\.logger - INFO - hello from dev$",
+        lines[0],
+    )
     with pytest.raises(json.JSONDecodeError):
         json.loads(lines[0])
 
@@ -124,29 +127,10 @@ def test_stdlib_exception_emits_one_json_object_with_traceback(profile):
     assert len(lines) == 1  # multiline traceback stays one physical output line
     payload = json.loads(lines[0])
     assert payload["message"] == "stdlib failure"
-    assert "ValueError: boom" in payload["exception"]
-    assert "Traceback" in payload["exception"]
-
-
-@pytest.mark.parametrize("profile", JSON_PROFILES)
-def test_structlog_exception_emits_one_json_object_with_traceback(profile):
-    snippet = (
-        "import structlog\n"
-        "from data_discovery_ai.config.config import ConfigUtil\n"
-        "ConfigUtil.get_config()\n"
-        "logger = structlog.get_logger('test.logger')\n"
-        "try:\n"
-        "    raise ValueError('boom')\n"
-        "except ValueError:\n"
-        "    logger.exception('structlog failure')\n"
-    )
-    lines = _lines(_run(profile, snippet))
-
-    assert len(lines) == 1
-    payload = json.loads(lines[0])
-    assert payload["message"] == "structlog failure"
-    assert "ValueError: boom" in payload["exception"]
-    assert "Traceback" in payload["exception"]
+    assert payload["thrown"]["name"] == "ValueError"
+    assert payload["thrown"]["message"] == "boom"
+    assert payload["thrown"]["extendedStackTrace"].startswith("Traceback")
+    assert "ValueError: boom" in payload["thrown"]["extendedStackTrace"]
 
 
 @pytest.mark.parametrize("profile", JSON_PROFILES)
@@ -252,9 +236,7 @@ def test_yaml_uvicorn_loggers_emit_json_despite_no_propagate(profile):
     assert access_payload["loggerName"] == "uvicorn.access"
     assert access_payload["message"] == "some access line"
     for payload in (error_payload, access_payload):
-        assert payload["service"] == "data-discovery-ai"
-        assert "instant" in payload
-        assert "threadId" in payload
+        assert set(payload) == CORE_FIELDS
 
 
 def test_yaml_uvicorn_loggers_stay_plain_text_on_development():
@@ -272,7 +254,7 @@ def test_yaml_uvicorn_loggers_stay_plain_text_on_development():
 @pytest.mark.parametrize("profile", JSON_PROFILES)
 def test_yaml_and_root_handler_json_have_the_same_shape(profile):
     """build_formatter (YAML path) and _init_json_logging (root path) must
-    render identically - they share the same SHARED_PROCESSORS chain."""
+    render identically - both use JsonLogFormatter."""
     # warning, not info: ProdConfig's root level is WARNING (see #9310's
     # set_logging_level() fix), so an info call would be dropped on production
     snippet = _dictconfig_snippet(
@@ -286,3 +268,188 @@ def test_yaml_and_root_handler_json_have_the_same_shape(profile):
     assert len(lines) == 2
     uvicorn_payload, root_payload = (json.loads(line) for line in lines)
     assert set(uvicorn_payload.keys()) == set(root_payload.keys())
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_extra_fields_are_top_level_json(profile):
+    """Call sites that used structlog keyword fields now pass extra={...}."""
+    snippet = (
+        "import logging\n"
+        "from data_discovery_ai.config.config import ConfigUtil\n"
+        "ConfigUtil.get_config()\n"
+        "logging.getLogger('x').error('Failed', extra={'status': 503, 'url': 'u'})\n"
+    )
+    payload = json.loads(_lines(_run(profile, snippet))[0])
+    assert payload["status"] == 503
+    assert payload["url"] == "u"
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_yaml_handlers_and_root_carry_bound_request_id(profile):
+    snippet = _dictconfig_snippet(
+        "from data_discovery_ai.utils.log_context import bind_log_context",
+        "with bind_log_context(request_id='req-1'):",
+        "    logging.getLogger('uvicorn.access').warning('access line')",
+        "    logging.getLogger('app.module').warning('root line')",
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", snippet],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PROFILE": profile},
+        cwd=REPO_ROOT,
+    )
+    assert result.returncode == 0, result.stderr
+    (access,) = (json.loads(line) for line in _lines(result.stdout))
+    (root,) = (json.loads(line) for line in _lines(result.stderr))
+    assert access["request_id"] == root["request_id"] == "req-1"
+
+
+def test_get_config_with_explicit_profile_ignores_env():
+    """get_config(EnvType.EDGE) must log JSON even when PROFILE says
+    development - the profile comes from the config class, not the env."""
+    snippet = (
+        "import logging\n"
+        "from data_discovery_ai.config.config import ConfigUtil, EnvType\n"
+        "ConfigUtil.get_config(EnvType.EDGE)\n"
+        "logging.getLogger('x').warning('explicit edge')\n"
+    )
+    payload = json.loads(_lines(_run("development", snippet))[0])
+    assert payload["message"] == "explicit edge"
+
+
+STDLIB_LOGGER_KWARGS = {"exc_info", "extra", "stack_info", "stacklevel"}
+
+
+def test_no_structlog_style_keyword_fields_in_logger_calls():
+    """stdlib Logger methods raise TypeError on arbitrary keyword arguments,
+    so a leftover structlog-style logger.error('msg', status=...) call would
+    crash - typically on an error path. Use extra={...} instead."""
+    offenders = []
+    for path in (REPO_ROOT / "data_discovery_ai").rglob("*.py"):
+        source = path.read_text()
+        assert "structlog" not in source, f"{path} still references structlog"
+        for node in ast.walk(ast.parse(source)):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {"debug", "info", "warning", "error", "exception", "critical"}
+                and "log" in ast.unparse(node.func.value).lower()
+            ):
+                continue
+            bad = {k.arg for k in node.keywords} - STDLIB_LOGGER_KWARGS
+            if bad:
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno} {bad}")
+    assert not offenders, offenders
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_repeated_get_config_keeps_other_root_handlers(profile):
+    """get_config() runs on every request; it must not rebuild root's
+    handlers each time (dropping e.g. pytest's caplog handler)."""
+    snippet = (
+        "import logging, sys\n"
+        "from data_discovery_ai.config.config import ConfigUtil\n"
+        "ConfigUtil.get_config()\n"
+        "extra = logging.StreamHandler(sys.stdout)\n"
+        "logging.getLogger().addHandler(extra)\n"
+        "ConfigUtil.get_config()\n"
+        "logging.getLogger('x').warning('still here')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", snippet],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PROFILE": profile},
+        cwd=REPO_ROOT,
+    )
+    assert result.returncode == 0, result.stderr
+    assert _lines(result.stdout) == ["still here"]
+    assert json.loads(_lines(result.stderr)[0])["message"] == "still here"
+
+
+TRANSFORMERS_SNIPPET = (
+    "import logging\n"
+    "from data_discovery_ai.config.config import ConfigUtil\n"
+    "ConfigUtil.get_config()\n"
+    "ConfigUtil.get_config()  # runs per request; must stay idempotent\n"
+    "from transformers.utils import logging as hf_logging\n"
+    "hf_logging.get_logger('transformers.modeling_tf_pytorch_utils')"
+    ".warning('Some weights of the PyTorch model were not used\\n- This IS expected')\n"
+)
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_transformers_logs_come_out_as_json_once(profile):
+    """transformers installs its own stderr text handler on the 'transformers'
+    logger with propagate=False; on JSON profiles its records must go through
+    root's JSON handler instead, exactly once."""
+    lines = _lines(_run(profile, TRANSFORMERS_SNIPPET))
+
+    assert len(lines) == 1, lines
+    payload = json.loads(lines[0])
+    assert payload["loggerName"] == "transformers.modeling_tf_pytorch_utils"
+    assert payload["message"].startswith("Some weights of the PyTorch model")
+
+
+def test_transformers_logs_keep_their_own_output_on_development():
+    lines = _lines(_run("development", TRANSFORMERS_SNIPPET))
+
+    assert lines[0] == "Some weights of the PyTorch model were not used"
+
+
+def _run_raw(profile: str, snippet: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-c", snippet],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PROFILE": profile},
+        cwd=REPO_ROOT,
+        timeout=120,
+    )
+
+
+HOOK_PRELUDE = (
+    "import threading\n"
+    "from data_discovery_ai.config.config import ConfigUtil\n"
+    "ConfigUtil.get_config()\n"
+)
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_uncaught_main_thread_exception_is_one_json_record(profile):
+    result = _run_raw(profile, HOOK_PRELUDE + "raise ValueError('boom in main')\n")
+
+    assert result.returncode == 1  # exit status unchanged by the hook
+    (line,) = _lines(result.stderr)
+    payload = json.loads(line)
+    assert payload["level"] == "CRITICAL"
+    assert payload["loggerName"] == "uncaught"
+    assert payload["thrown"]["name"] == "ValueError"
+    assert payload["thrown"]["message"] == "boom in main"
+
+
+@pytest.mark.parametrize("profile", JSON_PROFILES)
+def test_uncaught_thread_exception_is_one_json_record(profile):
+    result = _run_raw(
+        profile,
+        HOOK_PRELUDE + "def work():\n"
+        "    raise RuntimeError('boom in worker')\n"
+        "t = threading.Thread(target=work, name='worker-1')\n"
+        "t.start(); t.join()\n",
+    )
+
+    assert result.returncode == 0
+    (line,) = _lines(result.stderr)
+    payload = json.loads(line)
+    assert payload["message"] == "Uncaught exception in thread worker-1"
+    assert payload["thrown"]["name"] == "RuntimeError"
+
+
+def test_uncaught_exception_keeps_default_traceback_on_development():
+    result = _run_raw("development", HOOK_PRELUDE + "raise ValueError('boom')\n")
+
+    assert result.returncode == 1
+    assert "Traceback (most recent call last):" in result.stderr
+    assert result.stderr.rstrip().endswith("ValueError: boom")

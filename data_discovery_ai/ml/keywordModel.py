@@ -1,7 +1,7 @@
 # The keyword classification model used to identify the potential keywords for non-categorised records.
 import pandas as pd
 import numpy as np
-import structlog
+import logging
 import tensorflow as tf
 
 # this is an IDE issue reported 6 years ago and has not been fixed (https://youtrack.jetbrains.com/issue/PY-34174) and
@@ -24,7 +24,7 @@ os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 from data_discovery_ai.config.constants import KEYWORD_FOLDER
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 mlflow.tensorflow.autolog()
 

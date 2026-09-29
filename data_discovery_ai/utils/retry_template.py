@@ -5,9 +5,9 @@ protect. Each call must still have its own timeout because a retry decorator
 cannot interrupt a call that is already in progress.
 """
 
-import structlog
+import logging
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # HTTP statuses that are safe to retry.
 RETRYABLE_HTTP_STATUS = frozenset({408, 429, 500, 502, 503, 504})
@@ -18,8 +18,10 @@ def log_retry(retry_state) -> None:
     fn = retry_state.fn
     logger.warning(
         "Retrying after transient failure",
-        function=getattr(fn, "__name__", repr(fn)),
-        attempt=retry_state.attempt_number,
-        next_wait_seconds=round(retry_state.next_action.sleep, 2),
-        error=repr(retry_state.outcome.exception()),
+        extra={
+            "function": getattr(fn, "__name__", repr(fn)),
+            "attempt": retry_state.attempt_number,
+            "next_wait_seconds": round(retry_state.next_action.sleep, 2),
+            "error": repr(retry_state.outcome.exception()),
+        },
     )

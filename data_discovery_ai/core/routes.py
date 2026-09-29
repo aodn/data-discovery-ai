@@ -1,5 +1,6 @@
 import gzip
 import json
+import logging
 
 from elasticsearch import Elasticsearch
 from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
@@ -27,6 +28,7 @@ from data_discovery_ai.utils.health_utils import (
 from data_discovery_ai.agents.supervisorAgent import SupervisorAgent
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix=API_PREFIX)
 
 VERSION = os.getenv("APP_VERSION", "main-SNAPSHOT")
@@ -160,6 +162,7 @@ async def event_stream_handler(
     try:
         await task
     except Exception as e:
+        logger.exception("Processing failed for record %s", uuid)
         yield f"event: error\ndata: Processing failed: {str(e)}\n\n"
         return
 

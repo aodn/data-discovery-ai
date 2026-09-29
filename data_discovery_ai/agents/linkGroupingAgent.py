@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 from itertools import product, permutations
 import requests
 import re
-import structlog
+import logging
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.agents.downloadableLinkAgent import DownloadableLinkAgent
@@ -12,7 +12,7 @@ from data_discovery_ai.enum.agent_enums import AgentType
 from data_discovery_ai.utils.agent_tools import parse_combined_title
 
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def subgroup_access_link(link: Dict[str, Any]) -> Dict[str, Any]:
