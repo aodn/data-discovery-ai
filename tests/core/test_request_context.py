@@ -63,9 +63,9 @@ class _CapturingTestCase(unittest.TestCase):
 
 class TestResolvedStarlette(unittest.TestCase):
     def test_starlette_version_is_the_pinned_one(self):
-        # pyproject pins starlette 1.0.1; the propagation tests below are
+        # pyproject pins starlette 1.3.1; the propagation tests below are
         # evidence for this version specifically.
-        self.assertEqual(starlette.__version__, "1.0.1")
+        self.assertEqual(starlette.__version__, "1.3.1")
 
     def test_server_app_registers_request_context_middleware(self):
         self.assertTrue(
