@@ -73,3 +73,11 @@ jobs:
       environment: production
       digest: ${{ needs.build_push.outputs.digest }}
     secrets: inherit
+  trigger_dr_production_deploy:
+    needs: [build_push, trigger_production_deploy]
+    uses: ./.github/workflows/trigger_deploy.yml
+    with:
+      app_name: data-discovery-ai
+      environment: dr-production
+      digest: ${{ needs.build_push.outputs.digest }}
+    secrets: inherit
