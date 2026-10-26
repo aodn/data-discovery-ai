@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.18-slim
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY pyproject.toml poetry.lock ./
 
 RUN apt update && \
     apt -y install --no-install-recommends curl build-essential nginx && \
-    pip3 install --upgrade pip && \
+    pip3 install --upgrade "pip>=26.2.2" && \
     pip3 install poetry && \
     poetry config virtualenvs.create false && \
     poetry lock && \
