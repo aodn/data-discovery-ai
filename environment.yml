@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.11
-  - pip>=24.0
+  - conda>=26.9.4
+  - pip>=26.2.2
   - poetry
   - requests
