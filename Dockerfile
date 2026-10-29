@@ -14,6 +14,10 @@ ENV GIT_SHA=$GIT_SHA
 ENV APP_HOST=127.0.0.1
 ENV APP_PORT=9000
 
+# Turn off TensorFlow's oneDNN optimisations, which are on by default on x86. With them on, loading the
+# NLI model at startup goes over the 3 GB ECS task memory and the container is OOM-killed.
+ENV TF_ENABLE_ONEDNN_OPTS=0
+
 RUN useradd -l -m -s /bin/bash appuser
 
 COPY pyproject.toml poetry.lock ./
