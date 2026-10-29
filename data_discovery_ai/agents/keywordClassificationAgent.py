@@ -2,13 +2,11 @@
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Iterable
-from keras.models import load_model  # type: ignore
 import logging
 
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
-from data_discovery_ai.utils.agent_tools import get_text_embedding, load_from_file
-from data_discovery_ai.config.constants import KEYWORD_FOLDER, KEYWORD_LABEL_FILE
+from data_discovery_ai.utils.agent_tools import get_text_embedding
 from data_discovery_ai.ml.preprocessor import Concept
 from data_discovery_ai.enum.agent_enums import AgentType
 
@@ -153,9 +151,9 @@ class KeywordClassificationAgent(BaseAgent):
         embedding_model = self.supervisor.embedding_model
         text_embedding = get_text_embedding(request_text, tokenizer, embedding_model)
 
-        # load the pretrained model
-        pretrained_model = self.load_saved_model()
-        selective_labels = self.load_keyword_labels()
+        # the pretrained model and labels are loaded once at server startup
+        pretrained_model = self.supervisor.keyword_model
+        selective_labels = self.supervisor.keyword_labels
         if pretrained_model and selective_labels:
             dimension = text_embedding.shape[0]
             target_X = text_embedding.reshape(1, dimension)
@@ -172,32 +170,6 @@ class KeywordClassificationAgent(BaseAgent):
             return predicted_keywords
         else:
             return []
-
-    def load_saved_model(self):
-        pretrained_model_name = self.model_config.pretrained_model
-        model_file_path = (
-            self.config.base_dir / "resources" / KEYWORD_FOLDER / pretrained_model_name
-        ).with_suffix(".keras")
-        try:
-            saved_model = load_model(model_file_path, compile=False)
-            return saved_model
-        except OSError:
-            logger.error(
-                f"Failed to load selected model {pretrained_model_name} from folder {model_file_path}"
-            )
-            return None
-
-    def load_keyword_labels(self) -> Dict[str, Any]:
-        """
-        Load the keyword labels from the file.
-        Output:
-            labels: Dict. The predefined keywords.
-        """
-        labels_file_path = (
-            self.config.base_dir / "resources" / KEYWORD_FOLDER / KEYWORD_LABEL_FILE
-        )
-        labels = load_from_file(labels_file_path)
-        return labels
 
 
 def get_label_confidence(label: Dict[str, Any], model_config) -> float:

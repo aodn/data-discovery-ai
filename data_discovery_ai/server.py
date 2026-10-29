@@ -18,11 +18,15 @@ import logging
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.core.middleware import configure_request_context_middleware
 from data_discovery_ai.config.constants import (
+    KEYWORD_FOLDER,
+    KEYWORD_LABEL_FILE,
     STATUS_DOWN,
     STATUS_STARTING,
     STATUS_UP,
 )
 from data_discovery_ai.enum.agent_enums import HuggingfaceModel
+from data_discovery_ai.utils.agent_tools import load_from_file
+from keras.models import load_model  # type: ignore
 from data_discovery_ai.utils.health_utils import remove_health_file, write_health_file
 
 logger = logging.getLogger(__name__)
@@ -47,6 +51,20 @@ def load_nli_tokenizer_model():
         HuggingfaceModel.NLI_MODEL_NAME.value
     )
     return nli_tokenizer, nli_model
+
+
+def load_keyword_model():
+    config = ConfigUtil.get_config()
+    keyword_folder = config.base_dir / "resources" / KEYWORD_FOLDER
+    pretrained_model_name = config.get_keyword_classification_config().pretrained_model
+    keyword_model = load_model(
+        (keyword_folder / pretrained_model_name).with_suffix(".keras"), compile=False
+    )
+    labels_file_path = keyword_folder / KEYWORD_LABEL_FILE
+    keyword_labels = load_from_file(labels_file_path)
+    if keyword_labels is None:
+        raise RuntimeError(f"Failed to load keyword labels from {labels_file_path}")
+    return keyword_model, keyword_labels
 
 
 def load_llm_client():
@@ -77,6 +95,10 @@ async def load_models_background(app: FastAPI):
         nli_tokenizer, nli_model = await asyncio.to_thread(load_nli_tokenizer_model)
         app.state.nli_tokenizer = nli_tokenizer
         app.state.nli_model = nli_model
+
+        keyword_model, keyword_labels = await asyncio.to_thread(load_keyword_model)
+        app.state.keyword_model = keyword_model
+        app.state.keyword_labels = keyword_labels
 
         app.state.model_status = STATUS_UP
         app.state.model_error = None
@@ -125,6 +147,8 @@ async def lifespan(app: FastAPI):
     app.state.embedding_model = None
     app.state.nli_tokenizer = None
     app.state.nli_model = None
+    app.state.keyword_model = None
+    app.state.keyword_labels = None
     app.state.model_status = STATUS_STARTING
     app.state.model_error = None
     app.state.client = None
