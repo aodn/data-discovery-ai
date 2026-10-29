@@ -28,11 +28,15 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.health_writer_patcher.stop)
         self.addCleanup(self.health_remover_patcher.stop)
 
+    @patch("data_discovery_ai.server.load_keyword_model")
     @patch("data_discovery_ai.server.load_nli_tokenizer_model")
     @patch("data_discovery_ai.server.load_embedding_tokenizer_model")
-    async def test_load_models_background_success(self, mock_embedding, mock_nli):
+    async def test_load_models_background_success(
+        self, mock_embedding, mock_nli, mock_keyword
+    ):
         mock_embedding.return_value = ("tokenizer", "embedding_model")
         mock_nli.return_value = ("nli_tokenizer", "nli_model")
+        mock_keyword.return_value = ("keyword_model", "keyword_labels")
 
         await server.load_models_background(self.app)
 
@@ -41,12 +45,15 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.app.state.embedding_model, "embedding_model")
         self.assertEqual(self.app.state.nli_tokenizer, "nli_tokenizer")
         self.assertEqual(self.app.state.nli_model, "nli_model")
+        self.assertEqual(self.app.state.keyword_model, "keyword_model")
+        self.assertEqual(self.app.state.keyword_labels, "keyword_labels")
         self.health_writer.assert_awaited_once_with(self.app)
 
+    @patch("data_discovery_ai.server.load_keyword_model")
     @patch("data_discovery_ai.server.load_nli_tokenizer_model")
     @patch("data_discovery_ai.server.load_embedding_tokenizer_model")
     async def test_load_models_background_failure_does_not_raise(
-        self, mock_embedding, mock_nli
+        self, mock_embedding, mock_nli, mock_keyword
     ):
         mock_embedding.side_effect = OSError("connection reset")
 
@@ -55,6 +62,23 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.app.state.model_status, "DOWN")
         self.assertIn("connection reset", self.app.state.model_error)
         mock_nli.assert_not_called()
+        mock_keyword.assert_not_called()
+        self.health_writer.assert_awaited_once_with(self.app)
+
+    @patch("data_discovery_ai.server.load_keyword_model")
+    @patch("data_discovery_ai.server.load_nli_tokenizer_model")
+    @patch("data_discovery_ai.server.load_embedding_tokenizer_model")
+    async def test_load_models_background_keyword_failure_marks_down(
+        self, mock_embedding, mock_nli, mock_keyword
+    ):
+        mock_embedding.return_value = ("tokenizer", "embedding_model")
+        mock_nli.return_value = ("nli_tokenizer", "nli_model")
+        mock_keyword.side_effect = RuntimeError("Failed to load keyword labels")
+
+        await server.load_models_background(self.app)
+
+        self.assertEqual(self.app.state.model_status, "DOWN")
+        self.assertIn("Failed to load keyword labels", self.app.state.model_error)
         self.health_writer.assert_awaited_once_with(self.app)
 
     @patch("data_discovery_ai.server.create_es_index")
@@ -174,6 +198,33 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.app.state.es_status, "STARTING")
             self.assertIsNone(self.app.state.client)
             release.set()
+
+
+class TestLoadKeywordModel(unittest.TestCase):
+    @patch("data_discovery_ai.server.load_from_file")
+    @patch("data_discovery_ai.server.load_model")
+    def test_load_keyword_model_warms_up_predict(self, mock_load_model, mock_labels):
+        keyword_model = MagicMock()
+        keyword_model.input_shape = (None, 768)
+        mock_load_model.return_value = keyword_model
+        mock_labels.return_value = {0: {"title": "Theme A"}}
+
+        model, labels = server.load_keyword_model()
+
+        self.assertIs(model, keyword_model)
+        self.assertEqual(labels, {0: {"title": "Theme A"}})
+        keyword_model.predict.assert_called_once()
+        self.assertEqual(keyword_model.predict.call_args.args[0].shape, (1, 768))
+
+    @patch("data_discovery_ai.server.load_from_file", return_value=None)
+    @patch("data_discovery_ai.server.load_model")
+    def test_load_keyword_model_raises_when_labels_missing(
+        self, mock_load_model, mock_labels
+    ):
+        mock_load_model.return_value.input_shape = (None, 768)
+
+        with self.assertRaises(RuntimeError):
+            server.load_keyword_model()
 
 
 if __name__ == "__main__":

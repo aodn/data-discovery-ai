@@ -29,6 +29,9 @@ class TestRoutes(unittest.TestCase):
         app.state.nli_tokenizer = MagicMock()
         app.state.nli_model = MagicMock()
 
+        app.state.keyword_model = MagicMock()
+        app.state.keyword_labels = MagicMock()
+
         app.state.client = MagicMock()
         app.state.index = MagicMock()
 

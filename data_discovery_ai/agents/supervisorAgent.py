@@ -39,6 +39,8 @@ class SupervisorAgent(BaseAgent):
         self.llm_client = None
         self.nli_tokenizer = None
         self.nli_model = None
+        self.keyword_model = None
+        self.keyword_labels = None
 
     def set_tokenizer(self, tokenizer: Any):
         self.tokenizer = tokenizer
@@ -51,6 +53,12 @@ class SupervisorAgent(BaseAgent):
 
     def set_nli_model(self, model: Any):
         self.nli_model = model
+
+    def set_keyword_model(self, model: Any):
+        self.keyword_model = model
+
+    def set_keyword_labels(self, labels: Any):
+        self.keyword_labels = labels
 
     def set_llm_client(self, llm_client: Any):
         self.llm_client = llm_client

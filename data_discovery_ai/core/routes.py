@@ -236,6 +236,8 @@ async def process_record(
     supervisor.set_llm_client(request.app.state.llm_client)
     supervisor.set_nli_tokenizer(request.app.state.nli_tokenizer)
     supervisor.set_nli_model(request.app.state.nli_model)
+    supervisor.set_keyword_model(request.app.state.keyword_model)
+    supervisor.set_keyword_labels(request.app.state.keyword_labels)
 
     if not supervisor.is_valid_request(body):
 

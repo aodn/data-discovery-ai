@@ -142,6 +142,8 @@ class TestProcessRecordCorrelation(_CapturingTestCase):
             "embedding_model",
             "nli_tokenizer",
             "nli_model",
+            "keyword_model",
+            "keyword_labels",
             "client",
             "index",
             "llm_client",
