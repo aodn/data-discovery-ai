@@ -1,5 +1,6 @@
 from pathlib import Path
 import asyncio
+import numpy as np
 import uvicorn
 from fastapi import FastAPI
 from data_discovery_ai.utils.es_connector import create_es_index
@@ -60,6 +61,9 @@ def load_keyword_model():
     keyword_model = load_model(
         (keyword_folder / pretrained_model_name).with_suffix(".keras"), compile=False
     )
+    # Keras builds its predict function on the first call. Do that here, once, so concurrent requests
+    # never race to build it on the shared model.
+    keyword_model.predict(np.zeros((1, keyword_model.input_shape[-1])), verbose=0)
     labels_file_path = keyword_folder / KEYWORD_LABEL_FILE
     keyword_labels = load_from_file(labels_file_path)
     if keyword_labels is None:
@@ -80,12 +84,13 @@ def load_llm_client():
 
 async def load_models_background(app: FastAPI):
     """
-    Load the Hugging Face models without blocking server startup. The download can take minutes on a cold start,
+    Load the Hugging Face models and the keyword classification model without blocking server startup. The
+    Hugging Face download can take minutes on a cold start,
     and uvicorn does not bind its port until the lifespan startup completes. The loaders are blocking, so they run
     in a thread to keep the event loop (health check, SSE heartbeats) responsive.
     """
     try:
-        logger.info("Loading Hugging Face models in the background")
+        logger.info("Loading models in the background")
         embedding_tokenizer, embedding_model = await asyncio.to_thread(
             load_embedding_tokenizer_model
         )
@@ -102,13 +107,13 @@ async def load_models_background(app: FastAPI):
 
         app.state.model_status = STATUS_UP
         app.state.model_error = None
-        logger.info("Hugging Face models loaded")
+        logger.info("Models loaded")
         await write_health_file(app)
     except asyncio.CancelledError:
         raise
     except Exception as e:
         app.state.model_status = STATUS_DOWN
-        app.state.model_error = f"Failed to load Hugging Face models: {e}"
+        app.state.model_error = f"Failed to load models: {e}"
         logger.error(app.state.model_error)
         await write_health_file(app)
 

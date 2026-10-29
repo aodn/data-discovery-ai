@@ -200,5 +200,32 @@ class TestServerLifespan(unittest.IsolatedAsyncioTestCase):
             release.set()
 
 
+class TestLoadKeywordModel(unittest.TestCase):
+    @patch("data_discovery_ai.server.load_from_file")
+    @patch("data_discovery_ai.server.load_model")
+    def test_load_keyword_model_warms_up_predict(self, mock_load_model, mock_labels):
+        keyword_model = MagicMock()
+        keyword_model.input_shape = (None, 768)
+        mock_load_model.return_value = keyword_model
+        mock_labels.return_value = {0: {"title": "Theme A"}}
+
+        model, labels = server.load_keyword_model()
+
+        self.assertIs(model, keyword_model)
+        self.assertEqual(labels, {0: {"title": "Theme A"}})
+        keyword_model.predict.assert_called_once()
+        self.assertEqual(keyword_model.predict.call_args.args[0].shape, (1, 768))
+
+    @patch("data_discovery_ai.server.load_from_file", return_value=None)
+    @patch("data_discovery_ai.server.load_model")
+    def test_load_keyword_model_raises_when_labels_missing(
+        self, mock_load_model, mock_labels
+    ):
+        mock_load_model.return_value.input_shape = (None, 768)
+
+        with self.assertRaises(RuntimeError):
+            server.load_keyword_model()
+
+
 if __name__ == "__main__":
     unittest.main()
