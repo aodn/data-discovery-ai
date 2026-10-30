@@ -3,7 +3,7 @@ endpoints:
     endpoint_type: llm/v1/chat
     model:
       provider: openai
-      name: gpt-4o-mini
+      name: gpt-6-luna
       config:
         openai_api_key: $OPENAI_API_KEY
   - name: embeddings

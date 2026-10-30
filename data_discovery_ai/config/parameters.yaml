@@ -34,8 +34,8 @@ model:
     pretrained_model: development
     response_key: "themes"
   description_formatting:
-    model: gpt-4o-mini
-    temperature: 0
+    model: gpt-6-luna
+    temperature: 1
     max_tokens: 10000
     response_key: "summaries.ai:description"
   delivery_classification:

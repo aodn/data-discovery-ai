@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class LlmModels(Enum):
-    GPT = "gpt-4o-mini"
+    GPT = "gpt-6-luna"
     OLLAMA = "llama3"
 
 

@@ -222,7 +222,7 @@ X-API-Key: your_api_key
 - `selected_model`: the AI models provided by `data-discovery-ai`. It should be a list of strings, which are the name of the AI task agents. Currently, four AI task agents available for distinctive tasks:
     - `keyword_classification`: predict keywords from AODN vocabularies based on metadata `title` and `abstract` with pretrained ML model.
     - `delivery_classification`: predict data delivery mode based on metadata `title`, `abstract`, and `lineage` with pretrained ML model.
-    - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-4o-mini".
+    - `description_formatting`: reformatting long abstract into Markdown format based on metadata `title` and `abstract` with LLM model "gpt-6-luna".
     - `link_grouping`: categorising links into four groups: ["Python Notebook", "Document", "Data Access", "Other"] based on metadata `links`.
 
 ## 🤖 Model Training (Optional)
