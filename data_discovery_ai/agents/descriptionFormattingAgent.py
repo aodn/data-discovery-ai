@@ -124,7 +124,7 @@ def retrieve_json(model: str, output: str) -> str:
     try:
         parsed = json.loads(fixed)
         return parsed["formatted_abstract"]
-    except (json.JSONDecodeError, KeyError) as e:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.error(f"No JSON found in LLM response. Error message: \n{e}")
         return output.strip()
 
