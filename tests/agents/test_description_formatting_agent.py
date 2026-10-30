@@ -148,9 +148,10 @@ class TestDescriptionFormattingAgentAsync(unittest.IsolatedAsyncioTestCase):
             return_value=SimpleNamespace(
                 choices=[
                     SimpleNamespace(
+                        finish_reason="stop",
                         message=SimpleNamespace(
                             content='{"formatted_abstract": "formatted"}'
-                        )
+                        ),
                     )
                 ]
             )
@@ -171,6 +172,32 @@ class TestDescriptionFormattingAgentAsync(unittest.IsolatedAsyncioTestCase):
             20,
             client.chat.completions.create.await_args.kwargs["timeout"],
         )
+
+    async def test_truncated_output_raises_clear_error(self):
+        client = MagicMock()
+        client.chat.completions.create = AsyncMock(
+            return_value=SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        finish_reason="length",
+                        message=SimpleNamespace(content='{"formatted_abstract": "cut'),
+                    )
+                ]
+            )
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, r"Output hit max_completion_tokens \(1000\)"
+        ):
+            await format_chunk_async(
+                client,
+                "system prompt",
+                "source text",
+                LlmModels.GPT.value,
+                1,
+                1000,
+                20,
+            )
 
     async def test_chunks_are_formatted_sequentially_with_previous_tail(self):
         calls = []

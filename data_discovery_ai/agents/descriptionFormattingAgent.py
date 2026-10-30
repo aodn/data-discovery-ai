@@ -90,7 +90,7 @@ def retrieve_json(model: str, output: str) -> str:
     if model == LlmModels.GPT.value:
         return output.strip()
 
-    # try directly parsing the JSON-like block first, it should be applied for all GPT-4o-mini model outputs
+    # Ollama output may wrap the JSON in extra text, so extract the first JSON-like block
     match = re.search(r"\{.*?}", output, re.DOTALL)
     if not match:
         logger.error("No JSON found in LLM response.")
@@ -124,7 +124,7 @@ def retrieve_json(model: str, output: str) -> str:
     try:
         parsed = json.loads(fixed)
         return parsed["formatted_abstract"]
-    except (json.JSONDecodeError, KeyError) as e:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.error(f"No JSON found in LLM response. Error message: \n{e}")
         return output.strip()
 
@@ -225,12 +225,19 @@ async def format_chunk_async(
                 {"role": "user", "content": input_text},
             ],
             temperature=temp,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
             response_format={"type": "json_object"},
             timeout=request_timeout,
         )
 
-        formatted = json.loads(completion.choices[0].message.content)
+        choice = completion.choices[0]
+        # the token budget also covers hidden reasoning, so a long chunk can be cut off mid-JSON
+        if choice.finish_reason == "length":
+            raise ValueError(
+                f"Output hit max_completion_tokens ({max_tokens}) before finishing"
+            )
+
+        formatted = json.loads(choice.message.content)
 
         if "formatted_abstract" not in formatted:
             raise KeyError("Response does not contain 'formatted_abstract' key")
@@ -248,7 +255,7 @@ async def format_chunk_async(
         # if the status code is 5xx, raise LLMServerError
         else:
             raise LLMServerError(e.status_code, str(e))
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
+    except (json.JSONDecodeError, KeyError) as e:
         raise ValueError(f"Failed to parse JSON response: {e}")
 
 
