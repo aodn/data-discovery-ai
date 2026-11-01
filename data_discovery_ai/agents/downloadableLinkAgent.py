@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType, LinkAIRole
+from data_discovery_ai.utils.agent_tools import has_href_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ class DownloadableLinkAgent(BaseAgent):
         }
         self._downloadable_href: set[str] = {
             v.lower() for v in grouping.get("href", [])
+        }
+        self._downloadable_href_suffix: set[str] = {
+            v.lower() for v in grouping.get("href_suffix", [])
         }
         self._downloadable_title: set[str] = {
             v.lower() for v in grouping.get("title", [])
@@ -89,6 +93,10 @@ class DownloadableLinkAgent(BaseAgent):
 
         # fall back to identify with href
         if any(kw in href for kw in self._downloadable_href):
+            return True
+
+        # fall back to identify with file extension at the end of the URL path
+        if has_href_suffix(href, self._downloadable_href_suffix):
             return True
 
         # fall back to identify with title

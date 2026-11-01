@@ -22,7 +22,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     "type": "text/html",
                 },
                 {
-                    "href": "https://example.ipynb",
+                    "href": "https://example.com/notebook.ipynb",
                     "rel": "related",
                     "type": "text/html",
                     "title": '{"title": "Example Notebook Link", "description": "This is a Python Notebook link"}',
@@ -543,3 +543,176 @@ class TestLinkGroupingAgent(unittest.TestCase):
         # verify temp flag is not leaked into output
         for link in links:
             self.assertNotIn("ai:is_page_downloadable", link)
+
+    def _group_one(self, link):
+        """Run the full grouping agent on a single fresh link and return the result."""
+        self.agent.execute({"links": [dict(link)]})
+        return self.agent.response["links"][0]
+
+    def _assert_other_without_role(self, link):
+        result = self._group_one(link)
+        self.assertEqual(result["ai:group"], "Other", link["href"])
+        self.assertNotIn("ai:role", result, link["href"])
+
+    def _assert_download(self, link):
+        result = self._group_one(link)
+        self.assertEqual(result["ai:group"], "Data Access", link["href"])
+        self.assertEqual(result["ai:role"], ["download"], link["href"])
+
+    def test_csiro_ncmi_is_other(self):
+        """'ncmi' in the URL must no longer match NetCDF files."""
+        self._assert_other_without_role(
+            {
+                "href": "https://www.csiro.au/en/about/people/business-units/NCMI",
+                "rel": "related",
+                "type": "text/html",
+                "title": "CSIRO NCMI",
+            }
+        )
+
+    def test_data_access_title_is_downloadable(self):
+        """A DOI landing page titled 'data access' is Data Access with a download role,
+        for plain, mixed-case and combined JSON titles."""
+        titles = [
+            "Data Access Portal (data access)",
+            "Data Access Portal (DATA Access)",
+            '{"title": "Data Access Portal (data access)", "description": ""}',
+        ]
+        for title in titles:
+            with self.subTest(title=title):
+                self._assert_download(
+                    {
+                        "href": "https://doi.org/10.25919/ev38-0p48",
+                        "rel": "related",
+                        "type": "text/html",
+                        "title": title,
+                    }
+                )
+
+    def test_file_suffix_on_url_path_is_downloadable(self):
+        hrefs = [
+            "https://example.org/files/sample.nc",
+            "https://example.org/files/sample.NC?token=abc",
+            "https://example.org/files/sample.nc#section",
+            "https://example.org/files/sample.csv",
+            "https://example.org/files/sample.tiff",
+            "https://example.org/files/store.zarr/",
+        ]
+        for href in hrefs:
+            with self.subTest(href=href):
+                self._assert_download(
+                    {"href": href, "rel": "related", "type": "", "title": "Sample file"}
+                )
+
+    def test_netcdf_suffix_outside_url_path_is_other(self):
+        """NetCDF extensions only match at the end of the URL path."""
+        hrefs = [
+            "https://example.org/files/sample.nc.bak",
+            "https://example.org/page?name=sample.nc",
+            "https://nc.example.org/page",
+        ]
+        for href in hrefs:
+            with self.subTest(href=href):
+                self._assert_other_without_role(
+                    {"href": href, "rel": "related", "type": "", "title": "Sample file"}
+                )
+
+    def test_tiff_and_mp4_files_are_downloadable(self):
+        for extension in ["tif", "tiff", "mp4"]:
+            for ending in [
+                extension,
+                f"{extension.upper()}?token=abc",
+                f"{extension}#section",
+            ]:
+                href = f"https://example.org/files/sample.{ending}"
+                with self.subTest(href=href):
+                    link = {
+                        "href": href,
+                        "rel": "related",
+                        "type": "",
+                        "title": "Sample file",
+                    }
+                    self._assert_download(link)
+                    result = self.agent.sub_agent.execute(
+                        {"link": {**link, "ai:group": "Data Access"}}
+                    )
+                    self.assertEqual(result["ai:role"], ["download"])
+
+    def test_tiff_and_mp4_substrings_do_not_imply_data_access(self):
+        hrefs = [
+            "https://www.nespmarine.edu.au/project/project-c5-quantification-risk-shipping-large-marine-fauna-across-australia",
+            "https://example.org/projects/identifying",
+            "https://example.org/pretemp4.asp",
+        ]
+        for extension in ["tif", "tiff", "mp4"]:
+            hrefs.extend(
+                [
+                    f"https://example.org/files/sample.{extension}.bak",
+                    f"https://example.org/page?name=sample.{extension}",
+                    f"https://{extension}.example.org/page",
+                ]
+            )
+        for href in hrefs:
+            with self.subTest(href=href):
+                link = {
+                    "href": href,
+                    "rel": "related",
+                    "type": "",
+                    "title": "Sample file",
+                }
+                self._assert_other_without_role(link)
+                result = self.agent.sub_agent.execute(
+                    {"link": {**link, "ai:group": "Data Access"}}
+                )
+                self.assertNotIn("ai:role", result)
+
+    def test_other_file_type_url_matching_is_preserved(self):
+        for href in [
+            "https://example.org/export?file=table.csv",
+            "https://example.org/files/table.csv.gz",
+        ]:
+            with self.subTest(href=href):
+                self._assert_download(
+                    {"href": href, "rel": "related", "type": "", "title": "Sample file"}
+                )
+
+        result = self._group_one(
+            {
+                "href": "https://example.org/page?file=report.pdf",
+                "rel": "related",
+                "type": "",
+                "title": "Sample file",
+            }
+        )
+        self.assertEqual(result["ai:group"], "Document")
+        self.assertNotIn("ai:role", result)
+
+    def test_file_suffix_on_url_path_other_groups(self):
+        cases = [
+            ("https://example.org/reports/final.PDF", "Document"),
+            ("https://example.org/reports/final.docx", "Document"),
+            # some stored hrefs are wrapped in literal quotes
+            (
+                '"https://nbviewer.org/github/aodn/aodn_cloud_optimised/blob/main/notebooks/radar.ipynb"',
+                "Code Tutorials",
+            ),
+        ]
+        for href, group in cases:
+            with self.subTest(href=href):
+                result = self._group_one(
+                    {"href": href, "rel": "related", "type": "", "title": "Sample file"}
+                )
+                self.assertEqual(result["ai:group"], group)
+
+    def test_wfs_output_format_still_downloadable(self):
+        """WFS query links retain their subgroup and download role."""
+        result = self._group_one(
+            {
+                "href": "https://geoserver.imas.utas.edu.au/geoserver/redmap/wfs?version=1.0.0&request=GetFeature&typeName=RM_SIGHTING_VIEW_DATA&outputFormat=CSV",
+                "rel": "related",
+                "type": "",
+                "title": "Redmap sightings",
+            }
+        )
+        self.assertEqual(result["ai:group"], "Data Access > wfs")
+        self.assertEqual(result["ai:role"], ["download"])

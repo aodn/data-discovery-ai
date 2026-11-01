@@ -1,9 +1,10 @@
 #  toolbox contains common tools shared by agents
-from typing import Any, Union
+from typing import Any, Iterable, Union
 import pickle
 import logging
 import numpy as np
 from pathlib import Path
+from urllib.parse import urlparse
 import json
 
 logger = logging.getLogger(__name__)
@@ -104,3 +105,27 @@ def parse_combined_title(combined_title: str) -> tuple[str | None, str | None]:
     except (json.JSONDecodeError, TypeError):
         # If not valid JSON, return original text as title with None description
         return combined_title.strip(), None
+
+
+def href_path(href: str | None) -> str:
+    """
+    Return the lowercase path of a link URL, for matching file extensions with `href_suffix` rules.
+    The host, query string and fragment are ignored, so "https://a.org/f.NC?token=x" gives "/f.nc" and
+    "https://a.org/page?name=f.nc" gives "/page". Surrounding quotes/whitespace (some stored hrefs are quoted)
+    and trailing slashes (e.g. "store.zarr/") are removed.
+    """
+    if not href:
+        return ""
+    try:
+        path = urlparse(href.strip().strip("\"'").strip()).path
+    except ValueError:
+        return ""
+    return path.lower().rstrip("/")
+
+
+def has_href_suffix(href: str | None, suffixes: Iterable[str]) -> bool:
+    """
+    Check whether the URL path of a link ends with any of the given (lowercase) suffixes, e.g. [".nc", ".csv"].
+    """
+    path = href_path(href)
+    return bool(path) and any(path.endswith(suffix) for suffix in suffixes)

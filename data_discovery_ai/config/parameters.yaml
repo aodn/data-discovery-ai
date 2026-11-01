@@ -91,7 +91,6 @@ model:
           - csv
           - xlsx
           - json
-          - nc
           - zip
           - parquet
           - zarr
@@ -99,13 +98,16 @@ model:
           - wms
           - ows
           - wps
-          - tif
-          - mp4
           - thredds
           - trawler
           - data_type
           - format
           - registry.opendata.aws
+        href_suffix:
+          - .nc
+          - .tif
+          - .tiff
+          - .mp4
         title:
           - data access
           - data download
@@ -137,19 +139,22 @@ model:
       href:
         - csv
         - zip
-        - tif
         - trawler
         - data_type
-        - nc
         - zarr
         - parquet
         - xlsx
-        - mp4
         - outputformat
         - download
+      href_suffix:
+        - .nc
+        - .tif
+        - .tiff
+        - .mp4
       title:
         - download raw data
         - download data
+        - data access
 #  for training the pre-trained classification models
 trainer:
   keyword_classification:
