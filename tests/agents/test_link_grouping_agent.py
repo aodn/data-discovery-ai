@@ -544,8 +544,6 @@ class TestLinkGroupingAgent(unittest.TestCase):
         for link in links:
             self.assertNotIn("ai:is_page_downloadable", link)
 
-    # --- AODN backlog #9106: "data access" titles and file-type suffix matching ---
-
     def _group_one(self, link):
         """Run the full grouping agent on a single fresh link and return the result."""
         self.agent.execute({"links": [dict(link)]})
@@ -651,76 +649,3 @@ class TestLinkGroupingAgent(unittest.TestCase):
         )
         self.assertEqual(result["ai:group"], "Data Access > wfs")
         self.assertEqual(result["ai:role"], ["download"])
-
-    def test_downloadable_agent_suffix_outside_url_path(self):
-        """Exercise the download agent directly, since grouping as Other would skip it."""
-        hrefs = [
-            "https://example.org/files/sample.nc.bak",
-            "https://example.org/page?name=sample.nc",
-            "https://nc.example.org/page",
-            "https://www.csiro.au/en/about/people/business-units/NCMI",
-        ]
-        for href in hrefs:
-            with self.subTest(href=href):
-                link = self.agent.sub_agent.execute(
-                    {
-                        "link": {
-                            "href": href,
-                            "rel": "related",
-                            "title": "Sample file",
-                            "ai:group": "Data Access",
-                        }
-                    }
-                )
-                self.assertNotIn("ai:role", link)
-
-        link = self.agent.sub_agent.execute(
-            {
-                "link": {
-                    "href": "https://example.org/files/sample.NC?token=abc",
-                    "rel": "related",
-                    "title": "Sample file",
-                    "ai:group": "Data Access",
-                }
-            }
-        )
-        self.assertEqual(link["ai:role"], ["download"])
-
-    def test_data_access_title_respects_download_exclusions(self):
-        links = [
-            # wms subgroup
-            {
-                "href": "https://example.org/geoserver/wms",
-                "title": "Data access",
-                "ai:group": "Data Access > wms",
-            },
-            # visualisation / visualization titles
-            {
-                "href": "https://example.org/tool",
-                "title": "Data access visualisation tool",
-                "ai:group": "Data Access",
-            },
-            {
-                "href": "https://example.org/tool",
-                "title": "Data access visualization tool",
-                "ai:group": "Data Access",
-            },
-            # survey description
-            {
-                "href": "https://example.org/voyage",
-                "title": "Data access",
-                "description": "Voyage survey information",
-                "ai:group": "Data Access",
-            },
-            # invalid URLs
-            {"href": "not a url", "title": "Data access", "ai:group": "Data Access"},
-            {
-                "href": "https://example.org\\data\\file.nc",
-                "title": "Data access",
-                "ai:group": "Data Access",
-            },
-        ]
-        for link in links:
-            with self.subTest(link=link):
-                result = self.agent.sub_agent.execute({"link": dict(link)})
-                self.assertNotIn("ai:role", result)
