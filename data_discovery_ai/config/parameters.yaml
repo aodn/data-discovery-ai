@@ -66,16 +66,17 @@ model:
         - "(link to be added)"
     grouping_rules:
       Code Tutorials: # Jupyter + R Markdown + video tutorials
-        href:
-          - ipynb
+        href_suffix:
+          - .ipynb
           - .rmd
         title:
           - r markdown notebook
           - video tutorial
       Document:
-        href:
-          - pdf
-          - doc
+        href_suffix:
+          - .pdf
+          - .doc
+          - .docx
         title:
           - document
           - documentation
@@ -88,24 +89,26 @@ model:
         href:
           - access
           - download
-          - csv
-          - xlsx
-          - json
-          - nc
-          - zip
-          - parquet
-          - zarr
           - wfs
           - wms
           - ows
           - wps
-          - tif
-          - mp4
           - thredds
           - trawler
           - data_type
           - format
           - registry.opendata.aws
+        href_suffix:
+          - .csv
+          - .xlsx
+          - .json
+          - .nc
+          - .zip
+          - .parquet
+          - .zarr
+          - .tif
+          - .tiff
+          - .mp4
         title:
           - data access
           - data download
@@ -135,21 +138,24 @@ model:
         - Data Access > thredds
         - Data Access > aws
       href:
-        - csv
-        - zip
-        - tif
         - trawler
         - data_type
-        - nc
-        - zarr
-        - parquet
-        - xlsx
-        - mp4
         - outputformat
         - download
+      href_suffix:
+        - .csv
+        - .zip
+        - .tif
+        - .tiff
+        - .nc
+        - .zarr
+        - .parquet
+        - .xlsx
+        - .mp4
       title:
         - download raw data
         - download data
+        - data access
 #  for training the pre-trained classification models
 trainer:
   keyword_classification:

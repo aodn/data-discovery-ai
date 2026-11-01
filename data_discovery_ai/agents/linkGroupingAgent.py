@@ -9,8 +9,7 @@ from data_discovery_ai.agents.baseAgent import BaseAgent
 from data_discovery_ai.agents.downloadableLinkAgent import DownloadableLinkAgent
 from data_discovery_ai.config.config import ConfigUtil
 from data_discovery_ai.enum.agent_enums import AgentType
-from data_discovery_ai.utils.agent_tools import parse_combined_title
-
+from data_discovery_ai.utils.agent_tools import parse_combined_title, has_href_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +199,11 @@ class LinkGroupingAgent(BaseAgent):
         for group, conditions in self.model_config["grouping_rules"].items():
             if "href" in conditions and any(
                 keyword in href for keyword in conditions["href"]
+            ):
+                return group
+
+            if has_href_suffix(
+                href, [s.lower() for s in conditions.get("href_suffix", [])]
             ):
                 return group
 
