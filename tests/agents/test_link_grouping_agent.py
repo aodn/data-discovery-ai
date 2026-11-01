@@ -604,21 +604,88 @@ class TestLinkGroupingAgent(unittest.TestCase):
                     {"href": href, "rel": "related", "type": "", "title": "Sample file"}
                 )
 
-    def test_file_suffix_outside_url_path_is_other(self):
-        """Extensions in the host, query string, middle of the path or inside words do not match."""
+    def test_netcdf_suffix_outside_url_path_is_other(self):
+        """NetCDF extensions only match at the end of the URL path."""
         hrefs = [
             "https://example.org/files/sample.nc.bak",
             "https://example.org/page?name=sample.nc",
             "https://nc.example.org/page",
-            "https://example.org/page?file=report.pdf",
-            # 'tif' inside 'quantification' used to match as a GeoTIFF
-            "https://www.nespmarine.edu.au/project/project-c5-quantification-risk-shipping-large-marine-fauna-across-australia",
         ]
         for href in hrefs:
             with self.subTest(href=href):
                 self._assert_other_without_role(
                     {"href": href, "rel": "related", "type": "", "title": "Sample file"}
                 )
+
+    def test_tiff_and_mp4_files_are_downloadable(self):
+        for extension in ["tif", "tiff", "mp4"]:
+            for ending in [
+                extension,
+                f"{extension.upper()}?token=abc",
+                f"{extension}#section",
+            ]:
+                href = f"https://example.org/files/sample.{ending}"
+                with self.subTest(href=href):
+                    link = {
+                        "href": href,
+                        "rel": "related",
+                        "type": "",
+                        "title": "Sample file",
+                    }
+                    self._assert_download(link)
+                    result = self.agent.sub_agent.execute(
+                        {"link": {**link, "ai:group": "Data Access"}}
+                    )
+                    self.assertEqual(result["ai:role"], ["download"])
+
+    def test_tiff_and_mp4_substrings_do_not_imply_data_access(self):
+        hrefs = [
+            "https://www.nespmarine.edu.au/project/project-c5-quantification-risk-shipping-large-marine-fauna-across-australia",
+            "https://example.org/projects/identifying",
+            "https://example.org/pretemp4.asp",
+        ]
+        for extension in ["tif", "tiff", "mp4"]:
+            hrefs.extend(
+                [
+                    f"https://example.org/files/sample.{extension}.bak",
+                    f"https://example.org/page?name=sample.{extension}",
+                    f"https://{extension}.example.org/page",
+                ]
+            )
+        for href in hrefs:
+            with self.subTest(href=href):
+                link = {
+                    "href": href,
+                    "rel": "related",
+                    "type": "",
+                    "title": "Sample file",
+                }
+                self._assert_other_without_role(link)
+                result = self.agent.sub_agent.execute(
+                    {"link": {**link, "ai:group": "Data Access"}}
+                )
+                self.assertNotIn("ai:role", result)
+
+    def test_other_file_type_url_matching_is_preserved(self):
+        for href in [
+            "https://example.org/export?file=table.csv",
+            "https://example.org/files/table.csv.gz",
+        ]:
+            with self.subTest(href=href):
+                self._assert_download(
+                    {"href": href, "rel": "related", "type": "", "title": "Sample file"}
+                )
+
+        result = self._group_one(
+            {
+                "href": "https://example.org/page?file=report.pdf",
+                "rel": "related",
+                "type": "",
+                "title": "Sample file",
+            }
+        )
+        self.assertEqual(result["ai:group"], "Document")
+        self.assertNotIn("ai:role", result)
 
     def test_file_suffix_on_url_path_other_groups(self):
         cases = [
@@ -638,7 +705,7 @@ class TestLinkGroupingAgent(unittest.TestCase):
                 self.assertEqual(result["ai:group"], group)
 
     def test_wfs_output_format_still_downloadable(self):
-        """Formats in WFS query strings are no longer suffix matches, but the wfs/outputformat rules still apply."""
+        """WFS query links retain their subgroup and download role."""
         result = self._group_one(
             {
                 "href": "https://geoserver.imas.utas.edu.au/geoserver/redmap/wfs?version=1.0.0&request=GetFeature&typeName=RM_SIGHTING_VIEW_DATA&outputFormat=CSV",

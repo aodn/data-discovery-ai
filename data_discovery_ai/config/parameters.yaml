@@ -66,17 +66,16 @@ model:
         - "(link to be added)"
     grouping_rules:
       Code Tutorials: # Jupyter + R Markdown + video tutorials
-        href_suffix:
-          - .ipynb
+        href:
+          - ipynb
           - .rmd
         title:
           - r markdown notebook
           - video tutorial
       Document:
-        href_suffix:
-          - .pdf
-          - .doc
-          - .docx
+        href:
+          - pdf
+          - doc
         title:
           - document
           - documentation
@@ -89,6 +88,12 @@ model:
         href:
           - access
           - download
+          - csv
+          - xlsx
+          - json
+          - zip
+          - parquet
+          - zarr
           - wfs
           - wms
           - ows
@@ -99,13 +104,7 @@ model:
           - format
           - registry.opendata.aws
         href_suffix:
-          - .csv
-          - .xlsx
-          - .json
           - .nc
-          - .zip
-          - .parquet
-          - .zarr
           - .tif
           - .tiff
           - .mp4
@@ -138,19 +137,19 @@ model:
         - Data Access > thredds
         - Data Access > aws
       href:
+        - csv
+        - zip
         - trawler
         - data_type
+        - zarr
+        - parquet
+        - xlsx
         - outputformat
         - download
       href_suffix:
-        - .csv
-        - .zip
+        - .nc
         - .tif
         - .tiff
-        - .nc
-        - .zarr
-        - .parquet
-        - .xlsx
         - .mp4
       title:
         - download raw data
