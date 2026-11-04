@@ -238,7 +238,8 @@ class LinkGroupingAgent(BaseAgent):
                     if any(keyword in content for keyword in page_content_keywords):
                         return "Data Access"
         except requests.exceptions.RequestException:
-            logger.info(f"Failed to crawl the link: {link['href']}")
+            # this is the error from the source link page and nothing we can fix, so just to log this to indicate the link is fall back to "Other" group
+            logger.info(f"Failed to crawl the link: {link['href']}, fallback to Other grouping")
             return "Other"
 
         return "Other"
