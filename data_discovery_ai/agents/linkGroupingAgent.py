@@ -239,7 +239,9 @@ class LinkGroupingAgent(BaseAgent):
                         return "Data Access"
         except requests.exceptions.RequestException:
             # this is the error from the source link page and nothing we can fix, so just to log this to indicate the link is fall back to "Other" group
-            logger.info(f"Failed to crawl the link: {link['href']}, fallback to Other grouping")
+            logger.info(
+                f"Failed to crawl the link: {link['href']}, fallback to Other grouping"
+            )
             return "Other"
 
         return "Other"
