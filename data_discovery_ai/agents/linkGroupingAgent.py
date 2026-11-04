@@ -238,7 +238,7 @@ class LinkGroupingAgent(BaseAgent):
                     if any(keyword in content for keyword in page_content_keywords):
                         return "Data Access"
         except requests.exceptions.RequestException:
-            logger.error(f"Failed to crawl the link: {link['href']}")
+            logger.info(f"Failed to crawl the link: {link['href']}")
             return "Other"
 
         return "Other"
