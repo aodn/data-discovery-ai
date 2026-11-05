@@ -183,7 +183,7 @@ def extract_evidence(
 
                 # REAL-TIME evidence:
                 # (a) explicit real-time mode assertion
-                if has_rt and c not in ev.rt and len(ev.rt) < max_rt:
+                if has_rt and has_target and c not in ev.rt and len(ev.rt) < max_rt:
                     ev.rt.append(c)
                 # (b) implicit real-time mode assertion: unprocessed implies real-time
                 if (
