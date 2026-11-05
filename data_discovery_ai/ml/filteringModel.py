@@ -52,10 +52,16 @@ class DeliveryModePatterns:
         )
     )
 
+    qc_flag_definition: Pattern = field(
+        default_factory=lambda: re.compile(
+            r"\b\d+\s*[-–—]\s*no quality control done\b", re.I
+        )
+    )
+
     # target identifier, i.e., specifically indicates this record, so that to make sure the text explicitly indicates current record.
     target: Pattern = field(
         default_factory=lambda: re.compile(
-            r"\b(data|dataset|observations|measurements|record|product|collection|stream|feed)\b",
+            r"\b(data|dataset|observations|measurements|record|product|collection|stream|feed|system|files)\b",
             re.I,
         )
     )
@@ -169,29 +175,30 @@ def extract_evidence(
 
             for c in clauses:
                 has_target = bool(p.target.search(c))
-                has_delivery_verb = bool(p.delivery_verb.search(c))
                 has_rt = bool(p.real_time_mode.search(c))
                 has_del = bool(p.delayed_mode.search(c))
-                has_proc = bool(p.processed.search(c))
-                has_unp = bool(p.unprocessed.search(c))
-
-                rt_near_data = has_rt and is_adjacent(c, p.real_time_mode, p.target)
-                del_near_data = has_del and is_adjacent(c, p.delayed_mode, p.target)
+                without_qc_flags = p.qc_flag_definition.sub("", c)
+                has_proc = bool(p.processed.search(without_qc_flags))
+                has_unp = bool(p.unprocessed.search(without_qc_flags))
 
                 # REAL-TIME evidence:
                 # (a) explicit real-time mode assertion
-                if has_rt and has_delivery_verb and len(ev.rt) < max_rt:
-                    ev.rt.append(c)
-                if rt_near_data and len(ev.rt) < max_rt:
+                if has_rt and has_target and c not in ev.rt and len(ev.rt) < max_rt:
                     ev.rt.append(c)
                 # (b) implicit real-time mode assertion: unprocessed implies real-time
-                if has_target and has_unp and len(ev.rt) < max_unp:
+                if (
+                    has_target
+                    and has_unp
+                    and c not in ev.rt
+                    and len(ev.rt) < min(max_rt, max_unp)
+                ):
                     ev.rt.append(c)
 
                 # DELAYED evidence:
                 # (a) explicit delayed mode assertion
-                if del_near_data and len(ev.delayed) < max_del:
-                    ev.delayed.append(c)
+                if has_del:
+                    if c not in ev.delayed and len(ev.delayed) < max_del:
+                        ev.delayed.append(c)
                 # (b) processed implies delayed (as evidence)
                 elif has_proc and (not has_unp) and len(ev.dl_processed) < max_del:
                     ev.dl_processed.append(c)
@@ -214,6 +221,7 @@ def extract_evidence(
 
     ev.rt = remove_duplicated_sentences(ev.rt)
     ev.delayed = remove_duplicated_sentences(ev.delayed)
+    ev.dl_processed = remove_duplicated_sentences(ev.dl_processed)
     ev.rt_unprocessed = remove_duplicated_sentences(ev.rt_unprocessed)
     return ev
 

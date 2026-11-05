@@ -7,6 +7,23 @@ import data_discovery_ai.ml.filteringModel as filteringModel
 
 
 class TestFilteringModel(unittest.TestCase):
+    def test_real_time_clock_is_not_delivery_evidence(self):
+        evidence = filteringModel.extract_evidence(
+            "",
+            "",
+            "The file time is determined by the microprocessor's real-time clock.",
+        )
+        self.assertEqual(evidence.rt, [])
+
+    def test_real_time_system_and_explicit_delayed_are_evidence(self):
+        evidence = filteringModel.extract_evidence(
+            "",
+            "",
+            "The first level is the real-time system. A third level of quality control is done in delayed mode.",
+        )
+        self.assertTrue(evidence.rt)
+        self.assertTrue(evidence.delayed)
+
     def test_map_title_update_frequency(self):
         real_time_in_title = "Wave buoys Observations - Australia - near real-time"
         self.assertEqual(
