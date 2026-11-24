@@ -716,3 +716,41 @@ class TestLinkGroupingAgent(unittest.TestCase):
         )
         self.assertEqual(result["ai:group"], "Data Access > wfs")
         self.assertEqual(result["ai:role"], ["download"])
+
+    def test_aodn_data_storage_link_is_downloadable(self):
+        hrefs = [
+            "http://data.aodn.org.au/?prefix=IMOS/AATAMS/acoustic_detections_QC/",
+            "https://data.aodn.org.au/?prefix=IMOS/ANMN/NSW/",
+            "https://DATA.AODN.ORG.AU/?prefix=IMOS/SOOP/",
+        ]
+        titles = [
+            "Access to quality controlled data files",
+            '{"title": "Access to quality controlled data files", "description": ""}',
+        ]
+        for href in hrefs:
+            for title in titles:
+                with self.subTest(href=href, title=title):
+                    self._assert_download(
+                        {
+                            "href": href,
+                            "rel": "related",
+                            "type": "text/html",
+                            "title": title,
+                        }
+                    )
+
+    def test_aodn_data_storage_link_downloadable_by_sub_agent(self):
+        """The downloadable sub agent tags a data.aodn.org.au link on its own href,
+        without relying on the title."""
+        result = self.agent.sub_agent.execute(
+            {
+                "link": {
+                    "href": "http://data.aodn.org.au/?prefix=IMOS/AATAMS/acoustic_detections_QC/",
+                    "rel": "related",
+                    "type": "text/html",
+                    "title": "Sample link",
+                    "ai:group": "Data Access",
+                }
+            }
+        )
+        self.assertEqual(result["ai:role"], ["download"])
