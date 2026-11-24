@@ -103,6 +103,7 @@ model:
           - data_type
           - format
           - registry.opendata.aws
+          - data.aodn.org.au
         href_suffix:
           - .nc
           - .tif
@@ -146,6 +147,7 @@ model:
         - xlsx
         - outputformat
         - download
+        - data.aodn.org.au
       href_suffix:
         - .nc
         - .tif
